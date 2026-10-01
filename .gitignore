@@ -1,0 +1,44 @@
+# Environment variables & secrets (CRITICAL: never commit secrets)
+.env
+*.env
+.env.*
+!.env.example
+
+# Python
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Databases & local storage
+*.db
+*.sqlite
+*.sqlite3
+dev.db
+storage/
+backend/storage/
+backend/dev.db
+frontend/dev.db
+
+# Node & Frontend
+node_modules/
+dist/
+dist-ssr/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+playwright-report/
+test-results/
+
+# Kit zip archive
+*.zip
+
+# OS & Editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

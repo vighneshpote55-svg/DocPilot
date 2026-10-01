@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Docpilot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f2f4f7;--card:#fff;--ink:#16213a;--mut:#5b6679;--line:#d9dee7;--acc:#1b6b57;--accbg:#e2f1ec;--warn:#9a6212;--warnbg:#fbf0dc;--bad:#a8261f;--badbg:#fbe4e2;--info:#27518f;--infobg:#e4ecf8}
+@media(prefers-color-scheme:dark){:root{--bg:#0f1422;--card:#182036;--ink:#e8ecf5;--mut:#9aa6bd;--line:#2b3652;--acc:#59c4a4;--accbg:#143a31;--warn:#e5b25d;--warnbg:#3b2f14;--bad:#f08a82;--badbg:#44201d;--info:#8db3f0;--infobg:#1b2c4d}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 "Atkinson Hyperlegible",system-ui,sans-serif}
+header{display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--card)}
+header b{font-size:18px;letter-spacing:.2px}
+main{max-width:980px;margin:0 auto;padding:24px 16px 64px}
+.narrow{max-width:560px}
+h1{font-size:26px;margin:0 0 6px}h2{font-size:19px;margin:28px 0 10px}p{margin:6px 0}
+.mut{color:var(--mut)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin:12px 0}
+.row{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+button,.btn{font:inherit;border:1px solid var(--ink);background:var(--ink);color:var(--bg);border-radius:8px;padding:8px 14px;cursor:pointer}
+button.sec{background:transparent;color:var(--ink);border-color:var(--line)}
+button.ok{background:var(--acc);border-color:var(--acc);color:#fff}
+button.no{background:var(--bad);border-color:var(--bad);color:#fff}
+button:disabled{opacity:.5;cursor:default}
+:focus-visible{outline:3px solid var(--info);outline-offset:2px}
+input,select,textarea{font:inherit;width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)}
+label{display:block;margin:10px 0 4px;font-weight:700}
+.tag{display:inline-block;padding:2px 10px;border-radius:99px;font-size:14px;background:var(--infobg);color:var(--info)}
+.tag.verified,.tag.completed,.tag.granted,.tag.approved{background:var(--accbg);color:var(--acc)}
+.tag.under_review,.tag.manual_review,.tag.pending,.tag.processing,.tag.open{background:var(--warnbg);color:var(--warn)}
+.tag.resubmit,.tag.rejected,.tag.failed,.tag.expired,.tag.declined{background:var(--badbg);color:var(--bad)}
+.msg{padding:10px 12px;border-radius:8px;margin:12px 0;background:var(--infobg);color:var(--info)}
+.msg.err{background:var(--badbg);color:var(--bad)}.msg.ok{background:var(--accbg);color:var(--acc)}
+.bar{height:8px;border-radius:99px;background:var(--line);overflow:hidden;margin:10px 0}
+.bar i{display:block;height:100%;background:var(--acc)}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+.wrap{overflow-x:auto}
+nav.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
+nav.tabs button{background:transparent;color:var(--ink);border-color:var(--line)}
+nav.tabs button.on{background:var(--ink);color:var(--bg)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.stat{font-size:28px;font-weight:700}
+a{color:var(--info)}
+.link{background:none;border:0;color:var(--info);padding:0;text-decoration:underline}
+.chk{display:flex;gap:6px;align-items:center;margin:4px 0;font-weight:400}.chk input{width:auto}
+</style>
+</head>
+<body>
+<header><b>Docpilot</b><span id="who" class="mut"></span></header>
+<main id="app"></main>
+<script>
+// ---- Configure these three values ----
+const CONFIG = {
+  API: "http://localhost:8080",
+  SUPABASE_URL: "https://YOUR-PROJECT.supabase.co",
+  SUPABASE_ANON_KEY: "YOUR-ANON-KEY"
+};
+// --------------------------------------
+const $ = s => document.querySelector(s), app = $("#app");
+const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmt = d => d ? new Date(d).toLocaleString() : "";
+const DOCS = {aadhaar:"Aadhaar Card",pan:"PAN Card",passport:"Passport",voter:"Voter ID",driving_licence:"Driving Licence",bank_statement:"Bank Statement",salary_slip:"Salary Slip / Payslip",cancelled_cheque:"Cancelled Cheque",itr:"ITR / ITR Acknowledgement",udyam:"Udyam Registration Certificate",shop_establishment:"Shop & Establishment Certificate",fssai:"FSSAI Certificate",utility_bill:"Electricity / Utility Bill"};
+const STATE = {pending_upload:"Waiting for your upload",processing:"Checking",under_review:"Under review by our team",resubmit:"Please upload again",verified:"Received and verified"};
+const ERR = {invalid_or_expired_link:"This link is invalid or has expired. Ask for a new link by email.",consent_required:"We need your consent before you can upload.",case_not_open:"This case is closed, so uploads are no longer accepted.",consent_already_recorded:"Your answer was already recorded.",missing_token:"Please sign in.",invalid_token:"Your session expired. Please sign in again.",not_an_admin:"This account is not allowed to use the admin area.",file_deleted:"This file has already been deleted.",download_disabled:"Downloads are turned off by policy.",already_decided:"This review was already decided.",not_found:"Not found."};
+const errText = e => ERR[e] || e || "Something went wrong. Try again.";
+
+async function api(path, opt = {}, admin = false) {
+  const h = {...(opt.headers || {})};
+  if (admin) h.Authorization = "Bearer " + sessionStorage.getItem("jwt");
+  if (opt.json) { h["Content-Type"] = "application/json"; opt.body = JSON.stringify(opt.json); }
+  let r;
+  try { r = await fetch(CONFIG.API + path, {...opt, headers: h}); }
+  catch { throw {status: 0, msg: "Cannot reach the server. Check your connection."}; }
+  if (opt.raw && r.ok) return r;
+  let b = null; try { b = await r.json(); } catch {}
+  if (!r.ok) {
+    const d = b && b.detail;
+    if (admin && r.status === 401) { sessionStorage.removeItem("jwt"); route(); }
+    throw {status: r.status, msg: errText(typeof d === "string" ? d : d && (d.message || d.code))};
+  }
+  return b;
+}
+const msg = (t, k = "") => `<div class="msg ${k}" role="${k === "err" ? "alert" : "status"}">${esc(t)}</div>`;
+const tag = (s, t) => `<span class="tag ${esc(s)}">${esc(t || String(s).replace(/_/g, " "))}</span>`;
+const bar = (n, t) => `<div class="bar"><i style="width:${t ? Math.round(n / t * 100) : 0}%"></i></div>`;
+
+// ---------------- routing ----------------
+function route() {
+  const p = (location.hash.slice(1) || location.pathname).replace(/\/+$/, "");
+  let m;
+  if ((m = p.match(/^\/consent\/([^/]+)$/))) return consent(m[1]);
+  if ((m = p.match(/^\/portal\/([^/]+)$/))) return portal(m[1]);
+  if ((m = p.match(/^\/privacy\/confirm\/([^/]+)$/))) return privacyConfirm(m[1]);
+  if (p === "/privacy") return privacy();
+  if (p.startsWith("/admin")) return admin();
+  app.innerHTML = `<div class="narrow card"><h1>Secure document upload</h1>
+  <p class="mut">Use the link in your email to continue.</p>
+  <p><a href="#/privacy">Delete or withdraw my data</a> · <a href="#/admin">Staff sign in</a></p></div>`;
+}
+addEventListener("hashchange", route);
+
+// ---------------- consent ----------------
+async function consent(token) {
+  app.innerHTML = `<div class="narrow">Loading…</div>`;
+  try {
+    const i = await api(`/api/public/consent/${token}`);
+    app.innerHTML = `<div class="narrow"><h1>Hello ${esc(i.first_name)}</h1>
+    <p>We need these documents from you:</p>
+    <div class="card"><ul>${i.documents.map(d => `<li>${esc(d)}</li>`).join("")}</ul></div>
+    <p>${esc(i.purpose)}</p>
+    <div class="row" style="justify-content:flex-start"><button class="ok" id="y">I agree</button><button class="sec" id="n">I do not agree</button></div>
+    <div id="out"></div></div>`;
+    const send = async g => {
+      $("#y").disabled = $("#n").disabled = true;
+      try {
+        await api(`/api/public/consent/${token}`, {method: "POST", json: {granted: g}});
+        $("#out").innerHTML = msg(g ? "Thank you. We have emailed you a secure upload link." : "Understood. We will not process any documents.", "ok");
+      } catch (e) { $("#out").innerHTML = msg(e.msg, "err"); $("#y").disabled = $("#n").disabled = false; }
+    };
+    $("#y").onclick = () => send(true); $("#n").onclick = () => send(false);
+  } catch (e) { app.innerHTML = `<div class="narrow">${msg(e.msg, "err")}</div>`; }
+}
+
+// ---------------- customer portal ----------------
+async function portal(token) {
+  let s;
+  try { s = await api(`/api/portal/${token}`); }
+  catch (e) { app.innerHTML = `<div class="narrow">${msg(e.msg, "err")}</div>`; return; }
+  const total = s.documents.length, done = total - s.pending_count;
+  const open = s.case_status === "in_progress";
+  app.innerHTML = `<div class="narrow"><h1>Hello ${esc(s.first_name)}</h1>
+  <p class="mut">${done} of ${total} documents verified</p>${bar(done, total)}
+  ${s.case_status === "completed" ? msg("All documents are verified. Thank you, nothing more is needed.", "ok") : ""}
+  ${!open && s.case_status !== "completed" ? msg("This case is closed. Uploads are no longer accepted.", "err") : ""}
+  <div id="list"></div>
+  <p class="mut">Accepted: ${s.allowed_types.join(", ").toUpperCase()}, up to ${s.max_upload_mb} MB each. Your files are stored encrypted and deleted after your case is completed.</p></div>`;
+  const list = $("#list");
+  s.documents.forEach(d => {
+    const el = document.createElement("div"); el.className = "card";
+    const can = open && d.state !== "verified" && d.state !== "processing";
+    el.innerHTML = `<div class="row"><b>${esc(d.label)}</b>${tag(d.state, STATE[d.state])}</div>
+    ${can ? `<label for="f_${d.doc_type}" class="mut" style="font-weight:400">${d.state === "resubmit" ? "Upload a clear, valid copy again" : "Choose a file"}</label>
+    <div class="row"><input type="file" id="f_${d.doc_type}" accept=".pdf,.png,.jpg,.jpeg" style="flex:1"><button>Upload</button></div>` : ""}
+    <div class="out"></div>`;
+    list.appendChild(el);
+    const b = el.querySelector("button"), out = el.querySelector(".out");
+    if (b) b.onclick = async () => {
+      const f = el.querySelector("input").files[0];
+      if (!f) return out.innerHTML = msg("Choose a file first.", "err");
+      if (f.size > s.max_upload_mb * 1048576) return out.innerHTML = msg(`That file is over ${s.max_upload_mb} MB.`, "err");
+      const fd = new FormData(); fd.append("doc_type", d.doc_type); fd.append("file", f);
+      b.disabled = true; out.innerHTML = msg("Uploading…");
+      try {
+        const r = await api(`/api/portal/${token}/upload`, {method: "POST", body: fd});
+        out.innerHTML = msg("Uploaded. We are checking it now.", "ok"); poll(token, r.document_id, el, d);
+      } catch (e) { out.innerHTML = msg(e.msg, "err"); b.disabled = false; }
+    };
+  });
+}
+function poll(token, id, el, d) {
+  let n = 0;
+  const t = setInterval(async () => {
+    if (++n > 40) return clearInterval(t);
+    try {
+      const r = await api(`/api/portal/${token}/documents/${id}/status`);
+      if (r.state === "processing") return;
+      clearInterval(t);
+      el.querySelector(".tag").outerHTML = tag(r.state, STATE[r.state]);
+      el.querySelector(".out").innerHTML = msg(r.state === "verified" ? "Verified." : r.message || STATE[r.state], r.state === "verified" ? "ok" : r.state === "resubmit" ? "err" : "");
+      if (r.state === "verified") setTimeout(() => portal(token), 1200);
+      else el.querySelector("button").disabled = false;
+    } catch { clearInterval(t); }
+  }, 3000);
+}
+
+// ---------------- privacy ----------------
+function privacy() {
+  app.innerHTML = `<div class="narrow"><h1>Your data</h1><p>Enter the email you gave us. We will send a confirmation link.</p>
+  <label for="em">Email</label><input id="em" type="email" autocomplete="email">
+  <label for="ac">What do you want?</label>
+  <select id="ac"><option value="delete">Delete my data now</option><option value="withdraw">Withdraw consent</option></select>
+  <p><button id="go">Send confirmation link</button></p><div id="out"></div></div>`;
+  $("#go").onclick = async () => {
+    try {
+      const r = await api("/api/public/privacy/request", {method: "POST", json: {email: $("#em").value, action: $("#ac").value}});
+      $("#out").innerHTML = msg(r.message, "ok");
+    } catch (e) { $("#out").innerHTML = msg(e.status === 422 ? "Enter a valid email address." : e.msg, "err"); }
+  };
+}
+function privacyConfirm(token) {
+  app.innerHTML = `<div class="narrow"><h1>Confirm your request</h1><p>This cannot be undone.</p>
+  <button class="no" id="c">Confirm</button><div id="out"></div></div>`;
+  $("#c").onclick = async () => {
+    try {
+      const r = await api(`/api/public/privacy/confirm/${token}`, {method: "POST"});
+      $("#c").disabled = true;
+      $("#out").innerHTML = msg(r.completed === "delete" ? "Your data has been deleted." : "Consent withdrawn. We stopped processing your documents.", "ok");
+    } catch (e) { $("#out").innerHTML = msg(e.msg, "err"); }
+  };
+}
+
+// ---------------- admin ----------------
+let tab = "cases";
+async function admin() {
+  if (!sessionStorage.getItem("jwt")) return login();
+  $("#who").innerHTML = `Staff <button class="link" id="out">Sign out</button>`;
+  $("#out").onclick = () => { sessionStorage.removeItem("jwt"); $("#who").textContent = ""; admin(); };
+  app.innerHTML = `<h1>Cases</h1><nav class="tabs">${[["cases","Cases"],["reviews","Manual review"],["audit","Audit log"]].map(([k, v]) => `<button data-t="${k}" class="${tab === k ? "on" : ""}">${v}</button>`).join("")}</nav><div id="pane">Loading…</div>`;
+  document.querySelectorAll("nav.tabs button").forEach(b => b.onclick = () => { tab = b.dataset.t; admin(); });
+  try { await ({cases, reviews, audit})[tab](); }
+  catch (e) { $("#pane") && ($("#pane").innerHTML = msg(e.msg, "err")); }
+}
+function login() {
+  app.innerHTML = `<div class="narrow card"><h1>Staff sign in</h1>
+  <label for="e">Email</label><input id="e" type="email" autocomplete="username">
+  <label for="p">Password</label><input id="p" type="password" autocomplete="current-password">
+  <p><button id="go">Sign in</button></p><div id="o"></div></div>`;
+  const go = async () => {
+    try {
+      const r = await fetch(CONFIG.SUPABASE_URL + "/auth/v1/token?grant_type=password", {method: "POST",
+        headers: {apikey: CONFIG.SUPABASE_ANON_KEY, "Content-Type": "application/json"},
+        body: JSON.stringify({email: $("#e").value.trim(), password: $("#p").value})});
+      const b = await r.json();
+      if (!r.ok) throw 0;
+      sessionStorage.setItem("jwt", b.access_token); admin();
+    } catch { $("#o").innerHTML = msg("Sign in failed. Check your email and password.", "err"); }
+  };
+  $("#go").onclick = go; $("#p").onkeydown = e => e.key === "Enter" && go();
+}
+async function cases() {
+  const [sum, list] = await Promise.all([api("/api/admin/summary", {}, true), api("/api/admin/customers?limit=100", {}, true)]);
+  const c = sum.cases || {};
+  $("#pane").innerHTML = `<div class="grid">${[["In progress", c.in_progress || 0], ["Completed", c.completed || 0], ["Open reviews", sum.open_reviews || 0], ["Failed jobs", (sum.jobs || {}).failed || 0]].map(([k, v]) => `<div class="card"><div class="stat">${v}</div><div class="mut">${k}</div></div>`).join("")}</div>
+  <div class="row"><h2>Customers</h2><button id="add">Add customer</button></div><div id="form"></div>
+  <div class="card wrap"><table><tr><th>Code</th><th>Name</th><th>Consent</th><th>Case</th><th>Documents</th><th></th></tr>
+  ${list.map(x => `<tr><td>${esc(x.code)}</td><td>${esc(x.name)}<br><span class="mut">${esc(x.email)}</span></td><td>${tag(x.consent_status)}</td><td>${tag(x.case_status)}</td><td>${x.received_count}/${x.required_count} verified</td><td><button class="sec" data-id="${x.id}">Open</button></td></tr>`).join("") || `<tr><td colspan="6" class="mut">No customers yet. Add the first one.</td></tr>`}</table></div>`;
+  document.querySelectorAll("[data-id]").forEach(b => b.onclick = () => detail(+b.dataset.id));
+  $("#add").onclick = addForm;
+}
+function addForm() {
+  $("#form").innerHTML = `<div class="card"><label for="n">Name</label><input id="n"><label for="m">Email</label><input id="m" type="email"><label for="mo">Mobile (optional)</label><input id="mo">
+  <label>Required documents</label>${Object.entries(DOCS).map(([k, v]) => `<label class="chk"><input type="checkbox" value="${k}">${esc(v)}</label>`).join("")}
+  <label class="chk"><input type="checkbox" id="sc" checked>Send consent email now</label>
+  <p><button id="save">Create customer</button> <button class="sec" id="x">Cancel</button></p><div id="fo"></div></div>`;
+  $("#x").onclick = () => $("#form").innerHTML = "";
+  $("#save").onclick = async () => {
+    const req = [...document.querySelectorAll("#form input[type=checkbox][value]:checked")].map(i => i.value);
+    if (!$("#n").value.trim() || !$("#m").value.trim() || !req.length) return $("#fo").innerHTML = msg("Enter a name, an email and at least one document.", "err");
+    try {
+      await api("/api/admin/customers", {method: "POST", json: {name: $("#n").value.trim(), email: $("#m").value, mobile: $("#mo").value || null, required_documents: req, send_consent: $("#sc").checked}}, true);
+      admin();
+    } catch (e) { $("#fo").innerHTML = msg(e.status === 422 ? "Check the email address and document list." : e.msg, "err"); }
+  };
+}
+async function detail(id) {
+  const c = await api("/api/admin/customers/" + id, {}, true);
+  $("#pane").innerHTML = `<button class="sec" id="back">Back to cases</button>
+  <div class="card"><div class="row"><div><h2 style="margin:0">${esc(c.name)} <span class="mut">${esc(c.code)}</span></h2><span class="mut">${esc(c.email)} ${esc(c.mobile || "")}</span></div><div>${tag(c.consent_status)} ${tag(c.case_status)}</div></div>
+  <p class="mut">Created ${fmt(c.created_at)}${c.delete_after ? " · Files deleted after " + fmt(c.delete_after) : ""}${c.data_deleted_at ? " · Data deleted " + fmt(c.data_deleted_at) : ""}</p>
+  <p>${c.received_count} of ${c.required_count} verified: ${c.required.map(r => `${esc(r.label)} ${tag(r.state)}`).join(" ")}</p>
+  <p>${c.consent_status === "pending" ? `<button class="sec" id="rc">Resend consent email</button>` : ""} ${c.case_status === "in_progress" && c.consent_status === "granted" ? `<button class="sec" id="ru">Resend upload link</button>` : ""}</p><div id="o"></div></div>
+  <h2>Documents</h2><div class="card wrap"><table><tr><th>Document</th><th>Uploaded</th><th>OCR</th><th>Verification</th><th>Reason</th><th>File</th></tr>
+  ${c.documents.map(d => `<tr><td>${esc(d.label)}<br><span class="mut">${esc(d.filename)}</span>${d.superseded ? `<br><span class="mut">Replaced</span>` : ""}</td><td>${fmt(d.uploaded_at)}</td><td>${tag(d.ocr_status)}</td><td>${tag(d.verification_status)}</td><td>${esc(d.review_reason || "")}</td><td>${d.file_state === "stored" ? `<button class="sec" data-v="${d.id}">Secure view</button>` : `<span class="mut">Deleted</span>`}</td></tr>`).join("") || `<tr><td colspan="6" class="mut">No uploads yet.</td></tr>`}</table></div>`;
+  $("#back").onclick = admin;
+  const act = (sel, path, ok) => $(sel) && ($(sel).onclick = async () => { try { await api(path, {method: "POST"}, true); $("#o").innerHTML = msg(ok, "ok"); } catch (e) { $("#o").innerHTML = msg(e.msg, "err"); } });
+  act("#rc", `/api/admin/customers/${id}/send-consent`, "Consent email sent."); act("#ru", `/api/admin/customers/${id}/send-upload-link`, "Upload link sent.");
+  document.querySelectorAll("[data-v]").forEach(b => b.onclick = () => view(b.dataset.v));
+}
+async function view(id) {
+  const w = window.open("", "_blank");
+  try {
+    const r = await api(`/api/admin/documents/${id}/file`, {raw: true}, true);
+    const u = URL.createObjectURL(await r.blob()); w ? (w.location = u) : window.open(u);
+  } catch (e) { w && w.close(); alert(e.msg); }
+}
+async function reviews() {
+  const list = await api("/api/admin/reviews?status=open", {}, true);
+  $("#pane").innerHTML = list.length ? list.map(r => `<div class="card"><div class="row"><b>${esc(r.customer_name)} <span class="mut">${esc(r.customer_code)}</span></b>${tag("open")}</div>
+  <p>${esc(r.document.label)}: ${esc(r.reason || "Needs a person to check")}</p><p class="mut">Flags: ${esc((r.flags || []).join(", ") || "none")} · Queued ${fmt(r.created_at)}</p>
+  <label for="nt${r.id}">Note (optional)</label><input id="nt${r.id}">
+  <p><button class="sec" data-v="${r.document.id}">Secure view</button> <button class="ok" data-a="approve" data-id="${r.id}">Approve</button> <button class="no" data-a="reject" data-id="${r.id}">Reject</button></p><div class="o"></div></div>`).join("") : `<div class="card mut">Nothing to review.</div>`;
+  document.querySelectorAll("[data-v]").forEach(b => b.onclick = () => view(b.dataset.v));
+  document.querySelectorAll("[data-a]").forEach(b => b.onclick = async () => {
+    const card = b.closest(".card"), id = b.dataset.id;
+    try { await api(`/api/admin/reviews/${id}/${b.dataset.a}`, {method: "POST", json: {note: $("#nt" + id).value || null}}, true); reviews(); }
+    catch (e) { card.querySelector(".o").innerHTML = msg(e.msg, "err"); }
+  });
+}
+async function audit() {
+  const a = await api("/api/admin/audit?limit=200", {}, true);
+  $("#pane").innerHTML = `<div class="card wrap"><table><tr><th>When</th><th>Who</th><th>Action</th><th>Item</th></tr>${a.map(x => `<tr><td>${fmt(x.at)}</td><td>${esc(x.actor)}</td><td>${esc(x.action)}</td><td>${esc(x.entity_type)} ${esc(x.entity_id)}</td></tr>`).join("")}</table></div>`;
+}
+route();
+</script>
+</body>
+</html>
