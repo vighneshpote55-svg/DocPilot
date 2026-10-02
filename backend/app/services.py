@@ -122,14 +122,39 @@ def latest_docs(db, customer_id: int) -> dict[str, Document]:
     return out
 
 
-def required_status(db, customer_id: int) -> list[dict]:
-    c = db.get(Customer, customer_id)
-    if c:
-        sync_required_and_pending(db, c)
-    latest = latest_docs(db, customer_id)
+def required_status(db, customer_id: int, customer: Customer | None = None, all_docs: list[Document] | None = None) -> list[dict]:
+    if customer is None:
+        customer = db.get(Customer, customer_id)
+    if all_docs is None:
+        all_docs = list(db.scalars(select(Document).where(Document.customer_id == customer_id).order_by(Document.created_at.desc())))
+
+    docs_by_id = {d.id: d for d in all_docs}
+
+    verified_by_type: dict[str, Document] = {}
+    for d in all_docs:
+        if d.verification_status == "verified" and not d.superseded:
+            if d.doc_type not in verified_by_type:
+                verified_by_type[d.doc_type] = d
+
+    latest_by_type: dict[str, Document] = {}
+    for d in reversed(all_docs):
+        if not d.superseded:
+            latest_by_type[d.doc_type] = d
+
+    reqs = required_rows(db, customer_id)
+    changed = False
+    for r in reqs:
+        matching_doc = verified_by_type.get(r.doc_type)
+        new_doc_id = matching_doc.id if matching_doc else None
+        if r.verified_document_id != new_doc_id:
+            r.verified_document_id = new_doc_id
+            changed = True
+    if changed:
+        db.flush()
+
     rows = []
-    for r in required_rows(db, customer_id):
-        doc = db.get(Document, r.verified_document_id) if r.verified_document_id else latest.get(r.doc_type)
+    for r in reqs:
+        doc = docs_by_id.get(r.verified_document_id) if r.verified_document_id else latest_by_type.get(r.doc_type)
         state = "verified" if r.verified_document_id else customer_state_for_doc(doc)
         rows.append({
             "doc_type": r.doc_type,

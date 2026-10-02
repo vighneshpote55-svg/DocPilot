@@ -1,10 +1,13 @@
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+_ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
+
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore", case_sensitive=False)
+    model_config = SettingsConfigDict(env_file=_ENV_PATH, extra="ignore", case_sensitive=False)
 
     # --- core ---
     database_url: str = "sqlite:///./dev.db"

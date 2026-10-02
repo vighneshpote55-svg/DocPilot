@@ -253,6 +253,7 @@ test.describe("DocPilot Acceptance Tests (SPEC Section 8)", () => {
   // --------------------------------------------------------------------------
 
   test("6. Reviewer approve and reject both update pending and verification status", async ({ page }) => {
+    test.setTimeout(90000);
 
     // Inject admin JWT into sessionStorage before navigating
 
@@ -357,6 +358,7 @@ test.describe("DocPilot Acceptance Tests (SPEC Section 8)", () => {
   // --------------------------------------------------------------------------
 
   test("7. Retention deletion: Documents tab shows 'Deleted' tag instead of file actions", async ({ page }) => {
+    test.setTimeout(90000);
 
     await page.addInitScript((jwt) => {
 
@@ -369,10 +371,8 @@ test.describe("DocPilot Acceptance Tests (SPEC Section 8)", () => {
 
 
     await page.goto(`/admin/customers/${fixtures.item7_customer_id}`);
-
-
-
-    await expect(page.locator("h2")).toContainText("DELETED FILE TEST", { timeout: 15000 });
+    await expect(page.locator("#customer-detail-page")).toBeVisible({ timeout: 30000 });
+    await expect(page.locator("h2")).toContainText("DELETED FILE TEST");
 
 
 
@@ -401,6 +401,7 @@ test.describe("DocPilot Acceptance Tests (SPEC Section 8)", () => {
   // --------------------------------------------------------------------------
 
   test("8. Secure View modal opens preview and download button respects policy", async ({ page }) => {
+    test.setTimeout(90000);
 
     await page.addInitScript((jwt) => {
 

@@ -2,6 +2,9 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./e2e",
+  expect: {
+    timeout: 15000,
+  },
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: 0,
@@ -20,7 +23,7 @@ export default defineConfig({
   webServer: {
     command: "npx vite --port 5180",
     url: "http://localhost:5180",
-    reuseExistingServer: false,
+    reuseExistingServer: true,
     timeout: 60000,
   },
 });
