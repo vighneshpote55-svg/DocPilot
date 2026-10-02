@@ -276,10 +276,12 @@ export async function getAdminSummary(): Promise<AdminSummary> {
 export async function getAdminCustomers(
   query: string = "",
   limit: number = 50,
-  offset: number = 0
+  offset: number = 0,
+  status: string = ""
 ): Promise<{ customers: AdminCustomerListItem[]; totalCount?: number }> {
   const params = new URLSearchParams();
   if (query.trim()) params.set("q", query.trim());
+  if (status.trim()) params.set("status", status.trim());
   params.set("limit", String(limit));
   params.set("offset", String(offset));
 
@@ -309,7 +311,8 @@ export async function getAdminDocuments(
   docType: string = "",
   verificationStatus: string = "",
   limit: number = 50,
-  offset: number = 0
+  offset: number = 0,
+  ocrStatus: string = ""
 ): Promise<{ documents: AdminDocumentItem[]; totalCount: number }> {
   const token = getAdminToken();
   const params = new URLSearchParams({
@@ -319,6 +322,7 @@ export async function getAdminDocuments(
   if (query.trim()) params.set("q", query.trim());
   if (docType.trim()) params.set("doc_type", docType.trim());
   if (verificationStatus.trim()) params.set("verification_status", verificationStatus.trim());
+  if (ocrStatus.trim()) params.set("ocr_status", ocrStatus.trim());
 
   const url = `${API_BASE}/api/admin/documents?${params.toString()}`;
   let res: Response;

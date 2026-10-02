@@ -146,6 +146,9 @@ export interface AdminCustomerListItem {
   received_count: number;
   pending_count?: number;
   created_at: string;
+  completed_at?: string | null;
+  delete_after?: string | null;
+  data_deleted_at?: string | null;
 }
 
 export interface AdminDocumentItem {

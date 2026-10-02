@@ -8,7 +8,7 @@ from . import emailer
 from .config import get_settings
 from .db import session_scope, utcnow
 from .models import AccessToken, Customer
-from .services import audit, delete_customer_files, pending_keys, send_upload_link
+from .services import audit, delete_customer_files, pending_keys, recalc_case, send_upload_link
 
 log = logging.getLogger(__name__)
 
@@ -17,14 +17,23 @@ def send_reminders(db) -> int:
     """3/7/14-day reminders, counted from consent, only while documents remain pending."""
     s, now, sent = get_settings(), utcnow(), 0
     for c in db.scalars(select(Customer).where(Customer.case_status == "in_progress")):
-        if not c.consent_at or not pending_keys(db, c.id):
+        if c.consent_status != "granted" or not c.consent_at:
+            continue
+        recalc_case(db, c)
+        if c.case_status != "in_progress":
+            continue
+        pending = pending_keys(db, c.id)
+        if not pending:
             continue
         days = (now - c.consent_at).days
         due = [d for d in s.reminder_day_list if d <= days]
-        if due and max(due) > c.last_reminder_stage:
+        if not due:
+            continue
+        stage = max(due)
+        if stage > c.last_reminder_stage:
             send_upload_link(db, c, reminder=True)
-            c.last_reminder_stage = max(due)
-            audit(db, "system", "reminder_sent", "customer", c.id, {"stage": c.last_reminder_stage})
+            c.last_reminder_stage = stage
+            audit(db, "system", "reminder_sent", "customer", c.id, {"stage": stage, "pending_count": len(pending)})
             sent += 1
     return sent
 

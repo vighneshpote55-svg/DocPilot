@@ -52,6 +52,11 @@ export const PortalPage: React.FC = () => {
     if (!token) return;
     let ignore = false;
 
+    // Reset messages and states on token change
+    setDocMessages({});
+    setError(null);
+    setLoading(true);
+
     getPortal(token)
       .then((data) => {
         if (!ignore) {
@@ -70,6 +75,7 @@ export const PortalPage: React.FC = () => {
     return () => {
       ignore = true;
       Object.values(activeTimers).forEach((t) => clearInterval(t));
+      pollTimers.current = {};
     };
   }, [token]);
 
@@ -161,6 +167,30 @@ export const PortalPage: React.FC = () => {
       setDocMessages((prev) => ({
         ...prev,
         [doc.doc_type]: { text: "Please select a file first.", ok: false },
+      }));
+      return;
+    }
+
+    if (file.size === 0) {
+      setDocMessages((prev) => ({
+        ...prev,
+        [doc.doc_type]: {
+          text: "The selected file is empty. Please select a valid document.",
+          ok: false,
+        },
+      }));
+      return;
+    }
+
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    const allowed = ["pdf", "png", "jpg", "jpeg"];
+    if (ext && !allowed.includes(ext)) {
+      setDocMessages((prev) => ({
+        ...prev,
+        [doc.doc_type]: {
+          text: "Only PDF, PNG, and JPG files are accepted.",
+          ok: false,
+        },
       }));
       return;
     }
@@ -330,7 +360,12 @@ export const PortalPage: React.FC = () => {
 
         {portal.case_status === "completed" && (
           <div className="msg ok" role="status" id="portal-completed-banner" style={{ marginTop: 14 }}>
-            <b>Application complete!</b> All documents have been verified. Thank you, nothing further is needed.
+            <div>
+              <b>Application complete!</b> All documents have been verified. Thank you, nothing further is needed.
+              <div style={{ marginTop: 4, fontSize: 13, opacity: 0.9 }}>
+                🔒 Your files are securely encrypted and will be automatically and permanently deleted within 7 days.
+              </div>
+            </div>
           </div>
         )}
 
@@ -348,11 +383,28 @@ export const PortalPage: React.FC = () => {
           const statusMessage = docMessages[doc.doc_type];
 
           return (
-            <div className="card" key={doc.doc_type} id={`doc-card-${doc.doc_type}`}>
+            <div
+              className={`card ${doc.state === "verified" ? "verified" : ""} ${doc.state === "resubmit" ? "resubmit" : ""}`}
+              key={doc.doc_type}
+              id={`doc-card-${doc.doc_type}`}
+            >
               <div className="row">
                 <b style={{ fontSize: 16 }}>{doc.label}</b>
                 <span className={`tag ${doc.state}`}>{STATE_LABELS[doc.state] || doc.state}</span>
               </div>
+
+              {doc.state === "resubmit" && (
+                <div className="resubmit-guidance" role="alert">
+                  <strong>Resubmission required:</strong> Please upload a clear, legible copy. Ensure all text is readable and the document matches the requested type.
+                </div>
+              )}
+
+              {doc.state === "verified" && (
+                <div className="verified-card-summary">
+                  <span>✓</span>
+                  <span>Document received and verified</span>
+                </div>
+              )}
 
               {canUpload && (
                 <div style={{ marginTop: 14 }}>
@@ -366,7 +418,19 @@ export const PortalPage: React.FC = () => {
                       : "Choose file to upload"}
                   </label>
                   <div
+                    role="button"
+                    tabIndex={!isBusy ? 0 : -1}
+                    aria-label={`Upload ${doc.label}`}
                     className={`dropzone ${dragOverDoc === doc.doc_type ? "active" : ""}`}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        const inputEl = document.getElementById(
+                          `file-${doc.doc_type}`
+                        ) as HTMLInputElement | null;
+                        inputEl?.click();
+                      }
+                    }}
                     onDragOver={(e) => {
                       e.preventDefault();
                       if (!isBusy) setDragOverDoc(doc.doc_type);
@@ -427,9 +491,14 @@ export const PortalPage: React.FC = () => {
                       {isBusy ? "Uploading…" : "Upload"}
                     </button>
                   </div>
+
+                  {isBusy && (
+                    <div className="upload-progress-indicator" role="progressbar" aria-label="Uploading file">
+                      <i />
+                    </div>
+                  )}
                 </div>
               )}
-
 
               {statusMessage && (
                 <div

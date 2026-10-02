@@ -125,233 +125,130 @@ export const AdminPage: React.FC = () => {
 
 
   // Cases Tab State
-
   const [summary, setSummary] = useState<AdminSummary | null>(null);
-
   const [customers, setCustomers] = useState<AdminCustomerListItem[]>([]);
-
   const [searchQuery, setSearchQuery] = useState("");
-
   const [activeSearch, setActiveSearch] = useState("");
-
+  const [caseStatusFilter, setCaseStatusFilter] = useState("");
+  const [casesPage, setCasesPage] = useState(0);
+  const [casesTotalCount, setCasesTotalCount] = useState(0);
   const [loadingCases, setLoadingCases] = useState(true);
-
-
+  const CASES_PAGE_SIZE = 20;
 
   // Documents Tab State (PDF Section 8)
-
   const [documents, setDocuments] = useState<AdminDocumentItem[]>([]);
-
   const [docsTotalCount, setDocsTotalCount] = useState(0);
-
   const [docSearchQuery, setDocSearchQuery] = useState("");
-
   const [activeDocSearch, setActiveDocSearch] = useState("");
-
   const [docTypeFilter, setDocTypeFilter] = useState("");
-
   const [docStatusFilter, setDocStatusFilter] = useState("");
-
+  const [docOcrStatusFilter, setDocOcrStatusFilter] = useState("");
   const [loadingDocs, setLoadingDocs] = useState(false);
-
   const [activeViewUrl, setActiveViewUrl] = useState<string | null>(null);
-
   const [viewingDocTitle, setViewingDocTitle] = useState("");
 
-
-
   // Add Customer Form Modal State
-
   const [showAddModal, setShowAddModal] = useState(false);
-
   const [newName, setNewName] = useState("");
-
   const [newEmail, setNewEmail] = useState("");
-
   const [newMobile, setNewMobile] = useState("");
-
   const [selectedDocs, setSelectedDocs] = useState<string[]>(["pan"]);
-
   const [sendConsentNow, setSendConsentNow] = useState(true);
-
   const [addCustomerError, setAddCustomerError] = useState<string | null>(null);
-
   const [creatingCustomer, setCreatingCustomer] = useState(false);
 
-
-
   // Reviews Tab State
-
   const [reviews, setReviews] = useState<AdminReviewItem[]>([]);
-
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
-
   const [reviewActionLoading, setReviewActionLoading] = useState<string | null>(null);
 
-
-
   // Audit Tab State
-
   const [auditLogs, setAuditLogs] = useState<AdminAuditItem[]>([]);
-
   const [loadingAudit, setLoadingAudit] = useState(false);
 
-
-
   // Load dashboard data when tab, token or search changes
-
   useEffect(() => {
-
     if (!token) return;
-
     let ignore = false;
 
-
-
     if (tab === "cases") {
-
       getAdminSummary()
-
         .then((sumRes) => {
-
           if (!ignore) setSummary(sumRes);
-
         })
-
         .catch((err: Error) => {
-
           if (!ignore) setAuthError(err.message);
-
         });
 
-
-
-      getAdminCustomers(activeSearch, 20, 0)
-
+      setLoadingCases(true);
+      getAdminCustomers(activeSearch, CASES_PAGE_SIZE, casesPage * CASES_PAGE_SIZE, caseStatusFilter)
         .then((custRes) => {
-
           if (!ignore) {
-
             setCustomers(custRes.customers);
-
+            setCasesTotalCount(custRes.totalCount ?? custRes.customers.length);
             setLoadingCases(false);
-
           }
-
         })
-
         .catch((err: Error) => {
-
           if (!ignore) {
-
             setAuthError(err.message);
-
             setLoadingCases(false);
-
           }
-
         });
-
     } else if (tab === "documents") {
-
       setLoadingDocs(true);
-
-      getAdminDocuments(activeDocSearch, docTypeFilter, docStatusFilter, 25, 0)
-
+      getAdminDocuments(activeDocSearch, docTypeFilter, docStatusFilter, 25, 0, docOcrStatusFilter)
         .then((res) => {
-
           if (!ignore) {
-
             setDocuments(res.documents);
-
             setDocsTotalCount(res.totalCount);
-
             setLoadingDocs(false);
-
           }
-
         })
-
         .catch((err: Error) => {
-
           if (!ignore) {
-
             setAuthError(err.message);
-
             setLoadingDocs(false);
-
           }
-
         });
-
     } else if (tab === "reviews") {
-
       getAdminReviews("open")
-
         .then((items) => {
-
           if (!ignore) setReviews(items);
-
         })
-
         .catch((err: Error) => {
-
           if (!ignore) setAuthError(err.message);
-
         });
-
     } else if (tab === "audit") {
-
       getAdminAudit(200)
-
         .then((items) => {
-
           if (!ignore) {
-
             setAuditLogs(items);
-
             setLoadingAudit(false);
-
           }
-
         })
-
         .catch((err: Error) => {
-
           if (!ignore) {
-
             setAuthError(err.message);
-
             setLoadingAudit(false);
-
           }
-
         });
-
     }
 
-
-
     return () => {
-
       ignore = true;
-
     };
-
-  }, [token, tab, activeSearch, activeDocSearch, docTypeFilter, docStatusFilter]);
+  }, [token, tab, activeSearch, caseStatusFilter, casesPage, activeDocSearch, docTypeFilter, docStatusFilter, docOcrStatusFilter]);
 
 
 
 
 
   const handleSearch = (e: React.FormEvent) => {
-
     e.preventDefault();
-
     setLoadingCases(true);
-
+    setCasesPage(0);
     setActiveSearch(searchQuery);
-
   };
 
 
@@ -719,221 +616,245 @@ export const AdminPage: React.FC = () => {
       {tab === "cases" && (
 
         <div id="tab-pane-cases">
-
           {summary && (
-
             <div className="grid" id="summary-stats-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))" }}>
-
-              <div className="card">
-
+              <div
+                className={`card interactive ${caseStatusFilter === "in_progress" ? "verified" : ""}`}
+                onClick={() => {
+                  setCaseStatusFilter(caseStatusFilter === "in_progress" ? "" : "in_progress");
+                  setCasesPage(0);
+                }}
+                role="button"
+                tabIndex={0}
+                title="Click to filter by in-progress cases"
+              >
                 <div className="stat">{summary.cases?.in_progress || 0}</div>
-
                 <div className="mut">In progress</div>
-
               </div>
 
-              <div className="card">
-
+              <div
+                className={`card interactive ${caseStatusFilter === "completed" ? "verified" : ""}`}
+                onClick={() => {
+                  setCaseStatusFilter(caseStatusFilter === "completed" ? "" : "completed");
+                  setCasesPage(0);
+                }}
+                role="button"
+                tabIndex={0}
+                title="Click to filter by completed cases"
+              >
                 <div className="stat">{summary.cases?.completed || 0}</div>
-
                 <div className="mut">Completed</div>
-
               </div>
 
               <div className="card">
-
                 <div className="stat" style={{ color: "var(--acc)" }}>
-
                   {summary.metrics?.completion_rate !== undefined ? `${summary.metrics.completion_rate}%` : "—"}
-
                 </div>
-
                 <div className="mut">Completion rate</div>
-
               </div>
 
               <div className="card">
-
                 <div className="stat">{summary.metrics?.total_documents || 0}</div>
-
                 <div className="mut">Total documents</div>
-
               </div>
 
               <div className="card">
-
                 <div className="stat">{summary.metrics?.verified_documents || 0}</div>
-
                 <div className="mut">Verified docs</div>
-
               </div>
 
-              <div className="card">
+              {Boolean(summary.cases?.deleted) && (
+                <div
+                  className={`card interactive ${caseStatusFilter === "deleted" ? "verified" : ""}`}
+                  onClick={() => {
+                    setCaseStatusFilter(caseStatusFilter === "deleted" ? "" : "deleted");
+                    setCasesPage(0);
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  title="Click to filter by deleted cases"
+                >
+                  <div className="stat" style={{ color: "var(--ink-muted)" }}>{summary.cases?.deleted || 0}</div>
+                  <div className="mut">Deleted cases</div>
+                </div>
+              )}
 
+              <div
+                className="card interactive"
+                onClick={() => setTab("reviews")}
+                role="button"
+                tabIndex={0}
+                title="Click to view open reviews"
+              >
                 <div className="stat" style={{ color: summary.open_reviews ? "var(--warn)" : "inherit" }}>
-
                   {summary.open_reviews || 0}
-
                 </div>
-
                 <div className="mut">Open reviews</div>
-
               </div>
 
-              <div className="card">
-
+              <div
+                className="card interactive"
+                onClick={() => {
+                  setTab("documents");
+                  setDocOcrStatusFilter("failed");
+                }}
+                role="button"
+                tabIndex={0}
+                title="Click to filter documents by failed OCR processing errors"
+              >
                 <div className="stat" style={{ color: summary.jobs?.failed ? "var(--bad)" : "inherit" }}>
-
                   {summary.jobs?.failed || 0}
-
                 </div>
-
                 <div className="mut">Failed jobs</div>
-
               </div>
-
             </div>
-
-
-
           )}
 
-
-
-          <form onSubmit={handleSearch} className="row" style={{ margin: "20px 0 12px" }}>
-
+          <form onSubmit={handleSearch} className="row" style={{ margin: "20px 0 12px", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
             <input
-
               type="search"
-
               placeholder="Search by name, email, or code…"
-
               value={searchQuery}
-
               onChange={(e) => setSearchQuery(e.target.value)}
-
-              style={{ maxWidth: 360 }}
-
+              style={{ maxWidth: 320, flex: "1 1 200px" }}
               id="customer-search-input"
-
             />
-
+            <select
+              value={caseStatusFilter}
+              onChange={(e) => {
+                setCaseStatusFilter(e.target.value);
+                setCasesPage(0);
+              }}
+              style={{ maxWidth: 180, flex: "0 0 160px" }}
+              id="customer-status-filter"
+            >
+              <option value="">All Case Statuses</option>
+              <option value="in_progress">In Progress</option>
+              <option value="completed">Completed</option>
+              <option value="expired">Expired</option>
+              <option value="withdrawn">Withdrawn</option>
+              <option value="deleted">Deleted</option>
+              <option value="consent_withdrawn">Consent Withdrawn</option>
+            </select>
             <button type="submit" className="sec" id="customer-search-btn">
-
               Search
-
             </button>
-
+            {(activeSearch || caseStatusFilter) && (
+              <button
+                type="button"
+                className="sec"
+                onClick={() => {
+                  setSearchQuery("");
+                  setActiveSearch("");
+                  setCaseStatusFilter("");
+                  setCasesPage(0);
+                }}
+              >
+                Reset
+              </button>
+            )}
           </form>
 
-
-
           <div className="card wrap" style={{ padding: 0 }}>
-
             {loadingCases ? (
-
               <p style={{ padding: 20 }} className="mut">
-
                 Loading customer list…
-
               </p>
-
             ) : customers.length === 0 ? (
-
               <p style={{ padding: 20 }} className="mut">
-
                 No customers found matching search criteria.
-
               </p>
-
             ) : (
-
-              <table>
-
-                <thead>
-
-                  <tr>
-
-                    <th>Code</th>
-
-                    <th>Customer</th>
-
-                    <th>Consent</th>
-
-                    <th>Case status</th>
-
-                    <th>Verified</th>
-
-                    <th>Action</th>
-
-                  </tr>
-
-                </thead>
-
-                <tbody>
-
-                  {customers.map((c) => (
-
-                    <tr key={c.id}>
-
-                      <td style={{ fontWeight: 600, fontFamily: "monospace" }}>{c.code}</td>
-
-                      <td>
-
-                        <b>{c.name}</b>
-
-                        <div className="mut" style={{ fontSize: 13 }}>
-
-                          {c.email}
-
-                        </div>
-
-                      </td>
-
-                      <td>
-
-                        <span className={`tag ${c.consent_status}`}>{c.consent_status}</span>
-
-                      </td>
-
-                      <td>
-                        <span className={`tag ${c.case_status}`}>{c.case_status}</span>
-                      </td>
-                      <td>
-                        <div><b>{c.received_count} of {c.required_count} verified</b></div>
-                        <div className="mut" style={{ fontSize: 12 }}>{c.pending_count !== undefined ? `${c.pending_count} pending` : `${c.required_count - c.received_count} pending`}</div>
-                      </td>
-
-                      <td>
-
-                        <Link
-
-                          to={`/admin/customers/${c.id}`}
-
-                          className="btn sec"
-
-                          style={{ padding: "5px 12px", fontSize: 13 }}
-
-                        >
-
-                          View
-
-                        </Link>
-
-                      </td>
-
+              <>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Code</th>
+                      <th>Customer</th>
+                      <th>Consent</th>
+                      <th>Case status</th>
+                      <th>Verification progress</th>
+                      <th>Action</th>
                     </tr>
+                  </thead>
+                  <tbody>
+                    {customers.map((c) => {
+                      const pct = c.required_count > 0 ? Math.round((c.received_count / c.required_count) * 100) : 0;
+                      return (
+                        <tr key={c.id}>
+                          <td style={{ fontWeight: 600, fontFamily: "monospace" }}>{c.code}</td>
+                          <td>
+                            <b>{c.name}</b>
+                            <div className="mut" style={{ fontSize: 13 }}>
+                              {c.email}
+                            </div>
+                          </td>
+                          <td>
+                            <span className={`tag ${c.consent_status}`}>{c.consent_status}</span>
+                          </td>
+                          <td>
+                            <span className={`tag ${c.case_status}`}>{c.case_status}</span>
+                            {c.data_deleted_at && (
+                              <div className="mut" style={{ fontSize: 11, marginTop: 4 }}>
+                                Files purged
+                              </div>
+                            )}
+                          </td>
+                          <td>
+                            <div><b>{c.received_count} of {c.required_count} verified</b></div>
+                            <div className="mini-bar">
+                              <i style={{ width: `${pct}%` }} />
+                            </div>
+                            <div className="mut" style={{ fontSize: 12, marginTop: 2 }}>
+                              {c.pending_count !== undefined ? `${c.pending_count} pending` : `${c.required_count - c.received_count} pending`}
+                            </div>
+                          </td>
+                          <td>
+                            <Link
+                              to={`/admin/customers/${c.id}`}
+                              className="btn sec"
+                              style={{ padding: "5px 12px", fontSize: 13 }}
+                            >
+                              View
+                            </Link>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
 
-                  ))}
-
-                </tbody>
-
-              </table>
-
+                {casesTotalCount > CASES_PAGE_SIZE && (
+                  <div className="pagination-bar">
+                    <div className="mut">
+                      Showing {casesPage * CASES_PAGE_SIZE + 1}–{Math.min((casesPage + 1) * CASES_PAGE_SIZE, casesTotalCount)} of {casesTotalCount} customers
+                    </div>
+                    <div className="pagination-controls">
+                      <button
+                        type="button"
+                        className="sec"
+                        disabled={casesPage === 0}
+                        onClick={() => setCasesPage((p) => Math.max(0, p - 1))}
+                        style={{ padding: "4px 10px", fontSize: 13 }}
+                      >
+                        Previous
+                      </button>
+                      <span>Page {casesPage + 1} of {Math.ceil(casesTotalCount / CASES_PAGE_SIZE)}</span>
+                      <button
+                        type="button"
+                        className="sec"
+                        disabled={(casesPage + 1) * CASES_PAGE_SIZE >= casesTotalCount}
+                        onClick={() => setCasesPage((p) => p + 1)}
+                        style={{ padding: "4px 10px", fontSize: 13 }}
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </>
             )}
-
           </div>
-
         </div>
 
       )}
@@ -1004,7 +925,7 @@ export const AdminPage: React.FC = () => {
 
               >
 
-                <option value="">All Statuses</option>
+                <option value="">All Verification Statuses</option>
 
                 <option value="verified">Verified</option>
 
@@ -1016,38 +937,37 @@ export const AdminPage: React.FC = () => {
 
               </select>
 
+              <select
+                value={docOcrStatusFilter}
+                onChange={(e) => setDocOcrStatusFilter(e.target.value)}
+                style={{ flex: "0 0 160px" }}
+                id="doc-ocr-status-filter"
+              >
+                <option value="">All OCR Statuses</option>
+                <option value="waiting">Waiting</option>
+                <option value="processing">Processing</option>
+                <option value="completed">Completed</option>
+                <option value="failed">Failed / Errors</option>
+              </select>
+
               <button type="submit" className="sec" id="doc-search-btn">
-
                 Filter
-
               </button>
 
-              {(activeDocSearch || docTypeFilter || docStatusFilter) && (
-
+              {(activeDocSearch || docTypeFilter || docStatusFilter || docOcrStatusFilter) && (
                 <button
-
                   type="button"
-
                   className="sec"
-
                   onClick={() => {
-
                     setDocSearchQuery("");
-
                     setActiveDocSearch("");
-
                     setDocTypeFilter("");
-
                     setDocStatusFilter("");
-
+                    setDocOcrStatusFilter("");
                   }}
-
                 >
-
                   Reset
-
                 </button>
-
               )}
 
             </form>

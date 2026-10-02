@@ -428,6 +428,67 @@ label {
   transition: width 0.3s ease;
 }
 
+/* Card States & Portal Polish */
+.card.verified {
+  border-color: var(--acc-border);
+}
+
+.card.resubmit {
+  border-color: var(--warn-border);
+  background: linear-gradient(to bottom, var(--warn-bg), var(--card));
+}
+
+.dropzone:focus-visible {
+  outline: 3px solid var(--info);
+  outline-offset: 2px;
+  border-color: var(--info);
+}
+
+.resubmit-guidance {
+  background: var(--warn-bg);
+  color: var(--warn);
+  border: 1px solid var(--warn-border);
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  margin-top: 10px;
+  line-height: 1.4;
+}
+
+.upload-progress-indicator {
+  height: 4px;
+  width: 100%;
+  background: var(--line);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+
+.upload-progress-indicator i {
+  display: block;
+  height: 100%;
+  width: 100%;
+  background: var(--info);
+  animation: indeterminate-progress 1.5s infinite ease-in-out;
+  transform-origin: 0% 50%;
+}
+
+@keyframes indeterminate-progress {
+  0% { transform: translateX(0) scaleX(0); }
+  50% { transform: translateX(0) scaleX(0.7); }
+  100% { transform: translateX(100%) scaleX(0.3); }
+}
+
+.verified-card-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--acc);
+  font-weight: 500;
+}
+
 /* Data Tables */
 table {
   width: 100%;
@@ -526,4 +587,58 @@ a:hover {
   height: 16px;
   margin: 0;
   cursor: pointer;
+}
+
+/* Interactive KPI Cards */
+.card.interactive {
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.card.interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--info);
+}
+
+.card.interactive:focus-visible {
+  outline: 3px solid var(--info);
+  outline-offset: 2px;
+}
+
+/* Mini Progress Bar for Tables */
+.mini-bar {
+  height: 6px;
+  width: 100%;
+  max-width: 140px;
+  background: var(--line);
+  border-radius: 9999px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.mini-bar i {
+  display: block;
+  height: 100%;
+  background: var(--acc);
+  border-radius: 9999px;
+  transition: width 0.3s ease;
+}
+
+/* Pagination Bar */
+.pagination-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.pagination-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
 }
