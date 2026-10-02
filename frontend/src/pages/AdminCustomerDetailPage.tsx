@@ -117,12 +117,22 @@ export const AdminCustomerDetailPage: React.FC = () => {
         {customer.required && customer.required.length > 0 && (
           <div style={{ margin: "10px 0", display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
             <span className="mut" style={{ fontSize: 13, fontWeight: 600 }}>Required checklist:</span>
-            {customer.required.map((r) => (
-              <span key={r.doc_type} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "var(--card-subtle)", padding: "2px 8px", borderRadius: 6, fontSize: 12 }}>
-                <span>{r.label}:</span>
-                <span className={`tag ${r.state}`} style={{ fontSize: 11, padding: "1px 6px" }}>{r.state}</span>
-              </span>
-            ))}
+            {customer.required.map((r) => {
+              const labelMap: Record<string, string> = {
+                resubmit: "Please upload again",
+                received: "Received and verified",
+                verified: "Received and verified",
+                waiting: "Waiting for upload",
+                processing: "Checking validity",
+              };
+              const displayState = labelMap[r.state] || r.state;
+              return (
+                <span key={r.doc_type} style={{ display: "inline-flex", alignItems: "center", gap: 4, background: "var(--card-subtle)", padding: "2px 8px", borderRadius: 6, fontSize: 12 }}>
+                  <span>{r.label}:</span>
+                  <span className={`tag ${r.state}`} style={{ fontSize: 11, padding: "1px 6px" }}>{displayState}</span>
+                </span>
+              );
+            })}
           </div>
         )}
 
@@ -182,7 +192,7 @@ export const AdminCustomerDetailPage: React.FC = () => {
         </div>
       </div>
 
-      <h2>Documents</h2>
+      <h3>Documents</h3>
       <div className="card wrap" style={{ padding: 0 }}>
         <table>
           <thead>

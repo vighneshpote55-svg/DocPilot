@@ -72,6 +72,17 @@ export interface PrivacyResponse {
   completed?: "delete" | "withdraw";
 }
 
+export interface AdminMetrics {
+  total_customers: number;
+  completed_customers: number;
+  completion_rate: number;
+  total_documents: number;
+  verified_documents: number;
+  pending_review_documents: number;
+  processing_documents: number;
+  ocr_failures: number;
+}
+
 export interface AdminSummary {
   cases: {
     in_progress?: number;
@@ -80,13 +91,37 @@ export interface AdminSummary {
     withdrawn?: number;
     deleted?: number;
   };
+  documents?: Record<string, number>;
   open_reviews: number;
   jobs: {
     queued?: number;
     running?: number;
     failed?: number;
   };
+  metrics?: AdminMetrics;
 }
+
+export interface AdminDocumentItem {
+  id: string;
+  doc_type: string;
+  label: string;
+  filename: string;
+  uploaded_at: string;
+  ocr_status: string;
+  verification_status: string;
+  needs_manual_review: boolean;
+  review_reason: string | null;
+  flags: string[];
+  confidence: number | null;
+  file_state: "stored" | "deleted";
+  delete_after: string | null;
+  superseded: boolean;
+  customer_id: number;
+  customer_name: string;
+  customer_code: string;
+  customer_email: string;
+}
+
 
 export interface AdminCustomerListItem {
   id: number;

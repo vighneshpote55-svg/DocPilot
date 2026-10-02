@@ -175,3 +175,35 @@ def test_customer_search_and_pagination(client):
     page1_ids = {c["id"] for c in r_page1.json()}
     page2_ids = {c["id"] for c in r_page2.json()}
     assert page1_ids.isdisjoint(page2_ids)
+
+
+def test_admin_list_documents_and_summary_metrics(client):
+    # Check summary metrics shape
+    r_sum = client.get("/api/admin/summary", headers=admin_headers())
+    assert r_sum.status_code == 200
+    data = r_sum.json()
+    assert "metrics" in data
+    m = data["metrics"]
+    assert "total_customers" in m
+    assert "completion_rate" in m
+    assert "total_documents" in m
+
+    # Check global documents endpoint
+    r_docs = client.get("/api/admin/documents", headers=admin_headers())
+    assert r_docs.status_code == 200
+    assert "X-Total-Count" in r_docs.headers
+    docs = r_docs.json()
+    assert isinstance(docs, list)
+    if docs:
+        d0 = docs[0]
+        assert "customer_name" in d0
+        assert "doc_type" in d0
+        assert "ocr_status" in d0
+        assert "verification_status" in d0
+
+    # Test filtering by doc_type
+    r_filtered = client.get("/api/admin/documents?doc_type=pan", headers=admin_headers())
+    assert r_filtered.status_code == 200
+    for doc in r_filtered.json():
+        assert doc["doc_type"] == "pan"
+

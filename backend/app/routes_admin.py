@@ -76,9 +76,76 @@ def summary(db: Session = Depends(get_db), admin: str = Depends(require_admin)):
     by_case = dict(db.execute(select(Customer.case_status, func.count()).group_by(Customer.case_status)).all())
     by_ver = dict(db.execute(select(Document.verification_status, func.count())
                              .where(Document.superseded.is_(False)).group_by(Document.verification_status)).all())
-    open_reviews = db.scalar(select(func.count()).select_from(ManualReview).where(ManualReview.status == "open"))
+    open_reviews = db.scalar(select(func.count()).select_from(ManualReview).where(ManualReview.status == "open")) or 0
     jobs = dict(db.execute(select(Job.status, func.count()).group_by(Job.status)).all())
-    return {"cases": by_case, "documents": by_ver, "open_reviews": open_reviews, "jobs": jobs}
+
+    total_cases = sum(by_case.values())
+    completed_cases = by_case.get("completed", 0)
+    completion_rate = round((completed_cases / total_cases) * 100, 1) if total_cases > 0 else 0.0
+
+    total_docs = db.scalar(select(func.count()).select_from(Document).where(Document.superseded.is_(False))) or 0
+    processing_docs = db.scalar(select(func.count()).select_from(Document)
+                                .where(Document.ocr_status == "processing", Document.superseded.is_(False))) or 0
+    ocr_failures = db.scalar(select(func.count()).select_from(Document)
+                             .where(Document.ocr_status == "failed", Document.superseded.is_(False))) or 0
+
+    return {
+        "cases": by_case,
+        "documents": by_ver,
+        "open_reviews": open_reviews,
+        "jobs": jobs,
+        "metrics": {
+            "total_customers": total_cases,
+            "completed_customers": completed_cases,
+            "completion_rate": completion_rate,
+            "total_documents": total_docs,
+            "verified_documents": by_ver.get("verified", 0),
+            "pending_review_documents": open_reviews,
+            "processing_documents": processing_docs,
+            "ocr_failures": ocr_failures,
+        },
+    }
+
+
+@router.get("/documents")
+def list_documents(response: Response, q: str | None = None, doc_type: str | None = None,
+                   verification_status: str | None = None, ocr_status: str | None = None,
+                   customer_id: int | None = None,
+                   limit: int = Query(50, ge=1, le=200), offset: int = Query(0, ge=0),
+                   db: Session = Depends(get_db), admin: str = Depends(require_admin)):
+    """Global documents list with filtering per PDF Section 8."""
+    from sqlalchemy import or_
+    query = select(Document, Customer).join(Customer, Document.customer_id == Customer.id)
+    if customer_id:
+        query = query.where(Document.customer_id == customer_id)
+    if doc_type:
+        query = query.where(Document.doc_type == doc_type)
+    if verification_status:
+        query = query.where(Document.verification_status == verification_status)
+    if ocr_status:
+        query = query.where(Document.ocr_status == ocr_status)
+    if q and q.strip():
+        term = f"%{q.strip().lower()}%"
+        query = query.where(or_(
+            func.lower(Customer.name).like(term),
+            func.lower(Customer.email).like(term),
+            func.lower(Document.filename).like(term),
+        ))
+
+    total = db.scalar(select(func.count()).select_from(query.subquery())) or 0
+    response.headers["X-Total-Count"] = str(total)
+    rows = db.execute(query.order_by(Document.created_at.desc()).limit(limit).offset(offset)).all()
+
+    out = []
+    for doc, cust in rows:
+        item = doc_out(doc, cust)
+        item["customer_id"] = cust.id
+        item["customer_name"] = cust.name
+        item["customer_code"] = cust.code
+        item["customer_email"] = cust.email
+        out.append(item)
+    return out
+
 
 
 @router.post("/customers", status_code=201)

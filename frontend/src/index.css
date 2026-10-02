@@ -298,27 +298,93 @@ label {
 
 .tag.under_review,
 .tag.manual_review,
-.tag.pending,
-.tag.pending_upload,
-.tag.processing,
-.tag.open,
-.tag.waiting {
+.tag.open {
   background: var(--warn-bg);
   color: var(--warn);
   border-color: var(--warn-border);
 }
 
+.tag.pending,
+.tag.pending_upload,
+.tag.waiting {
+  background: var(--card-subtle);
+  color: var(--ink-muted);
+  border-color: var(--line);
+}
+
+.tag.processing {
+  background: var(--info-bg);
+  color: var(--info);
+  border-color: var(--info-border);
+  animation: tag-pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes tag-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
 .tag.resubmit,
 .tag.rejected,
 .tag.failed,
-.tag.expired,
 .tag.declined,
-.tag.deleted,
 .tag.withdrawn {
   background: var(--bad-bg);
   color: var(--bad);
   border-color: var(--bad-border);
 }
+
+.tag.deleted,
+.tag.expired {
+  background: var(--card-subtle);
+  color: var(--ink-muted);
+  border-color: var(--line);
+  text-decoration: line-through;
+  opacity: 0.75;
+}
+
+/* Drag and Drop Upload Zone per PDF Section 7 */
+.dropzone {
+  border: 2px dashed var(--line);
+  border-radius: 10px;
+  padding: 16px 20px;
+  text-align: center;
+  background: var(--card-subtle);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 10px;
+  user-select: none;
+}
+
+.dropzone:hover {
+  border-color: var(--info);
+  background: var(--info-bg);
+}
+
+.dropzone.active {
+  border-color: var(--acc);
+  background: var(--acc-bg);
+  transform: scale(1.01);
+}
+
+.dropzone-icon {
+  font-size: 22px;
+  margin-bottom: 4px;
+  display: block;
+}
+
+.dropzone-text {
+  font-size: 14px;
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.dropzone-hint {
+  font-size: 12px;
+  color: var(--ink-muted);
+  margin-top: 4px;
+}
+
 
 /* Notice / Status Message */
 .msg {

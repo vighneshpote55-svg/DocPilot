@@ -30,6 +30,8 @@ class Settings(BaseSettings):
     ocr_timeout_seconds: int = 180
     ocr_max_attempts: int = 3
     ocr_pass_expected_name: bool = True
+    mock_ocr_mode: bool = False
+
 
     # --- uploads ---
     max_upload_mb: int = 10

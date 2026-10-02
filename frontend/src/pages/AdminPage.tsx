@@ -3,9 +3,11 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   approveReview,
   createAdminCustomer,
+  deleteAdminDocumentFile,
   fetchDocumentFile,
   getAdminAudit,
   getAdminCustomers,
+  getAdminDocuments,
   getAdminReviews,
   getAdminSummary,
   getAdminToken,
@@ -15,9 +17,11 @@ import {
 import type {
   AdminAuditItem,
   AdminCustomerListItem,
+  AdminDocumentItem,
   AdminReviewItem,
   AdminSummary,
 } from "../types";
+
 
 const ALL_DOC_TYPES = [
   { key: "pan", label: "PAN Card" },
@@ -45,8 +49,8 @@ export const AdminPage: React.FC = () => {
   const [authError, setAuthError] = useState<string | null>(null);
   const [signingIn, setSigningIn] = useState(false);
 
-  // Tab State: "cases" | "reviews" | "audit"
-  const [tab, setTab] = useState<"cases" | "reviews" | "audit">("cases");
+  // Tab State: "cases" | "documents" | "reviews" | "audit"
+  const [tab, setTab] = useState<"cases" | "documents" | "reviews" | "audit">("cases");
 
   // Cases Tab State
   const [summary, setSummary] = useState<AdminSummary | null>(null);
@@ -54,6 +58,17 @@ export const AdminPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [activeSearch, setActiveSearch] = useState("");
   const [loadingCases, setLoadingCases] = useState(true);
+
+  // Documents Tab State (PDF Section 8)
+  const [documents, setDocuments] = useState<AdminDocumentItem[]>([]);
+  const [docsTotalCount, setDocsTotalCount] = useState(0);
+  const [docSearchQuery, setDocSearchQuery] = useState("");
+  const [activeDocSearch, setActiveDocSearch] = useState("");
+  const [docTypeFilter, setDocTypeFilter] = useState("");
+  const [docStatusFilter, setDocStatusFilter] = useState("");
+  const [loadingDocs, setLoadingDocs] = useState(false);
+  const [activeViewUrl, setActiveViewUrl] = useState<string | null>(null);
+  const [viewingDocTitle, setViewingDocTitle] = useState("");
 
   // Add Customer Form Modal State
   const [showAddModal, setShowAddModal] = useState(false);
@@ -80,10 +95,17 @@ export const AdminPage: React.FC = () => {
     let ignore = false;
 
     if (tab === "cases") {
-      Promise.all([getAdminSummary(), getAdminCustomers(activeSearch, 100, 0)])
-        .then(([sumRes, custRes]) => {
+      getAdminSummary()
+        .then((sumRes) => {
+          if (!ignore) setSummary(sumRes);
+        })
+        .catch((err: Error) => {
+          if (!ignore) setAuthError(err.message);
+        });
+
+      getAdminCustomers(activeSearch, 20, 0)
+        .then((custRes) => {
           if (!ignore) {
-            setSummary(sumRes);
             setCustomers(custRes.customers);
             setLoadingCases(false);
           }
@@ -92,6 +114,22 @@ export const AdminPage: React.FC = () => {
           if (!ignore) {
             setAuthError(err.message);
             setLoadingCases(false);
+          }
+        });
+    } else if (tab === "documents") {
+      setLoadingDocs(true);
+      getAdminDocuments(activeDocSearch, docTypeFilter, docStatusFilter, 25, 0)
+        .then((res) => {
+          if (!ignore) {
+            setDocuments(res.documents);
+            setDocsTotalCount(res.totalCount);
+            setLoadingDocs(false);
+          }
+        })
+        .catch((err: Error) => {
+          if (!ignore) {
+            setAuthError(err.message);
+            setLoadingDocs(false);
           }
         });
     } else if (tab === "reviews") {
@@ -121,7 +159,8 @@ export const AdminPage: React.FC = () => {
     return () => {
       ignore = true;
     };
-  }, [token, tab, activeSearch]);
+  }, [token, tab, activeSearch, activeDocSearch, docTypeFilter, docStatusFilter]);
+
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -193,15 +232,34 @@ export const AdminPage: React.FC = () => {
     }
   };
 
-  const handleSecureView = async (docId: string) => {
+  const handleSecureView = async (docId: string, title?: string) => {
     try {
       const blob = await fetchDocumentFile(docId);
       const url = URL.createObjectURL(blob);
-      window.open(url, "_blank");
+      setActiveViewUrl(url);
+      setViewingDocTitle(title || "Document Preview");
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Failed to open document file.");
     }
   };
+
+  const handleDocSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setActiveDocSearch(docSearchQuery);
+  };
+
+  const handleDeleteFile = async (docId: string) => {
+    if (!window.confirm("Are you sure you want to permanently delete this stored file?")) return;
+    try {
+      await deleteAdminDocumentFile(docId);
+      setDocuments((prev) =>
+        prev.map((d) => (d.id === docId ? { ...d, file_state: "deleted" } : d))
+      );
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : "Failed to delete file.");
+    }
+  };
+
 
   // --- Render Login Form if unauthenticated ---
   if (!token) {
@@ -266,6 +324,13 @@ export const AdminPage: React.FC = () => {
           Customer cases
         </button>
         <button
+          className={tab === "documents" ? "on" : ""}
+          onClick={() => setTab("documents")}
+          id="tab-btn-documents"
+        >
+          All documents {docsTotalCount > 0 ? `(${docsTotalCount})` : ""}
+        </button>
+        <button
           className={tab === "reviews" ? "on" : ""}
           onClick={() => setTab("reviews")}
           id="tab-btn-reviews"
@@ -281,11 +346,12 @@ export const AdminPage: React.FC = () => {
         </button>
       </nav>
 
+
       {/* --- TAB 1: CASES --- */}
       {tab === "cases" && (
         <div id="tab-pane-cases">
           {summary && (
-            <div className="grid" id="summary-stats-grid">
+            <div className="grid" id="summary-stats-grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))" }}>
               <div className="card">
                 <div className="stat">{summary.cases?.in_progress || 0}</div>
                 <div className="mut">In progress</div>
@@ -295,14 +361,33 @@ export const AdminPage: React.FC = () => {
                 <div className="mut">Completed</div>
               </div>
               <div className="card">
-                <div className="stat">{summary.open_reviews || 0}</div>
+                <div className="stat" style={{ color: "var(--acc)" }}>
+                  {summary.metrics?.completion_rate !== undefined ? `${summary.metrics.completion_rate}%` : "—"}
+                </div>
+                <div className="mut">Completion rate</div>
+              </div>
+              <div className="card">
+                <div className="stat">{summary.metrics?.total_documents || 0}</div>
+                <div className="mut">Total documents</div>
+              </div>
+              <div className="card">
+                <div className="stat">{summary.metrics?.verified_documents || 0}</div>
+                <div className="mut">Verified docs</div>
+              </div>
+              <div className="card">
+                <div className="stat" style={{ color: summary.open_reviews ? "var(--warn)" : "inherit" }}>
+                  {summary.open_reviews || 0}
+                </div>
                 <div className="mut">Open reviews</div>
               </div>
               <div className="card">
-                <div className="stat">{summary.jobs?.failed || 0}</div>
+                <div className="stat" style={{ color: summary.jobs?.failed ? "var(--bad)" : "inherit" }}>
+                  {summary.jobs?.failed || 0}
+                </div>
                 <div className="mut">Failed jobs</div>
               </div>
             </div>
+
           )}
 
           <form onSubmit={handleSearch} className="row" style={{ margin: "20px 0 12px" }}>
@@ -367,6 +452,160 @@ export const AdminPage: React.FC = () => {
                         >
                           View
                         </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* --- TAB: ALL DOCUMENTS (PDF Section 8) --- */}
+      {tab === "documents" && (
+        <div id="tab-pane-documents">
+          <div className="card" style={{ marginBottom: 20 }}>
+            <form onSubmit={handleDocSearch} className="row" style={{ flexWrap: "wrap", gap: 10, alignItems: "center" }}>
+              <input
+                type="search"
+                placeholder="Search by customer name, email, or filename…"
+                value={docSearchQuery}
+                onChange={(e) => setDocSearchQuery(e.target.value)}
+                style={{ flex: "1 1 260px", maxWidth: 360 }}
+                id="doc-search-input"
+              />
+              <select
+                value={docTypeFilter}
+                onChange={(e) => setDocTypeFilter(e.target.value)}
+                style={{ flex: "0 0 160px" }}
+                id="doc-type-filter"
+              >
+                <option value="">All Document Types</option>
+                {ALL_DOC_TYPES.map((dt) => (
+                  <option key={dt.key} value={dt.key}>
+                    {dt.label}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={docStatusFilter}
+                onChange={(e) => setDocStatusFilter(e.target.value)}
+                style={{ flex: "0 0 170px" }}
+                id="doc-status-filter"
+              >
+                <option value="">All Statuses</option>
+                <option value="verified">Verified</option>
+                <option value="under_review">Under Review</option>
+                <option value="unverified">Unverified</option>
+                <option value="rejected">Rejected</option>
+              </select>
+              <button type="submit" className="sec" id="doc-search-btn">
+                Filter
+              </button>
+              {(activeDocSearch || docTypeFilter || docStatusFilter) && (
+                <button
+                  type="button"
+                  className="sec"
+                  onClick={() => {
+                    setDocSearchQuery("");
+                    setActiveDocSearch("");
+                    setDocTypeFilter("");
+                    setDocStatusFilter("");
+                  }}
+                >
+                  Reset
+                </button>
+              )}
+            </form>
+          </div>
+
+          <div className="card">
+            <div className="row" style={{ justifyContent: "space-between", marginBottom: 12 }}>
+              <h3 style={{ margin: 0 }}>
+                Documents list <span className="mut" style={{ fontSize: 14 }}>({docsTotalCount} total)</span>
+              </h3>
+            </div>
+
+            {loadingDocs ? (
+              <p className="mut">Loading documents…</p>
+            ) : documents.length === 0 ? (
+              <p className="mut">No documents found matching the filter criteria.</p>
+            ) : (
+              <table style={{ width: "100%", borderCollapse: "collapse" }} id="all-documents-table">
+                <thead>
+                  <tr style={{ textAlign: "left", borderBottom: "1px solid var(--border)" }}>
+                    <th style={{ padding: "8px 6px" }}>Customer</th>
+                    <th style={{ padding: "8px 6px" }}>Document</th>
+                    <th style={{ padding: "8px 6px" }}>Uploaded</th>
+                    <th style={{ padding: "8px 6px" }}>OCR</th>
+                    <th style={{ padding: "8px 6px" }}>Verification</th>
+                    <th style={{ padding: "8px 6px" }}>File State</th>
+                    <th style={{ padding: "8px 6px" }}>Flags</th>
+                    <th style={{ padding: "8px 6px" }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {documents.map((d) => (
+                    <tr key={d.id} style={{ borderBottom: "1px solid var(--border)" }}>
+                      <td style={{ padding: "10px 6px" }}>
+                        <div>
+                          <Link to={`/admin/customers/${d.customer_id}`} style={{ fontWeight: 600 }}>
+                            {d.customer_name || `Customer #${d.customer_id}`}
+                          </Link>
+                        </div>
+                        <span className="mut" style={{ fontSize: 12 }}>{d.customer_code}</span>
+                      </td>
+                      <td style={{ padding: "10px 6px" }}>
+                        <b>{d.label}</b>
+                        <div className="mut" style={{ fontSize: 12 }}>{d.filename}</div>
+                      </td>
+                      <td style={{ padding: "10px 6px", fontSize: 13 }}>
+                        {d.uploaded_at ? new Date(d.uploaded_at).toLocaleString() : "—"}
+                      </td>
+                      <td style={{ padding: "10px 6px" }}>
+                        <span className={`tag ${d.ocr_status}`}>{d.ocr_status}</span>
+                      </td>
+                      <td style={{ padding: "10px 6px" }}>
+                        <span className={`tag ${d.verification_status}`}>{d.verification_status}</span>
+                      </td>
+                      <td style={{ padding: "10px 6px" }}>
+                        <span className={`tag ${d.file_state}`}>{d.file_state}</span>
+                      </td>
+                      <td style={{ padding: "10px 6px", fontSize: 12 }}>
+                        {d.flags && d.flags.length > 0 ? (
+                          <span style={{ color: "var(--warn)" }}>{d.flags.join(", ")}</span>
+                        ) : (
+                          <span className="mut">—</span>
+                        )}
+                      </td>
+                      <td style={{ padding: "10px 6px" }}>
+                        <div className="row" style={{ gap: 6 }}>
+                          {d.file_state === "stored" ? (
+                            <>
+                              <button
+                                type="button"
+                                className="btn sec"
+                                style={{ padding: "4px 8px", fontSize: 12 }}
+                                onClick={() => handleSecureView(d.id, `${d.label} - ${d.customer_name || d.customer_code}`)}
+                                title="Stream decrypted document safely"
+                              >
+                                View
+                              </button>
+                              <button
+                                type="button"
+                                className="btn bad"
+                                style={{ padding: "4px 8px", fontSize: 12 }}
+                                onClick={() => handleDeleteFile(d.id)}
+                                title="Permanently delete stored file"
+                              >
+                                Delete
+                              </button>
+                            </>
+                          ) : (
+                            <span className="mut" style={{ fontSize: 12 }}>Purged</span>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -592,6 +831,67 @@ export const AdminPage: React.FC = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Secure Document Viewer Modal */}
+      {activeViewUrl && (
+        <div
+          className="modal-backdrop"
+          onClick={() => {
+            URL.revokeObjectURL(activeViewUrl);
+            setActiveViewUrl(null);
+          }}
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: "rgba(0,0,0,0.6)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            padding: 20,
+          }}
+        >
+          <div
+            className="card"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: 900,
+              maxHeight: "90vh",
+              display: "flex",
+              flexDirection: "column",
+              padding: 20,
+              background: "var(--card-bg, #fff)",
+              borderRadius: 8,
+              boxShadow: "0 10px 30px rgba(0,0,0,0.3)",
+            }}
+          >
+            <div className="row" style={{ justifyContent: "space-between", marginBottom: 12 }}>
+              <h3 style={{ margin: 0 }}>{viewingDocTitle}</h3>
+              <button
+                type="button"
+                className="sec"
+                onClick={() => {
+                  URL.revokeObjectURL(activeViewUrl);
+                  setActiveViewUrl(null);
+                }}
+              >
+                Close preview
+              </button>
+            </div>
+            <div style={{ flex: 1, overflow: "auto", minHeight: 450, display: "flex", justifyContent: "center", alignItems: "center", background: "#f8f9fa", borderRadius: 4 }}>
+              <iframe
+                src={activeViewUrl}
+                title={viewingDocTitle}
+                style={{ width: "100%", height: "100%", minHeight: 500, border: "none" }}
+              />
+            </div>
           </div>
         </div>
       )}

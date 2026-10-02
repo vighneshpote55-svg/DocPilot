@@ -2,6 +2,7 @@ import type {
   AdminAuditItem,
   AdminCustomerDetail,
   AdminCustomerListItem,
+  AdminDocumentItem,
   AdminReviewItem,
   AdminSummary,
   ConsentInfo,
@@ -11,12 +12,13 @@ import type {
   UploadResponse,
 } from "./types";
 
+
 const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080";
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "";
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
 
 const ERROR_MESSAGES: Record<string, string> = {
-  invalid_or_expired_link: "This link is invalid or has expired. Please request a new link by email.",
+  invalid_or_expired_link: "This link is invalid or has expired. Ask for a new link by email.",
   consent_required: "We need your consent before you can upload documents.",
   case_not_open: "This case is closed, so uploads are no longer accepted.",
   consent_already_recorded: "Your response has already been recorded.",
@@ -302,7 +304,48 @@ export async function getAdminCustomers(
   return { customers, totalCount };
 }
 
+export async function getAdminDocuments(
+  query: string = "",
+  docType: string = "",
+  verificationStatus: string = "",
+  limit: number = 50,
+  offset: number = 0
+): Promise<{ documents: AdminDocumentItem[]; totalCount: number }> {
+  const token = getAdminToken();
+  const params = new URLSearchParams({
+    limit: String(limit),
+    offset: String(offset),
+  });
+  if (query.trim()) params.set("q", query.trim());
+  if (docType.trim()) params.set("doc_type", docType.trim());
+  if (verificationStatus.trim()) params.set("verification_status", verificationStatus.trim());
+
+  const url = `${API_BASE}/api/admin/documents?${params.toString()}`;
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${token || ""}`,
+      },
+    });
+  } catch {
+    throw new ApiError(0, "Unable to reach server. Please check your connection.");
+  }
+
+  if (!res.ok) {
+    if (res.status === 401) clearAdminToken();
+    throw new ApiError(res.status, "Failed to load documents.");
+  }
+
+  const totalHeader = res.headers.get("X-Total-Count");
+  const totalCount = totalHeader ? parseInt(totalHeader, 10) : 0;
+  const documents = (await res.json()) as AdminDocumentItem[];
+
+  return { documents, totalCount };
+}
+
 export async function getAdminCustomer(id: number): Promise<AdminCustomerDetail> {
+
   return request<AdminCustomerDetail>(`/api/admin/customers/${id}`, { isAdmin: true });
 }
 

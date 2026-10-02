@@ -31,8 +31,10 @@ export const PortalPage: React.FC = () => {
 
   // Upload & polling state per document type
   const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
+  const [dragOverDoc, setDragOverDoc] = useState<string | null>(null);
   const [docMessages, setDocMessages] = useState<Record<string, { text: string; ok: boolean }>>({});
   const pollTimers = useRef<Record<string, number>>({});
+
 
   const loadPortal = useCallback(async () => {
     if (!token) return;
@@ -336,18 +338,60 @@ export const PortalPage: React.FC = () => {
 
               {canUpload && (
                 <div style={{ marginTop: 14 }}>
-                  <label htmlFor={`file-${doc.doc_type}`} className="mut" style={{ fontWeight: 400 }}>
+                  <label
+                    htmlFor={`file-${doc.doc_type}`}
+                    className="mut"
+                    style={{ fontWeight: 400, display: "block", marginBottom: 8 }}
+                  >
                     {doc.state === "resubmit"
                       ? "Upload a clear, valid copy again"
                       : "Choose file to upload"}
                   </label>
-                  <div className="row" style={{ marginTop: 6 }}>
+                  <div
+                    className={`dropzone ${dragOverDoc === doc.doc_type ? "active" : ""}`}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      if (!isBusy) setDragOverDoc(doc.doc_type);
+                    }}
+                    onDragLeave={() => setDragOverDoc(null)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setDragOverDoc(null);
+                      if (isBusy) return;
+                      const file = e.dataTransfer.files?.[0] || null;
+                      if (file) handleUpload(doc, file);
+                    }}
+                    onClick={() => {
+                      const inputEl = document.getElementById(
+                        `file-${doc.doc_type}`
+                      ) as HTMLInputElement | null;
+                      inputEl?.click();
+                    }}
+                  >
+                    <span className="dropzone-icon">📄</span>
+                    <div className="dropzone-text">
+                      {dragOverDoc === doc.doc_type
+                        ? "Drop file to upload"
+                        : doc.state === "resubmit"
+                        ? "Drop a clear, valid copy here, or click to browse"
+                        : "Drag & drop document here, or click to browse"}
+                    </div>
+                    <div className="dropzone-hint">
+                      PDF, PNG, JPG (up to {portal.max_upload_mb || 10} MB)
+                    </div>
+                  </div>
+
+                  <div className="row" style={{ marginTop: 10, display: "flex", alignItems: "center" }}>
                     <input
                       type="file"
                       id={`file-${doc.doc_type}`}
                       accept=".pdf,.png,.jpg,.jpeg"
                       style={{ flex: 1 }}
                       disabled={isBusy}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        if (file) handleUpload(doc, file);
+                      }}
                     />
                     <button
                       type="button"
@@ -360,12 +404,14 @@ export const PortalPage: React.FC = () => {
                         handleUpload(doc, file);
                       }}
                       id={`upload-btn-${doc.doc_type}`}
+                      style={{ marginLeft: 8 }}
                     >
                       {isBusy ? "Uploading…" : "Upload"}
                     </button>
                   </div>
                 </div>
               )}
+
 
               {statusMessage && (
                 <div
