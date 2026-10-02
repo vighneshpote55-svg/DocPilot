@@ -15,6 +15,15 @@ CANONICAL: dict[str, str] = {
     "shop_establishment": "Shop & Establishment Certificate",
     "fssai": "FSSAI Certificate",
     "utility_bill": "Electricity / Utility Bill",
+    "gst_certificate": "GST Registration Certificate",
+    "certificate_of_incorporation": "Certificate of Incorporation",
+    "partnership_deed": "Partnership Deed",
+    "rent_agreement": "Rent Agreement",
+    "form_16": "Form 16",
+    "bank_passbook": "Bank Passbook",
+    "property_tax_receipt": "Property Tax Receipt",
+    "iec_certificate": "IEC Certificate",
+    "income_certificate": "Income Certificate",
 }
 
 
@@ -50,6 +59,24 @@ def family(v) -> str:
         return "fssai"
     if "electric" in n or "utility" in n:
         return "utility_bill"
+    if "gst" in n or "gstin" in n:
+        return "gst_certificate"
+    if "incorporation" in n or "cin" in n:
+        return "certificate_of_incorporation"
+    if "partnership" in n or "deed" in n:
+        return "partnership_deed"
+    if "rent" in n or "lease" in n or "tenancy" in n:
+        return "rent_agreement"
+    if "form 16" in n or "form16" in n:
+        return "form_16"
+    if "passbook" in n:
+        return "bank_passbook"
+    if "property tax" in n or "tax receipt" in n:
+        return "property_tax_receipt"
+    if "iec" in n or "import export" in n or "importer exporter" in n:
+        return "iec_certificate"
+    if "income cert" in n or "income certificate" in n:
+        return "income_certificate"
     return n
 
 

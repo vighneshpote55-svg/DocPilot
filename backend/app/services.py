@@ -60,7 +60,43 @@ def required_rows(db, customer_id: int) -> list[RequiredDocument]:
                            .order_by(RequiredDocument.doc_type)))
 
 
+def sync_required_and_pending(db, customer: Customer) -> list[RequiredDocument]:
+    """
+    Reconciles RequiredDocument rows in PostgreSQL against current Document states.
+    A requirement is satisfied (verified_document_id set) ONLY IF there exists an active,
+    stored, non-superseded Document with verification_status == 'verified' matching that doc_type.
+    All other states (not_started, processing, manual_review, rejected, failed, deleted, superseded)
+    mean verified_document_id is None (pending).
+    """
+    reqs = required_rows(db, customer.id)
+    verified_docs = list(db.scalars(
+        select(Document)
+        .where(
+            Document.customer_id == customer.id,
+            Document.verification_status == "verified",
+            Document.superseded.is_(False),
+        )
+        .order_by(Document.created_at.desc())
+    ))
+    verified_by_type: dict[str, Document] = {}
+    for d in verified_docs:
+        if d.doc_type not in verified_by_type:
+            verified_by_type[d.doc_type] = d
+
+    for r in reqs:
+        matching_doc = verified_by_type.get(r.doc_type)
+        new_doc_id = matching_doc.id if matching_doc else None
+        if r.verified_document_id != new_doc_id:
+            r.verified_document_id = new_doc_id
+
+    db.flush()
+    return reqs
+
+
 def pending_keys(db, customer_id: int) -> list[str]:
+    c = db.get(Customer, customer_id)
+    if c:
+        sync_required_and_pending(db, c)
     return [r.doc_type for r in required_rows(db, customer_id) if not r.verified_document_id]
 
 
@@ -87,27 +123,64 @@ def latest_docs(db, customer_id: int) -> dict[str, Document]:
 
 
 def required_status(db, customer_id: int) -> list[dict]:
+    c = db.get(Customer, customer_id)
+    if c:
+        sync_required_and_pending(db, c)
     latest = latest_docs(db, customer_id)
     rows = []
     for r in required_rows(db, customer_id):
         doc = db.get(Document, r.verified_document_id) if r.verified_document_id else latest.get(r.doc_type)
-        rows.append({"doc_type": r.doc_type, "label": label(r.doc_type),
-                     "state": "verified" if r.verified_document_id else customer_state_for_doc(doc),
-                     "document_id": doc.id if doc else None})
+        state = "verified" if r.verified_document_id else customer_state_for_doc(doc)
+        rows.append({
+            "doc_type": r.doc_type,
+            "label": label(r.doc_type),
+            "state": state,
+            "is_pending": r.verified_document_id is None,
+            "verification_status": doc.verification_status if doc else "missing",
+            "document_id": doc.id if doc else None,
+        })
     return rows
 
 
-def recalc_case(db, customer: Customer) -> None:
-    """Pending = Required - Verified. When nothing is pending the case completes and retention starts."""
-    if customer.case_status != "in_progress":
-        return
-    if not pending_keys(db, customer.id):
-        now = utcnow()
-        customer.case_status = "completed"
-        customer.completed_at = now
-        customer.delete_after = now + timedelta(days=get_settings().retention_days)
-        audit(db, "system", "case_completed", "customer", customer.id)
-        emailer.completed(customer.email, customer.name)
+def recalc_case(db, customer: Customer) -> dict:
+    """
+    Pending = Required - Verified.
+    - Syncs RequiredDocument rows in PostgreSQL.
+    - If all required documents are verified and customer.case_status == "in_progress":
+        transitions to "completed", sets completed_at, schedules retention delete_after,
+        records audit log, and emails customer.
+    - Idempotent: repeated calls when already completed will not re-audit or re-email.
+    - If any required document is missing or not verified:
+        keeps case_status in_progress (or reopens if a verified doc was rejected/deleted).
+    """
+    reqs = sync_required_and_pending(db, customer)
+    pending = [r for r in reqs if not r.verified_document_id]
+
+    if not pending:
+        if customer.case_status == "in_progress":
+            now = utcnow()
+            customer.case_status = "completed"
+            customer.completed_at = now
+            customer.delete_after = now + timedelta(days=get_settings().retention_days)
+            audit(db, "system", "case_completed", "customer", customer.id)
+            emailer.completed(customer.email, customer.name)
+    else:
+        # Some required documents are still pending / not verified
+        if customer.case_status == "completed":
+            customer.case_status = "in_progress"
+            customer.completed_at = None
+            customer.delete_after = None
+            audit(db, "system", "case_reopened", "customer", customer.id, {"pending_count": len(pending)})
+
+    db.flush()
+    return {
+        "required_count": len(reqs),
+        "received_count": len(reqs) - len(pending),
+        "pending_count": len(pending),
+        "pending_keys": [r.doc_type for r in pending],
+        "case_status": customer.case_status,
+        "completed": customer.case_status == "completed",
+    }
 
 
 # ------------------------------------------------------------------ tokens
@@ -336,6 +409,7 @@ def accept_upload(db, customer: Customer, doc_type_raw: str, filename: str, data
 
     audit(db, "customer", "document_uploaded", "document", doc.id, {"doc_type": slot})
     enqueue(db, "process_document", {"document_id": doc.id}, max_attempts=get_settings().ocr_max_attempts)
+    recalc_case(db, customer)
     db.flush()
     return doc
 
@@ -367,7 +441,7 @@ def decide_review(db, review: ManualReview, approve: bool, admin: str, note: str
     else:
         doc.verification_status = "rejected"
         request_resubmission(db, customer, doc)
-    audit(db, admin, "review_approved" if approve else "review_rejected", "document", doc.id)
+    audit(db, admin, "review_approved" if approve else "review_rejected", "document", doc.id, details={"note": note} if note else None)
     db.flush()
     recalc_case(db, customer)
 
@@ -455,4 +529,7 @@ def mark_document_file_deleted(db, doc: Document, admin: str) -> None:
         doc.file_state = "deleted"
         doc.sha256 = ""
     audit(db, admin, "file_marked_deleted", "document", doc.id, {"customer_id": doc.customer_id, "doc_type": doc.doc_type})
+    c = db.get(Customer, doc.customer_id)
+    if c:
+        recalc_case(db, c)
 

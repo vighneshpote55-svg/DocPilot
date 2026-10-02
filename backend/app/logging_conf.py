@@ -10,9 +10,12 @@ AADHAAR_PATTERN = re.compile(r"\b\d{4}\s?\d{4}\s?\d{4}\b")
 PAN_PATTERN = re.compile(r"\b[A-Z]{5}[0-9]{4}[A-Z]\b")
 EMAIL_PATTERN = re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b")
 
+ACCOUNT_PATTERN = re.compile(r"((?:ACCOUNT|A/C|ACCT)(?:\s+(?:NO|NUMBER))?\s*[:\-]?\s*)([0-9]{6,24})", re.I)
+
 SENSITIVE_KEYS = {
     "email", "mobile", "phone", "aadhaar", "pan", "account_number", "dob",
     "address", "password", "token", "secret", "key", "data", "image", "bytes",
+    "bank_account", "account_no", "acc_no", "ifsc",
 }
 
 
@@ -23,6 +26,7 @@ def sanitize_text(text: str) -> str:
     text = PHONE_PATTERN.sub("[REDACTED_PHONE]", text)
     text = AADHAAR_PATTERN.sub("[REDACTED_AADHAAR]", text)
     text = PAN_PATTERN.sub("[REDACTED_PAN]", text)
+    text = ACCOUNT_PATTERN.sub(r"\g<1>[REDACTED_ACCOUNT]", text)
     return text
 
 

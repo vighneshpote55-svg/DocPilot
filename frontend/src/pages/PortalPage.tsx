@@ -295,8 +295,26 @@ export const PortalPage: React.FC = () => {
   return (
     <div className="narrow" id="portal-container">
       <div className="card">
-        <h1>Hello {portal.first_name}</h1>
-        <p className="mut">
+        <div className="row" style={{ alignItems: "center", marginBottom: 8 }}>
+          <h1 style={{ margin: 0 }}>Hello {portal.first_name}</h1>
+          <span className={`tag ${portal.case_status}`} id="portal-case-status-badge">
+            {portal.case_status === "completed" ? "Completed" : portal.case_status === "in_progress" ? "In progress" : portal.case_status}
+          </span>
+        </div>
+
+        <div style={{ display: "flex", gap: 10, margin: "14px 0", flexWrap: "wrap" }}>
+          <div style={{ background: "var(--card-subtle)", padding: "6px 12px", borderRadius: 8, fontSize: 13 }}>
+            <span className="mut">Required: </span><b>{total}</b>
+          </div>
+          <div style={{ background: "var(--card-subtle)", padding: "6px 12px", borderRadius: 8, fontSize: 13 }}>
+            <span className="mut">Received & verified: </span><b style={{ color: "var(--good, #2ecc71)" }}>{verifiedCount}</b>
+          </div>
+          <div style={{ background: "var(--card-subtle)", padding: "6px 12px", borderRadius: 8, fontSize: 13 }}>
+            <span className="mut">Pending: </span><b style={{ color: portal.pending_count > 0 ? "var(--warn, #e67e22)" : "inherit" }}>{portal.pending_count}</b>
+          </div>
+        </div>
+
+        <p className="mut" style={{ margin: "8px 0" }}>
           {verifiedCount} of {total} documents verified
         </p>
         <div
@@ -311,8 +329,8 @@ export const PortalPage: React.FC = () => {
         </div>
 
         {portal.case_status === "completed" && (
-          <div className="msg ok" role="status">
-            All documents have been verified. Thank you, nothing further is needed.
+          <div className="msg ok" role="status" id="portal-completed-banner" style={{ marginTop: 14 }}>
+            <b>Application complete!</b> All documents have been verified. Thank you, nothing further is needed.
           </div>
         )}
 

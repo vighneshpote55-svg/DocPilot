@@ -96,3 +96,98 @@ def test_inconclusive_needs_ai_then_falls_back_to_human_without_ai():
     assert apply_ai(d, None).outcome == "manual_review"
     assert apply_ai(d, {"verdict": "verified", "confidence": 95, "reason": "ok"}).outcome == "verified"
     assert apply_ai(d, {"verdict": "verified", "confidence": 60}).outcome == "manual_review"
+
+
+# ------------------------------------------------------------------ Async OCR Queue & Polling
+from unittest.mock import patch, MagicMock
+from app.ocr_client import HTTPOCRClient, OCRUnavailable
+
+
+def test_http_ocr_client_handles_202_and_polls():
+    client = HTTPOCRClient()
+
+    post_resp = MagicMock()
+    post_resp.status_code = 202
+    post_resp.json.return_value = {"job_id": "test-job-123", "poll_url": "/ocr/jobs/test-job-123"}
+
+    poll_pending = MagicMock()
+    poll_pending.status_code = 200
+    poll_pending.json.return_value = {"status": "pending", "job_id": "test-job-123"}
+
+    poll_completed = MagicMock()
+    poll_completed.status_code = 200
+    poll_completed.json.return_value = {
+        "status": "completed",
+        "job_id": "test-job-123",
+        "result": {
+            "status": "success",
+            "doc_type": "bank_statement",
+            "confidence": 0.98,
+            "extracted_fields": {"bank_name": "HDFC", "account_number": "1234567890"},
+        },
+    }
+
+    with patch("httpx.post", return_value=post_resp), \
+         patch("httpx.get", side_effect=[poll_pending, poll_completed]):
+        res = client.extract(b"dummy_bytes", "stmt.pdf", "application/pdf", "bank_statement")
+        assert res.status == "success"
+        assert res.doc_type == "bank_statement"
+        assert res.extracted_fields["bank_name"] == "HDFC"
+
+
+def test_http_ocr_client_multi_page_pdf_detection():
+    client = HTTPOCRClient()
+
+    # Generate synthetic 6-page PDF byte content with /Type /Page markers
+    pdf_bytes = b"%PDF-1.4\n" + b"/Type /Page\n" * 6 + b"%%EOF"
+
+    post_resp = MagicMock()
+    post_resp.status_code = 200
+    post_resp.json.return_value = {"status": "success", "doc_type": "bank_statement", "confidence": 0.95}
+
+    with patch("httpx.post", return_value=post_resp) as mock_post:
+        res = client.extract(pdf_bytes, "multipage.pdf", "application/pdf", "bank_statement")
+        assert res.status == "success"
+        # Verify params did NOT force sync=true due to heavy document detection
+        call_kwargs = mock_post.call_args.kwargs
+        assert call_kwargs.get("params") == {}
+
+
+def test_ocr_contract_customer_id_propagation():
+    client = HTTPOCRClient()
+    post_resp = MagicMock()
+    post_resp.status_code = 200
+    post_resp.json.return_value = {"status": "success", "doc_type": "pan", "confidence": 0.95}
+
+    with patch("httpx.post", return_value=post_resp) as mock_post:
+        res = client.extract(
+            b"dummy_bytes", "pan.png", "image/png", "pan",
+            expected={"name": "Vikram Sharma"}, customer_id=42
+        )
+        assert res.status == "success"
+        call_kwargs = mock_post.call_args.kwargs
+        form_data = call_kwargs.get("data")
+        assert form_data is not None
+        assert form_data.get("customer_id") == "42"
+        assert "Vikram Sharma" in form_data.get("expected")
+
+
+def test_ocr_contract_qr_disagreement_and_detected_type():
+    res = OCRResult(
+        status="success",
+        doc_type="aadhaar",
+        detected_type="pan",
+        confidence=0.95,
+        field_confidences={"aadhaar_number": 0.95, "name": 0.95},
+        extracted_fields={"aadhaar_number": "123456789012", "name": "Vikram Sharma"},
+        qr_disagreements=[{"field": "name", "ocr_value": "Vikram Sharma", "qr_value": "V. Sharma"}],
+        message="QR code content slightly disagreed with OCR text",
+    )
+    assert res.detected_type == "pan"
+    assert len(res.qr_disagreements) == 1
+    assert res.message is not None
+
+    decision = evaluate(res, "aadhaar", "Vikram Sharma", min_overall=0.90, min_field=0.80)
+    assert "qr_disagreement" in decision.flags
+    assert "wrong_document_type" in decision.flags
+    assert decision.outcome in ("rejected", "manual_review")

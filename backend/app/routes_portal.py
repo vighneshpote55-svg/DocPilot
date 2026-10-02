@@ -42,15 +42,21 @@ def _customer(db: Session, token: str, *, require_open: bool = False) -> Custome
 def portal_state(token: str, db: Session = Depends(get_db)):
     s = get_settings()
     c, t = _customer_and_token(db, token)
+    services.recalc_case(db, c)
+    db.commit()
     items = services.required_status(db, c.id)
     otp_verified = True
     if s.upload_otp_enabled:
         otp_verified = services.is_upload_otp_verified(db, c.id, t.id)
+    received = sum(1 for i in items if i["state"] == "verified")
+    pending = sum(1 for i in items if i["state"] != "verified")
     return {
         "first_name": c.name.split()[0],
         "case_status": c.case_status,
         "documents": items,
-        "pending_count": sum(1 for i in items if i["state"] != "verified"),
+        "required_count": len(items),
+        "received_count": received,
+        "pending_count": pending,
         "allowed_types": ["pdf", "png", "jpg", "jpeg"],
         "max_upload_mb": s.max_upload_mb,
         "otp_required": s.upload_otp_enabled and not otp_verified,

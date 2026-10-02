@@ -11,7 +11,16 @@ export type DocumentSlot =
   | "udyam"
   | "shop_establishment"
   | "fssai"
-  | "utility_bill";
+  | "utility_bill"
+  | "gst_certificate"
+  | "certificate_of_incorporation"
+  | "partnership_deed"
+  | "rent_agreement"
+  | "form_16"
+  | "bank_passbook"
+  | "property_tax_receipt"
+  | "iec_certificate"
+  | "income_certificate";
 
 export type CustomerDocState =
   | "pending_upload"
@@ -40,6 +49,8 @@ export interface PortalState {
   first_name: string;
   case_status: CaseStatus;
   documents: PortalDocument[];
+  required_count?: number;
+  received_count?: number;
   pending_count: number;
   allowed_types: string[];
   max_upload_mb: number;
@@ -133,6 +144,7 @@ export interface AdminCustomerListItem {
   case_status: CaseStatus;
   required_count: number;
   received_count: number;
+  pending_count?: number;
   created_at: string;
 }
 
@@ -163,10 +175,14 @@ export interface AdminCustomerDetail {
   data_deleted_at: string | null;
   required_count: number;
   received_count: number;
+  pending_count: number;
+  allow_download?: boolean;
   required: Array<{
     doc_type: string;
     label: string;
     state: CustomerDocState;
+    is_pending?: boolean;
+    verification_status?: string;
     document_id: string | null;
   }>;
   documents: AdminDocumentItem[];
@@ -184,7 +200,11 @@ export interface AdminReviewItem {
     id: string;
     doc_type: string;
     label: string;
+    ocr_status?: string;
+    verification_status?: string;
   };
+  ocr_evidence?: Record<string, any>;
+  resubmission_status?: string;
 }
 
 export interface AdminAuditItem {

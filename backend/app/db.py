@@ -48,6 +48,7 @@ def init_db(url: str | None = None, create_tables: bool = False):
             kwargs["poolclass"] = StaticPool
     else:
         kwargs["pool_pre_ping"] = True
+        kwargs["pool_recycle"] = 300
         kwargs["connect_args"] = {"ssl_context": True}  # Supabase requires SSL
     _engine = create_engine(url, **kwargs)
     _SessionLocal = sessionmaker(bind=_engine, autoflush=False, expire_on_commit=False)

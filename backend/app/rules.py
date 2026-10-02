@@ -1,8 +1,8 @@
-"""Rules-first verification. Deterministic checks decide clear cases; the AI sees only uncertain ones."""
 import json
 import re
 from dataclasses import dataclass, field
 from datetime import date, datetime
+from typing import Any
 
 from .doc_types import canonical_key
 from .ocr_client import OCRResult
@@ -22,6 +22,15 @@ REQUIRED_FIELDS: dict[str, list[str]] = {
     "shop_establishment": ["establishment_name", "registration_number"],
     "fssai": ["fssai_licence_number", "business_name"],
     "utility_bill": ["consumer_number", "bill_amount"],
+    "gst_certificate": ["gstin", "legal_name"],
+    "certificate_of_incorporation": ["cin", "company_name"],
+    "partnership_deed": ["firm_name"],
+    "rent_agreement": ["monthly_rent"],
+    "form_16": ["employer_name", "pan_number"],
+    "bank_passbook": ["bank_name", "ifsc"],
+    "property_tax_receipt": ["property_id", "tax_amount_paid"],
+    "iec_certificate": ["iec_number", "entity_name"],
+    "income_certificate": ["certificate_number", "annual_income"],
 }
 
 NAME_KEYS = {
@@ -35,15 +44,77 @@ DEMO_MARKERS = (
     "DEMO VOTER ID", "DEMO DOCUMENT",
 )
 TITLES = {"mr", "mrs", "ms", "dr", "shri", "smt", "the"}
-HARD_FLAGS = {"holder_name_mismatch", "document_expired", "demo_or_non_official_document", "cross_check_failed"}
+HARD_FLAGS = {
+    "holder_name_mismatch",
+    "document_expired",
+    "demo_or_non_official_document",
+    "cross_check_failed",
+    "qr_disagreement",
+    "low_confidence",
+    "ocr_error",
+    "review_required",
+    "risk_score_high",
+    "risk_detected",
+}
+
+
+class DecisionState:
+    VERIFIED = "verified"
+    AI_REQUIRED = "needs_ai"
+    MANUAL_REVIEW = "manual_review"
+    REJECTED = "rejected"
+
+
+class OutcomeStr(str):
+    """String subclass supporting case-insensitive comparison and enum aliases (e.g. AI_REQUIRED == needs_ai)."""
+
+    def __eq__(self, other: Any) -> bool:
+        if isinstance(other, str):
+            s_up = self.upper()
+            o_up = other.upper()
+            if s_up == o_up:
+                return True
+            if (s_up in ("NEEDS_AI", "AI_REQUIRED")) and (o_up in ("NEEDS_AI", "AI_REQUIRED")):
+                return True
+            return False
+        return super().__eq__(other)
+
+    def __hash__(self) -> int:
+        return super().__hash__()
 
 
 @dataclass
 class Decision:
-    outcome: str  # verified | rejected | manual_review | needs_ai
+    outcome: OutcomeStr | str  # verified | rejected | manual_review | needs_ai
     flags: list[str] = field(default_factory=list)
     reason: str = ""
     confidence: float = 0.0
+
+    def __post_init__(self):
+        if not isinstance(self.outcome, OutcomeStr):
+            self.outcome = OutcomeStr(str(self.outcome))
+
+    @property
+    def state(self) -> str:
+        mapping = {
+            "verified": "VERIFIED",
+            "needs_ai": "AI_REQUIRED",
+            "manual_review": "MANUAL_REVIEW",
+            "rejected": "REJECTED",
+        }
+        return mapping.get(str(self.outcome).lower(), str(self.outcome).upper())
+
+    def is_verified(self) -> bool:
+        return self.state == "VERIFIED"
+
+    def is_rejected(self) -> bool:
+        return self.state == "REJECTED"
+
+    def is_manual_review(self) -> bool:
+        return self.state == "MANUAL_REVIEW"
+
+    def is_ai_required(self) -> bool:
+        return self.state == "AI_REQUIRED"
 
 
 def _tokens(v: str) -> list[str]:
@@ -108,49 +179,6 @@ def _cross_check_failed(cc) -> bool:
     return False
 
 
-def evaluate(res: OCRResult, slot: str, customer_name: str, *, min_overall: float, min_field: float) -> Decision:
-    fields = res.extracted_fields or {}
-    flags: list[str] = []
-
-    returned_type = canonical_key(res.doc_type) if res.doc_type else None
-    if returned_type and returned_type != slot:
-        flags.append("wrong_document_type")
-    if res.reason in ("doc_type_mismatch", "wrong_document_type", "type_mismatch"):
-        flags.append("wrong_document_type")
-    if res.reason:
-        flags.append(f"ocr_reason:{res.reason}")
-    if _demo(fields):
-        flags.append("demo_or_non_official_document")
-    if _expired(fields):
-        flags.append("document_expired")
-    if _name_mismatch(fields, customer_name):
-        flags.append("holder_name_mismatch")
-    if _cross_check_failed(res.cross_check):
-        flags.append("cross_check_failed")
-
-    needed = REQUIRED_FIELDS.get(slot, [])
-    missing = [f for f in needed if not fields.get(f)]
-    low = [f for f in needed if fields.get(f) and _num(res.field_confidences.get(f)) < min_field]
-    if missing:
-        flags.append("missing_fields:" + ",".join(missing))
-    if low:
-        flags.append("low_field_confidence:" + ",".join(low))
-
-    conf = float(res.confidence or 0)
-
-    if "wrong_document_type" in flags:
-        return Decision("rejected", flags, "wrong_document_type", conf)
-
-    hard = [f for f in flags if f in HARD_FLAGS or f.startswith("ocr_reason:") or f.startswith("missing_fields:")]
-    if hard:
-        return Decision("manual_review", flags, ", ".join(hard), conf)
-
-    if res.status == "success" and conf >= min_overall and not low:
-        return Decision("verified", flags, "rules_passed", conf)
-
-    return Decision("needs_ai", flags, "rules_inconclusive", conf)
-
-
 def _num(v) -> float:
     try:
         return float(v)
@@ -158,9 +186,203 @@ def _num(v) -> float:
         return 1.0  # unknown confidence is not treated as low
 
 
-def apply_ai(decision: Decision, ai: dict | None) -> Decision:
-    """AI can only upgrade an inconclusive case to verified, and only with high confidence."""
-    if ai and ai.get("verdict") == "verified" and _num(ai.get("confidence")) >= 90:
-        return Decision("verified", decision.flags + ["ai_verified"], str(ai.get("reason", ""))[:300], decision.confidence)
-    flag = "ai_uncertain" if ai else "rules_inconclusive"
-    return Decision("manual_review", decision.flags + [flag], "needs_human_check", decision.confidence)
+class RulesEngine:
+    """Centralized verification engine implementing deterministic rules-first verification."""
+
+    @classmethod
+    def evaluate(
+        cls,
+        res: Any,
+        slot: str,
+        customer_name: str,
+        *,
+        min_overall: float,
+        min_field: float,
+        min_review: float = 0.60,
+    ) -> Decision:
+        def _val(attr, default=None):
+            if isinstance(res, dict):
+                return res.get(attr, default)
+            return getattr(res, attr, default)
+
+        fields = _val("extracted_fields") or {}
+        flags: list[str] = []
+
+        status = _val("status")
+        reason = _val("reason")
+        conf = float(_val("confidence", 0.0) or 0)
+
+        # 1. Document type and structure matching
+        doc_type = _val("doc_type")
+        returned_type = canonical_key(doc_type) if doc_type else None
+        if returned_type and returned_type != slot:
+            flags.append("wrong_document_type")
+        if reason in ("doc_type_mismatch", "wrong_document_type", "type_mismatch"):
+            flags.append("wrong_document_type")
+        detected_type = _val("detected_type")
+        if detected_type and canonical_key(detected_type) != slot:
+            flags.append("wrong_document_type")
+
+        # 2. Failed OCR status handling (Failed OCR must NEVER become VERIFIED)
+        if status in ("error", "failed"):
+            flags.append("ocr_error")
+
+        # 3. Upstream OCR reason codes
+        if reason:
+            flags.append(f"ocr_reason:{reason}")
+
+        # 4. Cryptographic QR disagreements
+        if _val("qr_disagreements"):
+            flags.append("qr_disagreement")
+
+        # 5. Cross-check failure
+        if _cross_check_failed(_val("cross_check")):
+            flags.append("cross_check_failed")
+
+        # 6. Demo / non-official document markers
+        if _demo(fields):
+            flags.append("demo_or_non_official_document")
+
+        # 7. Document expiry check
+        if _expired(fields):
+            flags.append("document_expired")
+
+        # 8. Customer name compatibility
+        if _name_mismatch(fields, customer_name):
+            flags.append("holder_name_mismatch")
+
+        # 9. Risk flags & authenticity results from company-ocr-service
+        risk_flags = _val("risk_flags")
+        if isinstance(risk_flags, list):
+            for rf in risk_flags:
+                flags.append(f"risk:{rf}")
+        elif isinstance(risk_flags, str) and risk_flags.strip():
+            flags.append(f"risk:{risk_flags}")
+
+        risk_score = _val("risk_score")
+        if risk_score is not None and _num(risk_score) >= 30:
+            flags.append("risk_score_high")
+
+        verification_status = _val("verification_status")
+        if verification_status in ("review_required", "unsupported"):
+            flags.append("review_required")
+
+        if fields.get("risk_flag") or fields.get("risk_flags"):
+            flags.append("risk_detected")
+
+        # 10. Required fields presence
+        needed = REQUIRED_FIELDS.get(slot, [])
+        missing = [f for f in needed if not fields.get(f)]
+        field_confs = _val("field_confidences") or {}
+        low_fields = [f for f in needed if fields.get(f) and _num(field_confs.get(f)) < min_field]
+        if missing:
+            flags.append("missing_fields:" + ",".join(missing))
+        if low_fields:
+            flags.append("low_field_confidence:" + ",".join(low_fields))
+
+        # 11. Low confidence detection (strictly routes to manual review)
+        if conf < min_review:
+            flags.append("low_confidence")
+
+        # Wrong document type strictly REJECTS (preserves all accumulated flags)
+        if "wrong_document_type" in flags:
+            return Decision(DecisionState.REJECTED, flags, "wrong_document_type", conf)
+
+        # Failed or unreadable OCR strictly routes to manual review
+        if status in ("error", "failed"):
+            return Decision(DecisionState.MANUAL_REVIEW, flags, "ocr_could_not_read_document", conf)
+
+        # Check for hard flags requiring human review
+        hard = [
+            f for f in flags
+            if f in HARD_FLAGS
+            or f.startswith("ocr_reason:")
+            or f.startswith("missing_fields:")
+            or f.startswith("risk:")
+            or f.startswith("risk_")
+        ]
+        if hard:
+            return Decision(DecisionState.MANUAL_REVIEW, flags, ", ".join(hard), conf)
+
+        # 12. Valid document auto-verification (clean status, conf >= threshold, no low fields)
+        if status == "success" and conf >= min_overall and not low_fields:
+            return Decision(DecisionState.VERIFIED, flags, "rules_passed", conf)
+
+        # 13. Borderline / inconclusive rules -> AI_REQUIRED
+        return Decision(DecisionState.AI_REQUIRED, flags, "rules_inconclusive", conf)
+
+
+def evaluate(
+    res: Any,
+    slot: str,
+    customer_name: str,
+    *,
+    min_overall: float,
+    min_field: float,
+    min_review: float = 0.60,
+) -> Decision:
+    """Primary entry point for rules-first document evaluation."""
+    return RulesEngine.evaluate(
+        res,
+        slot,
+        customer_name,
+        min_overall=min_overall,
+        min_field=min_field,
+        min_review=min_review,
+    )
+
+
+def apply_ai(decision: Decision, ai: Any) -> Decision:
+    """AI can only upgrade an inconclusive case to verified, and only with high confidence (>= 90).
+
+    Strict Invariants:
+    1. AI can NEVER override hard security or risk failures.
+    2. AI failures, timeouts, or low confidence (< 90) strictly route to MANUAL_REVIEW.
+    """
+    hard = [
+        f for f in decision.flags
+        if f in HARD_FLAGS
+        or f.startswith("ocr_reason:")
+        or f.startswith("missing_fields:")
+        or f.startswith("risk:")
+        or f.startswith("risk_")
+    ]
+    if hard or decision.outcome in (DecisionState.REJECTED, "rejected"):
+        return Decision(
+            DecisionState.REJECTED if decision.outcome in (DecisionState.REJECTED, "rejected") else DecisionState.MANUAL_REVIEW,
+            decision.flags,
+            decision.reason or ", ".join(hard),
+            decision.confidence,
+        )
+
+    if ai is None:
+        return Decision(
+            DecisionState.MANUAL_REVIEW,
+            decision.flags + ["rules_inconclusive"],
+            "needs_human_check",
+            decision.confidence,
+        )
+
+    verdict = getattr(ai, "verdict", None) if hasattr(ai, "verdict") else (ai.get("verdict") if isinstance(ai, dict) else None)
+    confidence = getattr(ai, "confidence", None) if hasattr(ai, "confidence") else (ai.get("confidence") if isinstance(ai, dict) else None)
+    reason = getattr(ai, "reason", None) if hasattr(ai, "reason") else (ai.get("reason") if isinstance(ai, dict) else "")
+
+    conf_num = _num(confidence)
+    if 0.0 <= conf_num <= 1.0:
+        conf_num = conf_num * 100.0
+
+    if str(verdict or "").lower() == "verified" and conf_num >= 90.0:
+        return Decision(
+            DecisionState.VERIFIED,
+            decision.flags + ["ai_verified"],
+            str(reason or "AI verified")[:300],
+            decision.confidence,
+        )
+
+    flag = "ai_uncertain" if verdict else "rules_inconclusive"
+    return Decision(
+        DecisionState.MANUAL_REVIEW,
+        decision.flags + [flag],
+        str(reason or "needs_human_check")[:300],
+        decision.confidence,
+    )

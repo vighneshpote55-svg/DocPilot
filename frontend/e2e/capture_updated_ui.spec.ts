@@ -8,7 +8,7 @@ const fixtures = JSON.parse(
   fs.readFileSync(path.join(__dirname, "test_fixtures.json"), "utf-8")
 );
 
-const ARTIFACT_DIR = "C:/Users/sachi/.gemini/antigravity-ide/brain/5637c45d-8b81-42f3-8817-6e3b34f5b04a";
+const ARTIFACT_DIR = "C:/Users/sachi/.gemini/antigravity-ide/brain/fe7231fc-0868-4325-9eee-49f992f42862";
 
 test("1. Capture Customer Portal screenshot", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 860 });
@@ -37,4 +37,10 @@ test("2. Capture Admin Dashboard screenshots", async ({ page }) => {
   await page.waitForSelector("#tab-pane-documents", { timeout: 15000 });
   await page.waitForTimeout(1000);
   await page.screenshot({ path: path.join(ARTIFACT_DIR, "admin_documents_tab.png"), fullPage: true });
+
+  // Switch to Manual Reviews tab
+  await page.locator("#tab-btn-reviews").click();
+  await page.waitForSelector("#tab-pane-reviews", { timeout: 15000 });
+  await page.waitForTimeout(1500);
+  await page.screenshot({ path: path.join(ARTIFACT_DIR, "admin_reviews_tab.png"), fullPage: true });
 });

@@ -220,6 +220,133 @@ def test_utility_bill_fail_missing_consumer_number():
     assert "missing_fields:consumer_number" in d.flags
 
 
+# ------------------------------------------------------------------ 14. GST Certificate
+def test_gst_certificate_pass():
+    r = mk_res("gst_certificate", {"gstin": "27ABCDE1234F1Z5", "legal_name": "Sharma Enterprises Pvt Ltd"})
+    d = evaluate(r, "gst_certificate", CUSTOMER_NAME, **KW)
+    assert d.outcome == "verified"
+
+
+def test_gst_certificate_fail_missing_gstin():
+    r = mk_res("gst_certificate", {"legal_name": "Sharma Enterprises Pvt Ltd"})
+    d = evaluate(r, "gst_certificate", CUSTOMER_NAME, **KW)
+    assert d.outcome == "manual_review"
+    assert "missing_fields:gstin" in d.flags
+
+
+# ------------------------------------------------------------------ 15. Certificate of Incorporation
+def test_certificate_of_incorporation_pass():
+    r = mk_res("certificate_of_incorporation", {"cin": "U72900MH2025PTC123456", "company_name": "Sharma Tech Solutions Pvt Ltd"})
+    d = evaluate(r, "certificate_of_incorporation", CUSTOMER_NAME, **KW)
+    assert d.outcome == "verified"
+
+
+def test_certificate_of_incorporation_fail_missing_cin():
+    r = mk_res("certificate_of_incorporation", {"company_name": "Sharma Tech Solutions Pvt Ltd"})
+    d = evaluate(r, "certificate_of_incorporation", CUSTOMER_NAME, **KW)
+    assert d.outcome == "manual_review"
+    assert "missing_fields:cin" in d.flags
+
+
+# ------------------------------------------------------------------ 16. Partnership Deed
+def test_partnership_deed_pass():
+    r = mk_res("partnership_deed", {"firm_name": "Sharma & Associates"})
+    d = evaluate(r, "partnership_deed", CUSTOMER_NAME, **KW)
+    assert d.outcome == "verified"
+
+
+def test_partnership_deed_fail_missing_firm():
+    r = mk_res("partnership_deed", {})
+    d = evaluate(r, "partnership_deed", CUSTOMER_NAME, **KW)
+    assert d.outcome == "manual_review"
+    assert "missing_fields:firm_name" in d.flags
+
+
+# ------------------------------------------------------------------ 17. Rent Agreement
+def test_rent_agreement_pass():
+    r = mk_res("rent_agreement", {"monthly_rent": "25000", "lessor_name_masked": "R. K****"})
+    d = evaluate(r, "rent_agreement", CUSTOMER_NAME, **KW)
+    assert d.outcome == "verified"
+
+
+def test_rent_agreement_fail_missing_rent():
+    r = mk_res("rent_agreement", {"lessor_name_masked": "R. K****"})
+    d = evaluate(r, "rent_agreement", CUSTOMER_NAME, **KW)
+    assert d.outcome == "manual_review"
+    assert "missing_fields:monthly_rent" in d.flags
+
+
+# ------------------------------------------------------------------ 18. Form 16
+def test_form_16_pass():
+    r = mk_res("form_16", {"employer_name": "Tech Corp Pvt Ltd", "pan_number": "ABCPE1234F"})
+    d = evaluate(r, "form_16", CUSTOMER_NAME, **KW)
+    assert d.outcome == "verified"
+
+
+def test_form_16_fail_missing_employer():
+    r = mk_res("form_16", {"pan_number": "ABCPE1234F"})
+    d = evaluate(r, "form_16", CUSTOMER_NAME, **KW)
+    assert d.outcome == "manual_review"
+    assert "missing_fields:employer_name" in d.flags
+
+
+# ------------------------------------------------------------------ 19. Bank Passbook
+def test_bank_passbook_pass():
+    r = mk_res("bank_passbook", {"bank_name": "State Bank of India", "ifsc": "SBIN0001234"})
+    d = evaluate(r, "bank_passbook", CUSTOMER_NAME, **KW)
+    assert d.outcome == "verified"
+
+
+def test_bank_passbook_fail_invalid_ifsc():
+    r = mk_res("bank_passbook", {"bank_name": "State Bank of India", "ifsc": "INVALID001"},
+               conf=0.95, reason="invalid_ifsc_format")
+    d = evaluate(r, "bank_passbook", CUSTOMER_NAME, **KW)
+    assert d.outcome == "manual_review"
+    assert "ocr_reason:invalid_ifsc_format" in d.flags
+
+
+# ------------------------------------------------------------------ 20. Property Tax Receipt
+def test_property_tax_receipt_pass():
+    r = mk_res("property_tax_receipt", {"property_id": "PID-12345678", "tax_amount_paid": "5000.00"})
+    d = evaluate(r, "property_tax_receipt", CUSTOMER_NAME, **KW)
+    assert d.outcome == "verified"
+
+
+def test_property_tax_receipt_fail_missing_id():
+    r = mk_res("property_tax_receipt", {"tax_amount_paid": "5000.00"})
+    d = evaluate(r, "property_tax_receipt", CUSTOMER_NAME, **KW)
+    assert d.outcome == "manual_review"
+    assert "missing_fields:property_id" in d.flags
+
+
+# ------------------------------------------------------------------ 21. IEC Certificate
+def test_iec_certificate_pass():
+    r = mk_res("iec_certificate", {"iec_number": "0123456789", "entity_name": "Sharma Global Exports"})
+    d = evaluate(r, "iec_certificate", CUSTOMER_NAME, **KW)
+    assert d.outcome == "verified"
+
+
+def test_iec_certificate_fail_missing_iec():
+    r = mk_res("iec_certificate", {"entity_name": "Sharma Global Exports"})
+    d = evaluate(r, "iec_certificate", CUSTOMER_NAME, **KW)
+    assert d.outcome == "manual_review"
+    assert "missing_fields:iec_number" in d.flags
+
+
+# ------------------------------------------------------------------ 22. Income Certificate
+def test_income_certificate_pass():
+    r = mk_res("income_certificate", {"certificate_number": "MH-INC-2025-123456", "annual_income": "250000"})
+    d = evaluate(r, "income_certificate", CUSTOMER_NAME, **KW)
+    assert d.outcome == "verified"
+
+
+def test_income_certificate_fail_missing_number():
+    r = mk_res("income_certificate", {"annual_income": "250000"})
+    d = evaluate(r, "income_certificate", CUSTOMER_NAME, **KW)
+    assert d.outcome == "manual_review"
+    assert "missing_fields:certificate_number" in d.flags
+
+
 # ------------------------------------------------------------------ Type Mismatch Rejections
 def test_wrong_type_rejected_by_slot():
     r = mk_res("pan", {"pan_number": "ABCPE1234F", "name": "Rajesh Sharma"})

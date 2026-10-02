@@ -23,7 +23,7 @@ class FakeOCR:
         self.calls = []
         self.fail_times = 0
 
-    def extract(self, data, filename, mime, doc_type, expected=None):
+    def extract(self, data, filename, mime, doc_type, expected=None, customer_id=None, **kwargs):
         self.calls.append((doc_type, expected))
         if self.fail_times > 0:
             self.fail_times -= 1
