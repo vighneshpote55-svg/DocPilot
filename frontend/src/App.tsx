@@ -30,6 +30,9 @@ const AppContent: React.FC = () => {
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/privacy/confirm/:token" element={<PrivacyConfirmPage />} />
           <Route path="/admin" element={<AdminPage />} />
+          <Route path="/admin/customers" element={<AdminPage initialTab="cases" />} />
+          <Route path="/admin/reviews" element={<AdminPage initialTab="reviews" />} />
+          <Route path="/admin/audit" element={<AdminPage initialTab="audit" />} />
           <Route path="/admin/customers/:id" element={<AdminCustomerDetailPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

@@ -3,7 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   approveReview,
   clearAdminToken,
-  createAdminCustomer,
   deleteAdminDocumentFile,
   fetchDocumentFile,
   getAdminAudit,
@@ -30,12 +29,14 @@ import { DocumentStatusChart } from "../components/admin/DocumentStatusChart";
 import { RecentActivityFeed } from "../components/admin/RecentActivityFeed";
 import { AdminReportsView } from "../components/admin/AdminReportsView";
 import { AdminSettingsView } from "../components/admin/AdminSettingsView";
+import { AdminCustomersView } from "../components/admin/AdminCustomersView";
+import { AddCustomerDrawer } from "../components/admin/AddCustomerDrawer";
+import { BulkImportModal } from "../components/admin/BulkImportModal";
+import { CustomerDetailDrawer } from "../components/admin/CustomerDetailDrawer";
 import {
   IconSearch,
   IconEye,
   IconTrash2,
-  IconPlus,
-  IconRefreshCw,
   IconUsers,
 } from "../components/admin/AdminIcons";
 
@@ -78,7 +79,9 @@ function getAdminEmail(): string {
   return "admin@docpilot.internal";
 }
 
-export const AdminPage: React.FC = () => {
+export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
+  initialTab = "dashboard",
+}) => {
   const navigate = useNavigate();
   const token = getAdminToken();
   const [, startTransition] = useTransition();
@@ -90,7 +93,7 @@ export const AdminPage: React.FC = () => {
   const [signingIn, setSigningIn] = useState(false);
 
   // Shell Layout State
-  const [activeTab, setActiveTab] = useState<AdminNavTab>("dashboard");
+  const [activeTab, setActiveTab] = useState<AdminNavTab>(initialTab);
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
     return localStorage.getItem("docpilot_adm_sidebar_collapsed") === "true";
   });
@@ -125,15 +128,10 @@ export const AdminPage: React.FC = () => {
   const [activeViewUrl, setActiveViewUrl] = useState<string | null>(null);
   const [viewingDocTitle, setViewingDocTitle] = useState("");
 
-  // Add Customer Form Modal State
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newEmail, setNewEmail] = useState("");
-  const [newMobile, setNewMobile] = useState("");
-  const [selectedDocs, setSelectedDocs] = useState<string[]>(["pan"]);
-  const [sendConsentNow, setSendConsentNow] = useState(true);
-  const [addCustomerError, setAddCustomerError] = useState<string | null>(null);
-  const [creatingCustomer, setCreatingCustomer] = useState(false);
+  // Add Customer & Intake State
+  const [showAddDrawer, setShowAddDrawer] = useState(false);
+  const [showBulkModal, setShowBulkModal] = useState(false);
+  const [selectedDetailCustomerId, setSelectedDetailCustomerId] = useState<number | null>(null);
 
   // Reviews Tab State
   const [reviews, setReviews] = useState<AdminReviewItem[]>([]);
@@ -297,46 +295,33 @@ export const AdminPage: React.FC = () => {
     }
   };
 
-  const handleCreateCustomer = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newName.trim() || !newEmail.trim() || selectedDocs.length === 0) {
-      setAddCustomerError("Name, email, and at least one required document are required.");
-      return;
-    }
 
-    setCreatingCustomer(true);
-    setAddCustomerError(null);
+  const existingEmails = React.useMemo(() => {
+    return new Set(customers.map((c) => c.email.toLowerCase().trim()));
+  }, [customers]);
 
+  const refreshCustomers = async () => {
     try {
-      await createAdminCustomer({
-        name: newName.trim(),
-        email: newEmail.trim(),
-        mobile: newMobile.trim() || null,
-        required_documents: selectedDocs,
-        send_consent: sendConsentNow,
-      });
-
-      setCreatingCustomer(false);
-      setShowAddModal(false);
-
-      // Reset form
-      setNewName("");
-      setNewEmail("");
-      setNewMobile("");
-      setSelectedDocs(["pan"]);
-
-      // Refresh customers and summary
       const [resCust, resSum] = await Promise.all([
-        getAdminCustomers(searchQuery, CASES_PAGE_SIZE, 0),
+        getAdminCustomers(activeSearch, CASES_PAGE_SIZE, casesPage * CASES_PAGE_SIZE, caseStatusFilter),
         getAdminSummary(),
       ]);
       setCustomers(resCust.customers);
       setCasesTotalCount(resCust.totalCount ?? resCust.customers.length);
       setSummary(resSum);
     } catch (err: unknown) {
-      setAddCustomerError(err instanceof Error ? err.message : "Failed to create customer.");
-      setCreatingCustomer(false);
+      console.error("Failed to refresh customers", err);
     }
+  };
+
+  const handleCustomerCreated = (newCust: AdminCustomerListItem) => {
+    setCustomers((prev) => [newCust, ...prev]);
+    setCasesTotalCount((prev) => prev + 1);
+    getAdminSummary().then((s) => setSummary(s)).catch(() => {});
+  };
+
+  const handleImportComplete = (_count: number) => {
+    refreshCustomers();
   };
 
   const handleReviewDecision = async (id: string, action: "approve" | "reject") => {
@@ -488,7 +473,7 @@ export const AdminPage: React.FC = () => {
           <AdminTopNav
             activeTab={activeTab}
             onOpenMobile={() => setSidebarMobileOpen(true)}
-            onAddCustomer={() => setShowAddModal(true)}
+            onAddCustomer={() => setShowAddDrawer(true)}
             isDarkMode={isDarkMode}
             onToggleTheme={handleToggleTheme}
             onSignOut={handleSignOut}
@@ -691,191 +676,31 @@ export const AdminPage: React.FC = () => {
                   }}
                 />
 
-                <form
-                  onSubmit={handleSearch}
-                  className="row"
-                  style={{
-                    margin: "20px 0 14px",
-                    gap: 10,
-                    flexWrap: "wrap",
-                    alignItems: "center",
+                <AdminCustomersView
+                  customers={customers}
+                  totalCount={casesTotalCount}
+                  loading={loadingCases}
+                  searchQuery={searchQuery}
+                  onSearchChange={setSearchQuery}
+                  onSearchSubmit={handleSearch}
+                  caseStatusFilter={caseStatusFilter}
+                  onStatusFilterChange={(status) => {
+                    setCaseStatusFilter(status);
+                    setCasesPage(0);
                   }}
-                >
-                  <div style={{ position: "relative", flex: "1 1 240px", maxWidth: 360 }}>
-                    <input
-                      type="search"
-                      placeholder="Search by name, email, or code…"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      id="customer-search-input"
-                    />
-                  </div>
-                  <select
-                    value={caseStatusFilter}
-                    onChange={(e) => {
-                      setCaseStatusFilter(e.target.value);
-                      setCasesPage(0);
-                    }}
-                    style={{ maxWidth: 190, flex: "0 0 170px" }}
-                    id="customer-status-filter"
-                  >
-                    <option value="">All Case Statuses</option>
-                    <option value="in_progress">In Progress</option>
-                    <option value="completed">Completed</option>
-                    <option value="expired">Expired</option>
-                    <option value="withdrawn">Withdrawn</option>
-                    <option value="deleted">Deleted</option>
-                  </select>
-                  <button type="submit" className="sec" id="customer-search-btn">
-                    <IconSearch size={14} /> Search
-                  </button>
-                  {(activeSearch || caseStatusFilter) && (
-                    <button
-                      type="button"
-                      className="sec"
-                      onClick={() => {
-                        setSearchQuery("");
-                        setActiveSearch("");
-                        setCaseStatusFilter("");
-                        setCasesPage(0);
-                      }}
-                    >
-                      <IconRefreshCw size={14} /> Reset
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className="ok"
-                    onClick={() => setShowAddModal(true)}
-                    id="btn-add-customer"
-                    style={{ marginLeft: "auto" }}
-                  >
-                    <IconPlus size={16} /> Add customer
-                  </button>
-                </form>
-
-                <div className="card wrap" style={{ padding: 0 }}>
-                  {loadingCases ? (
-                    <p style={{ padding: 20 }} className="mut">
-                      Loading customer cases…
-                    </p>
-                  ) : customers.length === 0 ? (
-                    <p style={{ padding: 20 }} className="mut">
-                      No customers found matching search criteria.
-                    </p>
-                  ) : (
-                    <>
-                      <table>
-                        <thead>
-                          <tr>
-                            <th>Code</th>
-                            <th>Customer</th>
-                            <th>Consent</th>
-                            <th>Case status</th>
-                            <th>Verification progress</th>
-                            <th>Action</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {customers.map((c) => {
-                            const pct =
-                              c.required_count > 0
-                                ? Math.round((c.received_count / c.required_count) * 100)
-                                : 0;
-                            return (
-                              <tr key={c.id}>
-                                <td style={{ fontWeight: 600, fontFamily: "monospace" }}>
-                                  {c.code}
-                                </td>
-                                <td>
-                                  <b>{c.name}</b>
-                                  <div className="mut" style={{ fontSize: 13 }}>
-                                    {c.email}
-                                  </div>
-                                </td>
-                                <td>
-                                  <span className={`tag ${c.consent_status}`}>
-                                    {c.consent_status}
-                                  </span>
-                                </td>
-                                <td>
-                                  <span className={`tag ${c.case_status}`}>
-                                    {c.case_status}
-                                  </span>
-                                  {c.data_deleted_at && (
-                                    <div className="mut" style={{ fontSize: 11, marginTop: 4 }}>
-                                      Files purged
-                                    </div>
-                                  )}
-                                </td>
-                                <td>
-                                  <div>
-                                    <b>
-                                      {c.received_count} of {c.required_count} verified
-                                    </b>
-                                  </div>
-                                  <div className="mini-bar">
-                                    <i style={{ width: `${pct}%` }} />
-                                  </div>
-                                  <div className="mut" style={{ fontSize: 12, marginTop: 2 }}>
-                                    {c.pending_count !== undefined
-                                      ? `${c.pending_count} pending`
-                                      : `${c.required_count - c.received_count} pending`}
-                                  </div>
-                                </td>
-                                <td>
-                                  <Link
-                                    to={`/admin/customers/${c.id}`}
-                                    className="btn sec"
-                                    style={{ padding: "5px 12px", fontSize: 13 }}
-                                  >
-                                    View
-                                  </Link>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-
-                      {casesTotalCount > CASES_PAGE_SIZE && (
-                        <div className="pagination-bar">
-                          <div className="mut">
-                            Showing {casesPage * CASES_PAGE_SIZE + 1}–
-                            {Math.min((casesPage + 1) * CASES_PAGE_SIZE, casesTotalCount)} of{" "}
-                            {casesTotalCount} customers
-                          </div>
-                          <div className="pagination-controls">
-                            <button
-                              type="button"
-                              className="sec"
-                              disabled={casesPage === 0}
-                              onClick={() => setCasesPage((p) => Math.max(0, p - 1))}
-                              style={{ padding: "4px 10px", fontSize: 13 }}
-                            >
-                              Previous
-                            </button>
-                            <span>
-                              Page {casesPage + 1} of{" "}
-                              {Math.ceil(casesTotalCount / CASES_PAGE_SIZE)}
-                            </span>
-                            <button
-                              type="button"
-                              className="sec"
-                              disabled={
-                                (casesPage + 1) * CASES_PAGE_SIZE >= casesTotalCount
-                              }
-                              onClick={() => setCasesPage((p) => p + 1)}
-                              style={{ padding: "4px 10px", fontSize: 13 }}
-                            >
-                              Next
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
+                  page={casesPage}
+                  pageSize={CASES_PAGE_SIZE}
+                  onPageChange={setCasesPage}
+                  onResetFilters={() => {
+                    setSearchQuery("");
+                    setActiveSearch("");
+                    setCaseStatusFilter("");
+                    setCasesPage(0);
+                  }}
+                  onOpenAddCustomer={() => setShowAddDrawer(true)}
+                  onOpenBulkImport={() => setShowBulkModal(true)}
+                  onOpenCustomerDetail={(id) => setSelectedDetailCustomerId(id)}
+                />
               </div>
             )}
 
@@ -1407,128 +1232,30 @@ export const AdminPage: React.FC = () => {
         </div>
       </div>
 
-      {/* --- ADD CUSTOMER MODAL --- */}
-      {showAddModal && (
-        <div
-          style={{
-            position: "fixed",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: "rgba(0,0,0,0.6)",
-            backdropFilter: "blur(4px)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 16,
-            zIndex: 1000,
-          }}
-        >
-          <div
-            className="card"
-            style={{
-              maxWidth: 540,
-              width: "100%",
-              maxHeight: "90vh",
-              overflowY: "auto",
-              boxShadow: "0 20px 40px rgba(0,0,0,0.4)",
-            }}
-          >
-            <h2>Create new customer case</h2>
+      {/* Add Customer Drawer */}
+      <AddCustomerDrawer
+        isOpen={showAddDrawer}
+        onClose={() => setShowAddDrawer(false)}
+        onCustomerCreated={handleCustomerCreated}
+        existingEmails={existingEmails}
+      />
 
-            {addCustomerError && (
-              <div className="msg err" role="alert">
-                {addCustomerError}
-              </div>
-            )}
+      {/* Bulk Excel Import Modal */}
+      <BulkImportModal
+        isOpen={showBulkModal}
+        onClose={() => setShowBulkModal(false)}
+        onImportComplete={handleImportComplete}
+        existingEmails={existingEmails}
+      />
 
-            <form onSubmit={handleCreateCustomer}>
-              <label htmlFor="new-cust-name">Full name</label>
-              <input
-                id="new-cust-name"
-                required
-                placeholder="Jane Doe"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-              />
-
-              <label htmlFor="new-cust-email">Email address</label>
-              <input
-                id="new-cust-email"
-                type="email"
-                required
-                placeholder="jane.doe@example.com"
-                value={newEmail}
-                onChange={(e) => setNewEmail(e.target.value)}
-              />
-
-              <label htmlFor="new-cust-mobile">Mobile number (optional)</label>
-              <input
-                id="new-cust-mobile"
-                placeholder="+919876543210"
-                value={newMobile}
-                onChange={(e) => setNewMobile(e.target.value)}
-              />
-
-              <label style={{ marginTop: 14 }}>Required documents</label>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: 8,
-                  background: "var(--adm-card-elevated, var(--card-subtle))",
-                  padding: 12,
-                  borderRadius: 8,
-                  border: "1px solid var(--adm-border, var(--line))",
-                }}
-              >
-                {ALL_DOC_TYPES.map((dt) => (
-                  <label key={dt.key} className="chk">
-                    <input
-                      type="checkbox"
-                      checked={selectedDocs.includes(dt.key)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedDocs([...selectedDocs, dt.key]);
-                        } else {
-                          setSelectedDocs(selectedDocs.filter((x) => x !== dt.key));
-                        }
-                      }}
-                    />
-                    <span>{dt.label}</span>
-                  </label>
-                ))}
-              </div>
-
-              <div style={{ marginTop: 14 }}>
-                <label className="chk">
-                  <input
-                    type="checkbox"
-                    checked={sendConsentNow}
-                    onChange={(e) => setSendConsentNow(e.target.checked)}
-                  />
-                  <span>Send consent email request immediately</span>
-                </label>
-              </div>
-
-              <div className="row" style={{ marginTop: 24 }}>
-                <button type="submit" className="ok" disabled={creatingCustomer}>
-                  {creatingCustomer ? "Creating…" : "Create customer"}
-                </button>
-                <button
-                  type="button"
-                  className="sec"
-                  onClick={() => setShowAddModal(false)}
-                  disabled={creatingCustomer}
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Customer Quick Detail Drawer */}
+      <CustomerDetailDrawer
+        customerId={selectedDetailCustomerId}
+        isOpen={selectedDetailCustomerId !== null}
+        onClose={() => setSelectedDetailCustomerId(null)}
+        onSecureView={handleSecureView}
+        onCustomerUpdated={refreshCustomers}
+      />
 
       {/* Secure Document Viewer Modal */}
       {activeViewUrl && (
