@@ -425,6 +425,39 @@ export const IconPercent: React.FC<IconProps> = ({ size = 20, className = "", st
   </svg>
 );
 
+export const IconServer: React.FC<IconProps> = ({ size = 20, className = "", style, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} style={style}>
+    <rect width="20" height="8" x="2" y="2" rx="2" ry="2" />
+    <rect width="20" height="8" x="2" y="14" rx="2" ry="2" />
+    <line x1="6" y1="6" x2="6.01" y2="6" />
+    <line x1="6" y1="18" x2="6.01" y2="18" />
+  </svg>
+);
+
+export const IconCpu: React.FC<IconProps> = ({ size = 20, className = "", style, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} style={style}>
+    <rect width="16" height="16" x="4" y="4" rx="2" />
+    <rect width="6" height="6" x="9" y="9" />
+    <path d="M15 2v2" />
+    <path d="M15 20v2" />
+    <path d="M2 15h2" />
+    <path d="M2 9h2" />
+    <path d="M20 15h2" />
+    <path d="M20 9h2" />
+    <path d="M9 2v2" />
+    <path d="M9 20v2" />
+  </svg>
+);
+
+export const IconKey: React.FC<IconProps> = ({ size = 20, className = "", style, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} style={style}>
+    <circle cx="7.5" cy="15.5" r="5.5" />
+    <path d="m21 2-9.6 9.6" />
+    <path d="m15.5 7.5 3 3L22 7l-3-3" />
+  </svg>
+);
+
+
 
 
 

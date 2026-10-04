@@ -849,7 +849,16 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
             )}
 
             {/* --- TAB 6: SETTINGS & POLICIES --- */}
-            {activeTab === "settings" && <AdminSettingsView />}
+            {activeTab === "settings" && (
+              <AdminSettingsView
+                summary={summary}
+                isDarkMode={isDarkMode}
+                onToggleTheme={handleToggleTheme}
+                sidebarCollapsed={sidebarCollapsed}
+                onToggleCollapse={handleToggleCollapse}
+                onSignOut={handleSignOut}
+              />
+            )}
           </main>
         </div>
       </div>

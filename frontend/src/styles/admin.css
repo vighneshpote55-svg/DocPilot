@@ -7089,3 +7089,300 @@
   background: #f8fafc;
 }
 
+/* ==========================================================================
+   Phase 10: Settings & System Configuration UI Styles
+   ========================================================================== */
+
+.settings-view-container {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  width: 100%;
+}
+
+/* Health Probe Top Banner */
+.settings-health-banner {
+  background: var(--adm-card, #0f172a);
+  border: 1px solid var(--adm-border, rgba(59, 130, 246, 0.2));
+  border-radius: 14px;
+  padding: 22px 26px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.health-banner-left {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.health-banner-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--adm-text, #f8fafc);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.health-banner-sub {
+  font-size: 13px;
+  color: var(--adm-text-muted, #94a3b8);
+  margin: 0;
+}
+
+.health-badges-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.health-status-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.chip-ok {
+  background: rgba(16, 185, 129, 0.15);
+  color: var(--adm-success, #10b981);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.chip-degraded {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--adm-warn, #f59e0b);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.chip-error {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--adm-danger, #ef4444);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.health-ping-pill {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--adm-text-secondary, #94a3b8);
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--adm-border, rgba(59, 130, 246, 0.2));
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-family: monospace;
+}
+
+/* Category Navigation Pills */
+.settings-nav-pills {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 4px 0;
+}
+
+.settings-nav-pill {
+  background: var(--adm-card, #0f172a);
+  border: 1px solid var(--adm-border, rgba(59, 130, 246, 0.2));
+  color: var(--adm-text-secondary, #94a3b8);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.settings-nav-pill:hover {
+  color: var(--adm-text, #ffffff);
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+.settings-nav-pill.active {
+  background: var(--adm-primary, #3b82f6);
+  color: #ffffff;
+  border-color: var(--adm-primary, #3b82f6);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
+}
+
+/* Settings Sections Grid */
+.settings-sections-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 18px;
+}
+
+@media (max-width: 1080px) {
+  .settings-sections-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.settings-config-card {
+  background: var(--adm-card, #0f172a);
+  border: 1px solid var(--adm-border, rgba(59, 130, 246, 0.2));
+  border-radius: 14px;
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  transition: border-color 0.2s ease;
+}
+
+.settings-config-card:hover {
+  border-color: rgba(59, 130, 246, 0.35);
+}
+
+.settings-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding-bottom: 12px;
+}
+
+.settings-card-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.settings-card-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--adm-text, #ffffff);
+  margin: 0;
+}
+
+.settings-card-subtitle {
+  font-size: 12px;
+  color: var(--adm-text-muted, #94a3b8);
+  margin: 0;
+}
+
+/* Config Field Rows */
+.config-fields-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.config-field-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  background: rgba(15, 23, 42, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+}
+
+.config-field-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.config-field-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--adm-text-secondary, #94a3b8);
+}
+
+.config-field-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--adm-text, #ffffff);
+  font-family: monospace;
+}
+
+.config-field-desc {
+  font-size: 11px;
+  color: var(--adm-text-muted, #64748b);
+  line-height: 1.4;
+  margin: 0;
+}
+
+.masked-secret-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: monospace;
+  color: var(--adm-text-muted, #94a3b8);
+  letter-spacing: 0.1em;
+}
+
+/* Light Theme Overrides for Phase 10 */
+.admin-theme-light .settings-health-banner,
+[data-theme="light"] .settings-health-banner,
+.admin-theme-light .settings-config-card,
+[data-theme="light"] .settings-config-card,
+.admin-theme-light .settings-nav-pill,
+[data-theme="light"] .settings-nav-pill {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+}
+
+.admin-theme-light .settings-card-header,
+[data-theme="light"] .settings-card-header {
+  border-bottom-color: #e2e8f0;
+}
+
+.admin-theme-light .config-field-row,
+[data-theme="light"] .config-field-row {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.admin-theme-light .health-ping-pill,
+[data-theme="light"] .health-ping-pill,
+.admin-theme-light .masked-secret-badge,
+[data-theme="light"] .masked-secret-badge {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #475569;
+}
+
+.admin-theme-light .config-field-value,
+[data-theme="light"] .config-field-value {
+  color: #0f172a;
+}
+
+.admin-theme-light .settings-nav-pill:hover,
+[data-theme="light"] .settings-nav-pill:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.admin-theme-light .settings-nav-pill.active,
+[data-theme="light"] .settings-nav-pill.active {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+
