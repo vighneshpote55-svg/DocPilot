@@ -11,6 +11,7 @@ import {
   loginAdmin,
   rejectReview,
   resendUploadLink,
+  deleteAdminCustomerData,
 } from "../api";
 import type {
   AdminAuditItem,
@@ -33,10 +34,14 @@ import { CustomerDetailDrawer } from "../components/admin/CustomerDetailDrawer";
 import { AdminDocumentsView } from "../components/admin/AdminDocumentsView";
 import { AdminReviewsView } from "../components/admin/AdminReviewsView";
 import { AdminRemindersView } from "../components/admin/AdminRemindersView";
+import { AdminRetentionView } from "../components/admin/AdminRetentionView";
+import { calculateRetentionSummary } from "../utils/retentionUtils";
 import { SecureDocViewerModal } from "../components/admin/SecureDocViewerModal";
 import {
+  IconClock,
   IconUsers,
 } from "../components/admin/AdminIcons";
+
 
 function getAdminEmail(): string {
   const token = getAdminToken();
@@ -163,12 +168,12 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
 
     queueMicrotask(() => {
       if (ignore) return;
-      if (activeTab === "dashboard" || activeTab === "cases" || activeTab === "reminders") setLoadingCases(true);
-      if (activeTab === "audit" || activeTab === "reminders") setLoadingAudit(true);
+      if (activeTab === "dashboard" || activeTab === "cases" || activeTab === "reminders" || activeTab === "retention") setLoadingCases(true);
+      if (activeTab === "audit" || activeTab === "reminders" || activeTab === "retention") setLoadingAudit(true);
       if (activeTab === "reviews") setLoadingReviews(true);
     });
 
-    if (activeTab === "dashboard" || activeTab === "cases" || activeTab === "reminders") {
+    if (activeTab === "dashboard" || activeTab === "cases" || activeTab === "reminders" || activeTab === "retention") {
       getAdminCustomers(activeSearch, CASES_PAGE_SIZE, casesPage * CASES_PAGE_SIZE, caseStatusFilter)
         .then((custRes) => {
           if (!ignore) {
@@ -200,7 +205,7 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
             setLoadingReviews(false);
           }
         });
-    } else if (activeTab === "audit" || activeTab === "reminders") {
+    } else if (activeTab === "audit" || activeTab === "reminders" || activeTab === "retention") {
       getAdminAudit(200)
         .then((items) => {
           if (!ignore) {
@@ -215,6 +220,7 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
           }
         });
     }
+
 
     return () => {
       ignore = true;
@@ -251,8 +257,17 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
 
 
   const existingEmails = React.useMemo(() => {
-    return new Set(customers.map((c) => c.email.toLowerCase().trim()));
+    const list = Array.isArray(customers) ? customers : [];
+    return new Set(list.map((c) => c.email.toLowerCase().trim()));
   }, [customers]);
+
+  const retentionMetrics = React.useMemo(() => {
+    const list = Array.isArray(customers) ? customers : [];
+    return calculateRetentionSummary(list);
+  }, [customers]);
+
+
+
 
   const refreshCustomers = async () => {
     try {
@@ -410,7 +425,9 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
           openReviewsCount={summary?.open_reviews || 0}
           failedCount={(summary?.metrics?.ocr_failures || 0) + (summary?.jobs?.failed || 0)}
           activeRemindersCount={customers.filter((c) => c.case_status === "in_progress" && (c.pending_count ?? 1) > 0).length}
+          retentionCount={retentionMetrics.activeRetentionCount + retentionMetrics.duePurgeCount}
         />
+
 
         {/* Main Content View Container */}
         <div
@@ -476,6 +493,15 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
               </button>
               <button
                 type="button"
+                className={activeTab === "retention" ? "on" : ""}
+                onClick={() => handleSelectTab("retention")}
+                id="tab-btn-retention"
+              >
+                Retention & Purge
+              </button>
+
+              <button
+                type="button"
                 className={activeTab === "audit" ? "on" : ""}
                 onClick={() => handleSelectTab("audit")}
                 id="tab-btn-audit"
@@ -527,8 +553,53 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
                   <DocumentStatusChart summary={summary} />
                 </div>
 
+                {/* Phase 8: Statutory 7-Day Retention Status Card */}
+                <div className="dashboard-retention-card" id="dashboard-retention-card">
+                  <div className="dashboard-retention-header">
+                    <div className="dashboard-retention-title-group">
+                      <div style={{ width: 36, height: 36, borderRadius: 8, background: "rgba(59, 130, 246, 0.15)", display: "flex", alignItems: "center", justifyContent: "center", color: "#60a5fa" }}>
+                        <IconClock size={20} />
+                      </div>
+                      <div>
+                        <h3 style={{ margin: 0, fontSize: 16 }}>7-Day Statutory Retention & Deletion Pipeline</h3>
+                        <span className="mut" style={{ fontSize: 12 }}>
+                          DPDP Act automated purge queue and customer data retention lifecycle
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      id="btn-dashboard-to-retention"
+                      className="btn sec"
+                      style={{ fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}
+                      onClick={() => handleSelectTab("retention")}
+                    >
+                      Open Retention Center →
+                    </button>
+                  </div>
+
+                  <div className="dashboard-retention-grid">
+                    <div className="dashboard-retention-stat-box">
+                      <span className="mut" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>In 7-Day Retention</span>
+                      <span style={{ fontSize: 20, fontWeight: 800, color: "#60a5fa" }}>{retentionMetrics.activeRetentionCount} cases</span>
+                    </div>
+                    <div className="dashboard-retention-stat-box">
+                      <span className="mut" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>Due for Purge Today</span>
+                      <span style={{ fontSize: 20, fontWeight: 800, color: retentionMetrics.duePurgeCount > 0 ? "#fbbf24" : "var(--adm-text)" }}>
+                        {retentionMetrics.duePurgeCount} cases
+                      </span>
+                    </div>
+                    <div className="dashboard-retention-stat-box">
+                      <span className="mut" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>Permanently Purged</span>
+                      <span style={{ fontSize: 20, fontWeight: 800, color: "#f87171" }}>{retentionMetrics.permanentlyPurgedCount} cases</span>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Bottom Grid: Live Recent Activity Stream + Recent Customer Cases */}
                 <div className="dashboard-bottom-grid">
+
                   <RecentActivityFeed
                     logs={auditLogs}
                     onViewAllAudit={() => handleSelectTab("audit")}
@@ -705,7 +776,30 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
               </div>
             )}
 
+            {/* --- TAB: DATA RETENTION & DELETION CENTER --- */}
+            {activeTab === "retention" && (
+              <div id="tab-pane-retention">
+                <AdminRetentionView
+                  customers={customers}
+                  auditLogs={auditLogs}
+                  loading={loadingCases || loadingAudit}
+                  onRefresh={() => {
+                    refreshCustomers();
+                    getAdminAudit(200).then((items) => setAuditLogs(items)).catch(() => {});
+                  }}
+                  onOpenCustomerDetail={(id) => navigate(`/admin/customers/${id}`)}
+                  onManualPurge={async (id) => {
+                    await deleteAdminCustomerData(id);
+                    await refreshCustomers();
+                    const updated = await getAdminAudit(200);
+                    setAuditLogs(updated);
+                  }}
+                />
+              </div>
+            )}
+
             {/* --- TAB 4: AUDIT LOG --- */}
+
             {activeTab === "audit" && (
               <div id="tab-pane-audit" className="card wrap" style={{ padding: 0 }}>
                 {loadingAudit ? (

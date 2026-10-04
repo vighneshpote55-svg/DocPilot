@@ -6186,6 +6186,485 @@
   color: #0f172a;
 }
 
+/* ==========================================================================
+   PHASE 8: DATA RETENTION & PERMANENT DELETION CENTER
+   ========================================================================== */
 
+.admin-retention-view {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: 100%;
+}
 
+/* Retention KPI Grid */
+.retention-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
 
+.retention-kpi-card {
+  background: var(--adm-card, #10192d);
+  border: 1px solid var(--adm-border, rgba(59, 130, 246, 0.2));
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.retention-kpi-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--adm-primary, #60a5fa);
+}
+
+.retention-kpi-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.retention-kpi-icon.blue {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+}
+
+.retention-kpi-icon.amber {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+}
+
+.retention-kpi-icon.rose {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
+
+.retention-kpi-icon.emerald {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+}
+
+.retention-kpi-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.retention-kpi-label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--adm-text-muted, #94a3b8);
+}
+
+.retention-kpi-val {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--adm-text, #f1f5f9);
+}
+
+/* Dashboard Retention Status Card */
+.dashboard-retention-card {
+  background: var(--adm-card, #10192d);
+  border: 1px solid var(--adm-border, rgba(59, 130, 246, 0.2));
+  border-radius: 14px;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  margin-top: 16px;
+}
+
+.dashboard-retention-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.dashboard-retention-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.dashboard-retention-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.dashboard-retention-stat-box {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 10px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Retention Filter Dock */
+.retention-filter-dock {
+  background: var(--adm-card, #10192d);
+  border: 1px solid var(--adm-border, rgba(59, 130, 246, 0.2));
+  border-radius: 12px;
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.retention-dock-left {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  flex: 1;
+}
+
+.retention-search-box {
+  position: relative;
+  min-width: 240px;
+  flex: 1;
+  max-width: 380px;
+}
+
+.retention-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--adm-text-muted, #94a3b8);
+  pointer-events: none;
+}
+
+.retention-search-input {
+  width: 100%;
+  padding: 9px 12px 9px 38px;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid var(--adm-border, rgba(59, 130, 246, 0.2));
+  border-radius: 8px;
+  color: var(--adm-text, #f1f5f9);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.retention-search-input:focus {
+  border-color: var(--adm-primary, #60a5fa);
+}
+
+.retention-segmented-tabs {
+  display: flex;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid var(--adm-border, rgba(59, 130, 246, 0.2));
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+  overflow-x: auto;
+}
+
+.retention-tab-btn {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--adm-text-muted, #94a3b8);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.retention-tab-btn:hover {
+  color: var(--adm-text, #f1f5f9);
+}
+
+.retention-tab-btn.active {
+  background: var(--adm-primary, #3b82f6);
+  color: #ffffff;
+}
+
+/* Deletion State Pills */
+.retention-state-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.retention-state-pill.scheduled {
+  background: rgba(59, 130, 246, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  color: #60a5fa;
+}
+
+.retention-state-pill.due {
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #fbbf24;
+}
+
+.retention-state-pill.deleted {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  color: #f87171;
+}
+
+.retention-state-pill.failed {
+  background: rgba(220, 38, 38, 0.2);
+  border: 1px solid rgba(220, 38, 38, 0.5);
+  color: #ef4444;
+}
+
+/* Pending Data Inventory Tags */
+.retention-inventory-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.inventory-pill {
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--adm-text-muted, #94a3b8);
+}
+
+.inventory-pill.active {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.3);
+  color: #93c5fd;
+}
+
+.inventory-pill.wiped {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.25);
+  color: #fca5a5;
+  text-decoration: line-through;
+}
+
+/* Retention Lifecycle Stepper */
+.retention-lifecycle-stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  position: relative;
+  margin: 14px 0;
+}
+
+.retention-lifecycle-stepper::before {
+  content: "";
+  position: absolute;
+  top: 14px;
+  left: 20px;
+  right: 20px;
+  height: 2px;
+  background: var(--adm-border, rgba(59, 130, 246, 0.2));
+  z-index: 1;
+}
+
+.retention-stepper-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+  z-index: 2;
+  text-align: center;
+}
+
+.retention-node-circle {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--adm-card, #10192d);
+  border: 2px solid var(--adm-border, rgba(59, 130, 246, 0.2));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--adm-text-muted, #94a3b8);
+  transition: all 0.2s ease;
+}
+
+.retention-stepper-node.completed .retention-node-circle {
+  background: var(--adm-success, #10b981);
+  border-color: var(--adm-success, #10b981);
+  color: #ffffff;
+}
+
+.retention-stepper-node.active .retention-node-circle {
+  background: var(--adm-primary, #3b82f6);
+  border-color: var(--adm-primary, #3b82f6);
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
+}
+
+.retention-stepper-node.purged .retention-node-circle {
+  background: var(--adm-danger, #ef4444);
+  border-color: var(--adm-danger, #ef4444);
+  color: #ffffff;
+}
+
+.retention-node-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--adm-text-muted, #94a3b8);
+  max-width: 80px;
+}
+
+.retention-stepper-node.active .retention-node-label {
+  color: var(--adm-text, #f1f5f9);
+  font-weight: 700;
+}
+
+/* Retention Slide-Over Drawer */
+.retention-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.retention-timeline-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  max-width: 580px;
+  background: var(--adm-card, #10192d);
+  border-left: 1px solid var(--adm-border, rgba(59, 130, 246, 0.25));
+  z-index: 1001;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -8px 0 32px rgba(0, 0, 0, 0.5);
+  animation: slideInRight 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.retention-drawer-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--adm-border, rgba(59, 130, 246, 0.2));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.retention-drawer-body {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Customer Detail Retention Section */
+.customer-retention-section {
+  background: var(--adm-card, #10192d);
+  border: 1px solid var(--adm-border, rgba(59, 130, 246, 0.2));
+  border-radius: 14px;
+  padding: 22px 26px;
+  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.customer-retention-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.customer-retention-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.customer-retention-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+}
+
+.customer-retention-stat-card {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--adm-border, rgba(59, 130, 246, 0.15));
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Light Theme Overrides for Phase 8 */
+.admin-theme-light .retention-kpi-card,
+[data-theme="light"] .retention-kpi-card,
+.admin-theme-light .dashboard-retention-card,
+[data-theme="light"] .dashboard-retention-card,
+.admin-theme-light .retention-filter-dock,
+[data-theme="light"] .retention-filter-dock,
+.admin-theme-light .retention-timeline-drawer,
+[data-theme="light"] .retention-timeline-drawer,
+.admin-theme-light .customer-retention-section,
+[data-theme="light"] .customer-retention-section {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
+}
+
+.admin-theme-light .dashboard-retention-stat-box,
+[data-theme="light"] .dashboard-retention-stat-box,
+.admin-theme-light .customer-retention-stat-card,
+[data-theme="light"] .customer-retention-stat-card,
+.admin-theme-light .retention-search-input,
+[data-theme="light"] .retention-search-input,
+.admin-theme-light .retention-segmented-tabs,
+[data-theme="light"] .retention-segmented-tabs {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+.admin-theme-light .retention-node-circle,
+[data-theme="light"] .retention-node-circle {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #64748b;
+}
+
+.admin-theme-light .inventory-pill,
+[data-theme="light"] .inventory-pill {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #475569;
+}

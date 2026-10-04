@@ -43,6 +43,10 @@ const TAB_TITLES: Record<AdminNavTab, { title: string; subtitle: string }> = {
     title: "Reminders & Alerts",
     subtitle: "Automated 3/7/14-day reminder lifecycle and pending document alerts",
   },
+  retention: {
+    title: "Data Retention & Deletion Center",
+    subtitle: "Statutory 7-day retention monitoring, automated purge pipeline, and DPDP compliance ledger",
+  },
   audit: {
     title: "Audit & Compliance Log",
     subtitle: "Cryptographic, tamper-evident record of all staff and system operations",

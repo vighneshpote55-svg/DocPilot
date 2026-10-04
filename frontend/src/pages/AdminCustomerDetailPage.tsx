@@ -39,6 +39,13 @@ import {
 } from "../components/admin/AdminIcons";
 import { computeCustomerReminderState } from "../utils/reminderUtils";
 
+import {
+  computeRetentionInfo,
+  filterRetentionAuditEvents,
+  formatRetentionDateTime,
+} from "../utils/retentionUtils";
+
+
 export const AdminCustomerDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -269,6 +276,19 @@ export const AdminCustomerDetailPage: React.FC = () => {
     return computeCustomerReminderState(customer, auditLogs);
   }, [customer, auditLogs]);
 
+  // Phase 8: Compute retention info & pending data inventory
+  const retentionInfo = useMemo(() => {
+    if (!customer) return null;
+    return computeRetentionInfo(customer, customer.documents || []);
+  }, [customer]);
+
+  // Phase 8: Filter customer-specific retention & deletion audit logs
+  const customerRetentionAuditLogs = useMemo(() => {
+    if (!customer) return [];
+    return filterRetentionAuditEvents(customerAuditLogs, customer.id);
+  }, [customer, customerAuditLogs]);
+
+
   // Phase 6: Privacy & Consent Audit Filter
   const privacyAuditLogs = useMemo(() => {
     return customerAuditLogs.filter((a) => {
@@ -456,46 +476,226 @@ export const AdminCustomerDetailPage: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Retention Countdown Banner with Progress Meter */}
-                  {customer.data_deleted_at ? (
-                    <div className="retention-countdown-banner deleted" id="retention-purged-panel">
-                      <div className="retention-banner-text">
-                        <IconArchive size={16} color="var(--adm-danger)" />
-                        <span>
-                          <b>Data Permanently Purged:</b> Customer documents and PII were deleted on{" "}
-                          {new Date(customer.data_deleted_at).toLocaleString()} in compliance with 7-day privacy retention policy.
-                        </span>
-                      </div>
-                      <span className="retention-countdown-pill">Purged</span>
-                    </div>
-                  ) : customer.delete_after ? (
-                    <div className="retention-countdown-banner" id="retention-countdown-panel">
-                      <div style={{ width: "100%" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                          <div className="retention-banner-text">
-                            <IconClock size={16} color="var(--adm-primary)" />
-                            <span>
-                              <b>Retention Deletion Policy:</b> Scheduled for automatic permanent purge on{" "}
-                              {new Date(customer.delete_after).toLocaleString()}
-                            </span>
-                          </div>
-                          <span className="retention-countdown-pill">
-                            {retentionCountdown}
+                  {/* Phase 8: Data Retention & Cryptographic Deletion Section */}
+                  <div className="customer-retention-section" id="customer-retention-section">
+                    <div className="customer-retention-top">
+                      <div className="customer-retention-title-row">
+                        <div style={{ width: 34, height: 34, borderRadius: 8, background: "rgba(59, 130, 246, 0.15)", display: "flex", alignItems: "center", justifyContent: "center", color: "#60a5fa" }}>
+                          <IconArchive size={18} />
+                        </div>
+                        <div>
+                          <h3 style={{ margin: 0, fontSize: 16 }}>Data Retention & Cryptographic Erasure</h3>
+                          <span className="mut" style={{ fontSize: 12 }}>
+                            Statutory 7-day retention countdown, data wipe inventory, and permanent erasure controls
                           </span>
                         </div>
-                        <div className="retention-progress-track">
-                          <div
-                            className={`retention-progress-bar ${retentionProgressPercent > 80 ? "urgent" : ""}`}
-                            style={{ width: `${retentionProgressPercent}%` }}
-                          />
+                      </div>
+
+                      {customer.data_deleted_at ? (
+                        <span className="retention-state-pill deleted">
+                          <IconCheck size={12} /> Permanently Purged
+                        </span>
+                      ) : customer.delete_after ? (
+                        <span className={`retention-state-pill ${retentionProgressPercent > 80 ? "due" : "scheduled"}`}>
+                          <IconClock size={12} /> {retentionProgressPercent > 80 ? "Due for Purge" : "In 7-Day Retention"}
+                        </span>
+                      ) : (
+                        <span className="retention-state-pill" style={{ background: "rgba(148, 163, 184, 0.15)", color: "#94a3b8" }}>
+                          Active Intake
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Retention Countdown Banner with Progress Meter (Preserving IDs for Phase 6 test suite) */}
+                    {customer.data_deleted_at ? (
+                      <div className="retention-countdown-banner deleted" id="retention-purged-panel">
+                        <div className="retention-banner-text">
+                          <IconArchive size={16} color="var(--adm-danger)" />
+                          <span>
+                            <b>Data Permanently Purged:</b> Customer documents and PII were deleted on{" "}
+                            {new Date(customer.data_deleted_at).toLocaleString()} in compliance with 7-day privacy retention policy.
+                          </span>
                         </div>
-                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--adm-text-muted)" }}>
-                          <span>Elapsed: {retentionProgressPercent}%</span>
-                          <span>Auto-Purge Window: 7 Days</span>
+                        <span className="retention-countdown-pill">Purged</span>
+                      </div>
+                    ) : customer.delete_after ? (
+                      <div className="retention-countdown-banner" id="retention-countdown-panel">
+                        <div style={{ width: "100%" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                            <div className="retention-banner-text">
+                              <IconClock size={16} color="var(--adm-primary)" />
+                              <span>
+                                <b>Retention Deletion Policy:</b> Scheduled for automatic permanent purge on{" "}
+                                {new Date(customer.delete_after).toLocaleString()}
+                              </span>
+                            </div>
+                            <span className="retention-countdown-pill">
+                              {retentionCountdown}
+                            </span>
+                          </div>
+                          <div className="retention-progress-track">
+                            <div
+                              className={`retention-progress-bar ${retentionProgressPercent > 80 ? "urgent" : ""}`}
+                              style={{ width: `${retentionProgressPercent}%` }}
+                            />
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--adm-text-muted)" }}>
+                            <span>Elapsed: {retentionProgressPercent}%</span>
+                            <span>Auto-Purge Window: 7 Days</span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {/* 5-Step Completed-Case Retention Lifecycle Stepper */}
+                    <div style={{ padding: "14px 18px", background: "rgba(15, 23, 42, 0.4)", borderRadius: 10, border: "1px solid rgba(255, 255, 255, 0.05)" }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.05em", color: "var(--adm-text-muted)" }}>
+                        Statutory 7-Day Lifecycle Progression
+                      </span>
+
+                      <div className="retention-lifecycle-stepper">
+                        <div className={`retention-stepper-node ${customer.case_status === "completed" || customer.consent_status === "withdrawn" ? "completed" : "active"}`}>
+                          <div className="retention-node-circle">
+                            <IconCheck size={14} />
+                          </div>
+                          <span className="retention-node-label">Case Closed</span>
+                        </div>
+
+                        <div className={`retention-stepper-node ${customer.delete_after ? "completed" : ""}`}>
+                          <div className="retention-node-circle">
+                            <IconClock size={14} />
+                          </div>
+                          <span className="retention-node-label">7-Day Lock</span>
+                        </div>
+
+                        <div className={`retention-stepper-node ${customer.delete_after && !customer.data_deleted_at && retentionProgressPercent < 100 ? "active" : customer.data_deleted_at || retentionProgressPercent >= 100 ? "completed" : ""}`}>
+                          <div className="retention-node-circle">
+                            <IconShieldCheck size={14} />
+                          </div>
+                          <span className="retention-node-label">Audited Grace</span>
+                        </div>
+
+                        <div className={`retention-stepper-node ${customer.delete_after && retentionProgressPercent >= 100 && !customer.data_deleted_at ? "active" : customer.data_deleted_at ? "completed" : ""}`}>
+                          <div className="retention-node-circle">
+                            <IconTrash2 size={14} />
+                          </div>
+                          <span className="retention-node-label">Auto-Purge</span>
+                        </div>
+
+                        <div className={`retention-stepper-node ${customer.data_deleted_at ? "purged" : ""}`}>
+                          <div className="retention-node-circle">
+                            <IconCheck size={14} />
+                          </div>
+                          <span className="retention-node-label">Ledger Proof</span>
                         </div>
                       </div>
                     </div>
-                  ) : null}
+
+                    {/* Retention Metrics & Pending Data Grid */}
+                    <div className="customer-retention-grid">
+                      <div className="customer-retention-stat-card">
+                        <span className="mut" style={{ fontSize: 11, textTransform: "uppercase" }}>Scheduled Erasure Date</span>
+                        <span style={{ fontSize: 13, fontWeight: 700 }} id="val-scheduled-deletion">
+                          {customer.delete_after ? new Date(customer.delete_after).toLocaleString() : "Not scheduled"}
+                        </span>
+                        <span className="mut" style={{ fontSize: 11 }}>
+                          {customer.delete_after ? formatRetentionDateTime(customer.delete_after).utc : "Case still in progress"}
+                        </span>
+                      </div>
+
+                      <div className="customer-retention-stat-card">
+                        <span className="mut" style={{ fontSize: 11, textTransform: "uppercase" }}>Retention Countdown</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: retentionProgressPercent > 80 ? "#fbbf24" : "inherit" }} id="val-retention-remaining">
+                          {retentionCountdown || (customer.data_deleted_at ? "Purged" : "Active Intake")}
+                        </span>
+                        <span className="mut" style={{ fontSize: 11 }}>
+                          Policy: 7 Days after completion
+                        </span>
+                      </div>
+
+                      <div className="customer-retention-stat-card" id="customer-retention-inventory">
+                        <span className="mut" style={{ fontSize: 11, textTransform: "uppercase" }}>Data & Document Inventory</span>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginTop: 4 }}>
+                          {customer.data_deleted_at ? (
+                            <span className="inventory-pill wiped">All Storage Ciphertext Wiped</span>
+                          ) : (
+                            <>
+                              <span className="inventory-pill active">
+                                {retentionInfo?.pendingInventory.storedFilesCount || 0} file{(retentionInfo?.pendingInventory.storedFilesCount || 0) === 1 ? "" : "s"} stored
+                              </span>
+                              <span className="inventory-pill">
+                                {customer.documents.length} OCR caches
+                              </span>
+                              <span className="inventory-pill">
+                                {customer.consent_status === "withdrawn" ? "Tokens revoked" : "Tokens active"}
+                              </span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Customer-Specific Deletion & Retention Audit Trail */}
+                    {customerRetentionAuditLogs.length > 0 && (
+                      <div style={{ marginTop: 6 }} id="customer-retention-audit-trail">
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--adm-text)" }}>
+                          Recent Retention & Deletion Ledger Events ({customerRetentionAuditLogs.length})
+                        </span>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
+                          {customerRetentionAuditLogs.slice(0, 3).map((evt) => (
+                            <div
+                              key={evt.id}
+                              style={{
+                                padding: "8px 12px",
+                                borderRadius: 6,
+                                background: "rgba(15, 23, 42, 0.5)",
+                                border: "1px solid rgba(255, 255, 255, 0.05)",
+                                display: "flex",
+                                justifyContent: "space-between",
+                                alignItems: "center",
+                                fontSize: 12,
+                              }}
+                            >
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <span className="tag" style={{ fontSize: 11, background: "rgba(239, 68, 68, 0.15)", color: "#f87171" }}>
+                                  {evt.action}
+                                </span>
+                                <span>Actor: <b>{evt.actor}</b></span>
+                              </div>
+                              <span className="mut" style={{ fontSize: 11 }}>
+                                {new Date(evt.at).toLocaleString()}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Permanent Purge Trigger Button */}
+                    {!customer.data_deleted_at && (
+                      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 4 }}>
+                        <button
+                          type="button"
+                          id="btn-customer-retention-purge"
+                          className="btn"
+                          style={{
+                            background: "rgba(239, 68, 68, 0.15)",
+                            borderColor: "rgba(239, 68, 68, 0.4)",
+                            color: "#f87171",
+                            fontSize: 12,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6,
+                          }}
+                          onClick={() => setShowDeleteDataModal(true)}
+                        >
+                          <IconTrash2 size={13} /> Execute Immediate Permanent Purge
+                        </button>
+
+                      </div>
+                    )}
+                  </div>
+
 
                   {/* Customer Lifecycle Action Toolbar */}
                   <div className="customer-actions-toolbar">

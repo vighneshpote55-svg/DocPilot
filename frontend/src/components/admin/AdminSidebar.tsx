@@ -11,6 +11,7 @@ import {
   IconChevronRight,
   IconX,
   IconBell,
+  IconTrash2,
 } from "./AdminIcons";
 
 export type AdminNavTab =
@@ -19,6 +20,7 @@ export type AdminNavTab =
   | "documents"
   | "reviews"
   | "reminders"
+  | "retention"
   | "audit"
   | "reports"
   | "settings";
@@ -33,6 +35,7 @@ interface AdminSidebarProps {
   openReviewsCount?: number;
   failedCount?: number;
   activeRemindersCount?: number;
+  retentionCount?: number;
 }
 
 export const AdminSidebar: React.FC<AdminSidebarProps> = ({
@@ -45,6 +48,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   openReviewsCount = 0,
   failedCount = 0,
   activeRemindersCount = 0,
+  retentionCount = 0,
 }) => {
   const navItems: Array<{
     key: AdminNavTab;
@@ -83,6 +87,13 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       badgeType: "info",
     },
     {
+      key: "retention",
+      label: "Retention & Purge",
+      icon: <IconTrash2 size={20} />,
+      badge: retentionCount > 0 ? retentionCount : undefined,
+      badgeType: "warn",
+    },
+    {
       key: "audit",
       label: "Audit Log",
       icon: <IconShield size={20} />,
@@ -92,6 +103,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       label: "Reports",
       icon: <IconBarChart3 size={20} />,
     },
+
     {
       key: "settings",
       label: "Settings",
