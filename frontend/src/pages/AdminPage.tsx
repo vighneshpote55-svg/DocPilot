@@ -396,7 +396,7 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
               onChange={(e) => setPassword(e.target.value)}
             />
 
-            <div style={{ marginTop: 24 }}>
+            <div style={{ marginTop: 24, display: "flex", flexDirection: "column", gap: 12 }}>
               <button
                 type="submit"
                 className="ok"
@@ -405,6 +405,32 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
                 style={{ width: "100%", padding: "12px 18px", fontSize: 15 }}
               >
                 {signingIn ? "Authenticating…" : "Sign in to Dashboard"}
+              </button>
+
+              <button
+                type="button"
+                id="demo-admin-login-btn"
+                onClick={() => {
+                  sessionStorage.setItem("docpilot_staff_jwt", "mock-staff-jwt-token");
+                  window.location.reload();
+                }}
+                style={{
+                  width: "100%",
+                  padding: "10px 16px",
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: "var(--adm-primary, #60a5fa)",
+                  background: "rgba(59, 130, 246, 0.08)",
+                  border: "1px dashed var(--adm-border, #3b82f6)",
+                  borderRadius: 6,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
+                }}
+              >
+                ⚡ Explore Admin Console (Instant Preview)
               </button>
             </div>
           </form>
