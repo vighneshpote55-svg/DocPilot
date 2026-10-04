@@ -240,6 +240,10 @@ export async function confirmPrivacy(token: string): Promise<PrivacyResponse> {
 
 // ---------------- Admin Authentication ----------------
 export async function loginAdmin(email: string, password: string): Promise<string> {
+  if (!SUPABASE_ANON_KEY || !SUPABASE_ANON_KEY.trim()) {
+    throw new ApiError(400, "Supabase Anon Key is missing. Please add VITE_SUPABASE_ANON_KEY to frontend/.env");
+  }
+
   const url = `${SUPABASE_URL.replace(/\/+$/, "")}/auth/v1/token?grant_type=password`;
   let res: Response;
   try {
@@ -256,7 +260,18 @@ export async function loginAdmin(email: string, password: string): Promise<strin
   }
 
   if (!res.ok) {
-    throw new ApiError(res.status, "Sign in failed. Please check your email and password.");
+    let message = "Sign in failed. Please check your email and password.";
+    try {
+      const errJson = await res.json();
+      if (errJson.error_description) {
+        message = errJson.error_description;
+      } else if (errJson.msg) {
+        message = errJson.msg;
+      } else if (errJson.message) {
+        message = errJson.message;
+      }
+    } catch {}
+    throw new ApiError(res.status, message);
   }
 
   const data = (await res.json()) as { access_token: string };
