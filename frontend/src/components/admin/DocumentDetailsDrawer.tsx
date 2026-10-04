@@ -1,5 +1,6 @@
-import React, { useEffect } from "react";
+import React, { useRef } from "react";
 import type { AdminDocumentItem } from "../../types";
+import { useDialogA11y } from "../../utils/a11yUtils";
 import {
   IconX,
   IconShieldCheck,
@@ -40,16 +41,10 @@ export const DocumentDetailsDrawer: React.FC<DocumentDetailsDrawerProps> = ({
   onDownload,
   onDeleteFile,
 }) => {
-  // Close on Escape key
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen) {
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
+  const drawerRef = useRef<HTMLDivElement>(null);
+  useDialogA11y(isOpen, onClose, drawerRef, {
+    initialFocusSelector: ".drawer-close-btn",
+  });
 
   if (!isOpen || !doc) return null;
 
@@ -114,9 +109,11 @@ export const DocumentDetailsDrawer: React.FC<DocumentDetailsDrawerProps> = ({
       onClick={onClose}
       role="dialog"
       aria-modal="true"
+      aria-labelledby="doc-details-drawer-title"
       id="doc-details-backdrop"
     >
       <div
+        ref={drawerRef}
         className="drawer-panel"
         id="document-details-drawer"
         onClick={(e) => e.stopPropagation()}
@@ -129,7 +126,7 @@ export const DocumentDetailsDrawer: React.FC<DocumentDetailsDrawerProps> = ({
               <IconFileText size={24} color="var(--adm-primary)" />
             </div>
             <div>
-              <h2 className="drawer-title">{doc.label}</h2>
+              <h2 id="doc-details-drawer-title" className="drawer-title">{doc.label}</h2>
               <p className="drawer-subtitle">
                 {doc.filename} {doc.superseded && "• (Superseded)"}
               </p>

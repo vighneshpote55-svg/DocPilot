@@ -1,9 +1,10 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useRef } from "react";
 import type {
   AdminAuditItem,
   AdminCustomerListItem,
   AdminDocumentItem,
 } from "../../types";
+import { useDialogA11y } from "../../utils/a11yUtils";
 import {
   computeRetentionInfo,
   calculateRetentionSummary,
@@ -57,6 +58,16 @@ export const AdminRetentionView: React.FC<AdminRetentionViewProps> = ({
   const [purgeConfirmed, setPurgeConfirmed] = useState(false);
   const [purging, setPurging] = useState(false);
   const [purgeError, setPurgeError] = useState<string | null>(null);
+
+  const drawerRef = useRef<HTMLElement>(null);
+  useDialogA11y(drawerCustomer !== null, () => setDrawerCustomer(null), drawerRef, {
+    initialFocusSelector: "#btn-close-retention-drawer",
+  });
+
+  const purgeModalRef = useRef<HTMLDivElement>(null);
+  useDialogA11y(purgeTarget !== null && !purging, () => setPurgeTarget(null), purgeModalRef, {
+    initialFocusSelector: "#btn-retention-cancel-purge",
+  });
 
   // Calculate high-level summary KPIs
   const summaryMetrics = useMemo(() => {
@@ -476,14 +487,21 @@ export const AdminRetentionView: React.FC<AdminRetentionViewProps> = ({
             onClick={() => setDrawerCustomer(null)}
             aria-hidden="true"
           />
-          <aside className="retention-timeline-drawer" id="customer-retention-timeline-drawer">
+          <aside
+            ref={drawerRef}
+            className="retention-timeline-drawer"
+            id="customer-retention-timeline-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="retention-drawer-title"
+          >
             <div className="retention-drawer-header">
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <div style={{ width: 34, height: 34, borderRadius: 8, background: "rgba(59, 130, 246, 0.15)", display: "flex", alignItems: "center", justifyContent: "center", color: "#60a5fa" }}>
                   <IconHistory size={18} />
                 </div>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: 16 }}>Retention Lifecycle & Audit Ledger</h3>
+                  <h3 id="retention-drawer-title" style={{ margin: 0, fontSize: 16 }}>Retention Lifecycle & Audit Ledger</h3>
                   <span className="mut" style={{ fontSize: 12 }}>
                     Case: <b>{drawerCustomer.customer.code}</b> • {drawerCustomer.customer.name}
                   </span>
@@ -619,14 +637,21 @@ export const AdminRetentionView: React.FC<AdminRetentionViewProps> = ({
 
       {/* Manual Purge Modal */}
       {purgeTarget && (
-        <div className="admin-modal-backdrop" id="admin-retention-purge-modal" style={{ display: "flex" }}>
-          <div className="admin-modal-card" style={{ maxWidth: 480 }}>
+        <div
+          className="admin-modal-backdrop"
+          id="admin-retention-purge-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="purge-modal-title"
+          style={{ display: "flex" }}
+        >
+          <div ref={purgeModalRef} className="admin-modal-card" style={{ maxWidth: 480 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
               <div style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(239, 68, 68, 0.15)", display: "flex", alignItems: "center", justifyContent: "center", color: "#ef4444" }}>
                 <IconTrash2 size={22} />
               </div>
               <div>
-                <h3 style={{ margin: 0, fontSize: 17, color: "#f87171" }}>Permanent Data Purge</h3>
+                <h3 id="purge-modal-title" style={{ margin: 0, fontSize: 17, color: "#f87171" }}>Permanent Data Purge</h3>
                 <span className="mut" style={{ fontSize: 12 }}>Irreversible Right to Erasure / Immediate Purge</span>
               </div>
             </div>

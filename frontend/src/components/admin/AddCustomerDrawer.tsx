@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createAdminCustomer, type CreateCustomerInput } from "../../api";
 import type { AdminCustomerListItem } from "../../types";
+import { useDialogA11y } from "../../utils/a11yUtils";
 import {
   IconX,
   IconUserPlus,
@@ -68,16 +69,10 @@ export const AddCustomerDrawer: React.FC<AddCustomerDrawerProps> = ({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [createdCustomer, setCreatedCustomer] = useState<AdminCustomerListItem | null>(null);
 
-  // Close on Escape key
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen && !isSubmitting) {
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, isSubmitting, onClose]);
+  const drawerRef = useRef<HTMLDivElement>(null);
+  useDialogA11y(isOpen && !isSubmitting, onClose, drawerRef, {
+    initialFocusSelector: ".drawer-close-btn",
+  });
 
   // Reset state when drawer opens
   useEffect(() => {
@@ -186,8 +181,15 @@ export const AddCustomerDrawer: React.FC<AddCustomerDrawerProps> = ({
   });
 
   return (
-    <div className="drawer-overlay" onClick={onClose} role="dialog" aria-modal="true">
+    <div
+      className="drawer-overlay"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="add-customer-drawer-title"
+    >
       <div
+        ref={drawerRef}
         className="drawer-panel"
         id="add-customer-drawer"
         onClick={(e) => e.stopPropagation()}
@@ -199,7 +201,9 @@ export const AddCustomerDrawer: React.FC<AddCustomerDrawerProps> = ({
               <IconUserPlus size={22} color="var(--adm-primary)" />
             </div>
             <div>
-              <h2 className="drawer-title">Add New Customer</h2>
+              <h2 id="add-customer-drawer-title" className="drawer-title">
+                Add New Customer
+              </h2>
               <p className="drawer-subtitle">
                 Initiate a secure KYC / business document verification case
               </p>

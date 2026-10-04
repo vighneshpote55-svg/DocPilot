@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState, useRef } from "react";
 import { clearAdminToken, getAdminToken } from "../../api";
 import type { AdminSummary } from "../../types";
+import { useDialogA11y } from "../../utils/a11yUtils";
 import {
   IconActivity,
   IconAlertTriangle,
@@ -58,6 +59,8 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
 
   // Action Confirmation Modals
   const [confirmModal, setConfirmModal] = useState<"cache" | "signout" | null>(null);
+  const confirmModalRef = useRef<HTMLDivElement>(null);
+  useDialogA11y(confirmModal !== null, () => setConfirmModal(null), confirmModalRef);
   const [toastMessage, setToastMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
 
   // Health probe execution
@@ -698,6 +701,9 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
         <div
           className="modal-backdrop"
           onClick={() => setConfirmModal(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="title-confirm-clear-cache"
           style={{
             position: "fixed",
             top: 0,
@@ -714,6 +720,7 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
           }}
         >
           <div
+            ref={confirmModalRef}
             className="card"
             id="modal-confirm-clear-cache"
             onClick={(e) => e.stopPropagation()}
@@ -721,7 +728,7 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
           >
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
               <IconAlertTriangle size={24} color="var(--adm-danger, #ef4444)" />
-              <h3 style={{ margin: 0 }}>Reset Local Preferences?</h3>
+              <h3 id="title-confirm-clear-cache" style={{ margin: 0 }}>Reset Local Preferences?</h3>
             </div>
             <p className="mut" style={{ fontSize: 13, lineHeight: 1.5, margin: "0 0 20px" }}>
               This will clear your locally cached theme settings and navigation preferences from this browser. Your server authentication session will remain active.
@@ -749,6 +756,9 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
         <div
           className="modal-backdrop"
           onClick={() => setConfirmModal(null)}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="title-confirm-signout"
           style={{
             position: "fixed",
             top: 0,
@@ -765,6 +775,7 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
           }}
         >
           <div
+            ref={confirmModalRef}
             className="card"
             id="modal-confirm-signout"
             onClick={(e) => e.stopPropagation()}
@@ -772,7 +783,7 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
           >
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
               <IconLogOut size={24} color="var(--adm-danger, #ef4444)" />
-              <h3 style={{ margin: 0 }}>Sign Out of Operations Center?</h3>
+              <h3 id="title-confirm-signout" style={{ margin: 0 }}>Sign Out of Operations Center?</h3>
             </div>
             <p className="mut" style={{ fontSize: 13, lineHeight: 1.5, margin: "0 0 20px" }}>
               Your current operator session token will be invalidated from this device. You will need your administrative credentials to log back in.

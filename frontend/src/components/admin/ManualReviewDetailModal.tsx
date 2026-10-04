@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Link } from "react-router-dom";
 import { fetchDocumentFile } from "../../api";
 import type { AdminReviewItem } from "../../types";
+import { useDialogA11y } from "../../utils/a11yUtils";
 import {
   IconX,
   IconShieldCheck,
@@ -97,16 +98,10 @@ export const ManualReviewDetailModal: React.FC<ManualReviewDetailModalProps> = (
     };
   }, [isOpen, review, loadDocument, cleanupUrl]);
 
-  // Handle Escape key
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen && !confirmAction) {
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, confirmAction, onClose]);
+  const modalRef = useRef<HTMLDivElement>(null);
+  useDialogA11y(isOpen && !confirmAction, onClose, modalRef, {
+    initialFocusSelector: "#manual-review-close-btn",
+  });
 
   if (!isOpen || !review) return null;
 
@@ -145,7 +140,7 @@ export const ManualReviewDetailModal: React.FC<ManualReviewDetailModalProps> = (
       aria-modal="true"
       aria-labelledby="manual-review-title"
     >
-      <div className="manual-review-modal-card">
+      <div ref={modalRef} className="manual-review-modal-card">
         {/* Modal Top Bar */}
         <div className="review-modal-header">
           <div className="review-modal-header-left">
@@ -208,6 +203,7 @@ export const ManualReviewDetailModal: React.FC<ManualReviewDetailModalProps> = (
                   className="btn-toolbar-tool"
                   onClick={() => setZoom((z) => Math.max(50, z - 25))}
                   title="Zoom Out"
+                  aria-label="Zoom out document view"
                   id="review-zoom-out-btn"
                 >
                   <IconZoomOut size={15} />
@@ -220,6 +216,7 @@ export const ManualReviewDetailModal: React.FC<ManualReviewDetailModalProps> = (
                   className="btn-toolbar-tool"
                   onClick={() => setZoom((z) => Math.min(250, z + 25))}
                   title="Zoom In"
+                  aria-label="Zoom in document view"
                   id="review-zoom-in-btn"
                 >
                   <IconZoomIn size={15} />
@@ -229,6 +226,7 @@ export const ManualReviewDetailModal: React.FC<ManualReviewDetailModalProps> = (
                   className="btn-toolbar-tool"
                   onClick={() => setRotation((r) => (r + 90) % 360)}
                   title="Rotate 90°"
+                  aria-label="Rotate document 90 degrees clockwise"
                   id="review-rotate-btn"
                 >
                   <IconRotateCw size={15} />

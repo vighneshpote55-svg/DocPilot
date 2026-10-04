@@ -9,7 +9,7 @@
   --card-subtle: #f8fafc;
   --ink: #0f172a;
   --ink-secondary: #334155;
-  --mut: #64748b;
+  --mut: #475569;
   --line: #e2e8f0;
   --line-strong: #cbd5e1;
   
@@ -239,8 +239,32 @@ button:disabled {
   cursor: not-allowed;
 }
 
+/* Accessibility Skip to Main Content Link (WCAG 2.4.1) */
+.skip-link {
+  position: fixed;
+  top: -80px;
+  left: 20px;
+  background: var(--info, #2563eb);
+  color: #ffffff;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 13px;
+  z-index: 99999;
+  text-decoration: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  transition: top 0.16s ease-in-out;
+}
+
+.skip-link:focus,
+.skip-link:focus-visible {
+  top: 16px;
+  outline: 3px solid #ffffff;
+  outline-offset: 2px;
+}
+
 :focus-visible {
-  outline: 3px solid var(--info);
+  outline: 2px solid var(--info);
   outline-offset: 2px;
 }
 

@@ -17,6 +17,7 @@ import {
   parseExcelBuffer,
   type ExcelParseResult,
 } from "../../utils/excelImport";
+import { useDialogA11y } from "../../utils/a11yUtils";
 
 interface BulkImportModalProps {
   isOpen: boolean;
@@ -69,16 +70,10 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
     });
   }, [isOpen]);
 
-  // Handle ESC key
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen && step !== "importing") {
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, step, onClose]);
+  const modalRef = useRef<HTMLDivElement>(null);
+  useDialogA11y(isOpen && step !== "importing", onClose, modalRef, {
+    initialFocusSelector: ".modal-close-btn",
+  });
 
   if (!isOpen) return null;
 
@@ -195,8 +190,15 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
     (parseResult?.validRows || 0) + (parseResult?.warningRows || 0);
 
   return (
-    <div className="modal-backdrop" onClick={step === "importing" ? undefined : onClose} role="dialog" aria-modal="true">
+    <div
+      className="modal-backdrop"
+      onClick={step === "importing" ? undefined : onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="bulk-import-modal-title"
+    >
       <div
+        ref={modalRef}
         className="modal-box modal-xl"
         id="bulk-import-modal"
         onClick={(e) => e.stopPropagation()}
@@ -207,7 +209,9 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
             <IconFileSpreadsheet size={22} color="var(--adm-primary)" />
           </div>
           <div className="modal-header-text">
-            <h2 className="modal-title">Bulk Customer Intake (.xlsx)</h2>
+            <h2 id="bulk-import-modal-title" className="modal-title">
+              Bulk Customer Intake (.xlsx)
+            </h2>
             <p className="modal-subtitle">
               Import multiple customer KYC & business cases using standard Excel spreadsheets
             </p>

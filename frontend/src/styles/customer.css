@@ -1086,9 +1086,18 @@
   --adm-border-hover: #cbd5e1;
   --adm-text: #0f172a;
   --adm-text-secondary: #334155;
-  --adm-text-muted: #64748b;
+  --adm-text-muted: #475569;
   --adm-primary-bg: #eff6ff;
   --adm-success-bg: #ecfdf5;
+}
+
+.customer-app-root button:focus-visible,
+.customer-app-root a:focus-visible,
+.customer-app-root input:focus-visible,
+.customer-app-root select:focus-visible,
+.customer-app-root .customer-dropzone:focus-visible {
+  outline: 2px solid var(--adm-primary, #3b82f6);
+  outline-offset: 2px;
 }
 
 .customer-app-root.admin-theme-light .customer-hero-card,

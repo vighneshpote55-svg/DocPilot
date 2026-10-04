@@ -1,5 +1,6 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import type { AdminCustomerListItem, AdminAuditItem } from "../../types";
+import { useDialogA11y } from "../../utils/a11yUtils";
 import {
   computeCustomerReminderState,
   type CustomerReminderState,
@@ -40,6 +41,10 @@ export const AdminRemindersView: React.FC<AdminRemindersViewProps> = ({
   const [stageFilter, setStageFilter] = useState<"all" | "3" | "7" | "14">("all");
   const [selectedTimelineCustomer, setSelectedTimelineCustomer] =
     useState<CustomerReminderState | null>(null);
+  const timelineDrawerRef = useRef<HTMLDivElement>(null);
+  useDialogA11y(selectedTimelineCustomer !== null, () => setSelectedTimelineCustomer(null), timelineDrawerRef, {
+    initialFocusSelector: "#btn-close-notification-drawer",
+  });
   const [resendingId, setResendingId] = useState<number | null>(null);
   const [toastMsg, setToastMsg] = useState<{ text: string; ok: boolean } | null>(
     null
@@ -589,8 +594,12 @@ export const AdminRemindersView: React.FC<AdminRemindersViewProps> = ({
           className="notification-timeline-drawer-backdrop"
           onClick={() => setSelectedTimelineCustomer(null)}
           id="customer-notification-timeline-drawer"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="notification-drawer-title"
         >
           <div
+            ref={timelineDrawerRef}
             className="notification-timeline-drawer"
             onClick={(e) => e.stopPropagation()}
           >
@@ -599,7 +608,7 @@ export const AdminRemindersView: React.FC<AdminRemindersViewProps> = ({
                 <div style={{ fontSize: 11, fontWeight: 700, color: "var(--adm-primary, #60a5fa)", textTransform: "uppercase" }}>
                   Customer Notification Timeline
                 </div>
-                <h3 style={{ margin: "2px 0 0", fontSize: 16, fontWeight: 700, color: "var(--adm-text, #f1f5f9)" }}>
+                <h3 id="notification-drawer-title" style={{ margin: "2px 0 0", fontSize: 16, fontWeight: 700, color: "var(--adm-text, #f1f5f9)" }}>
                   {selectedTimelineCustomer.customerName} ({selectedTimelineCustomer.customerCode})
                 </h3>
               </div>

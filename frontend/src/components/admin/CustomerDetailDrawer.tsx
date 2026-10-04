@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import {
   getAdminCustomer,
@@ -7,6 +7,7 @@ import {
   closeAdminCase,
 } from "../../api";
 import type { AdminCustomerDetail } from "../../types";
+import { useDialogA11y } from "../../utils/a11yUtils";
 import {
   IconX,
   IconShield,
@@ -76,16 +77,10 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({
     };
   }, [isOpen, customerId]);
 
-  // Handle ESC
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen && !busyAction) {
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, busyAction, onClose]);
+  const drawerRef = useRef<HTMLDivElement>(null);
+  useDialogA11y(isOpen && !busyAction, onClose, drawerRef, {
+    initialFocusSelector: ".drawer-close-btn",
+  });
 
   if (!isOpen) return null;
 
@@ -117,8 +112,15 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({
   };
 
   return (
-    <div className="drawer-overlay" onClick={onClose} role="dialog" aria-modal="true">
+    <div
+      className="drawer-overlay"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="customer-detail-drawer-title"
+    >
       <div
+        ref={drawerRef}
         className="drawer-panel"
         id="customer-detail-drawer"
         onClick={(e) => e.stopPropagation()}
@@ -131,7 +133,7 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({
               <IconFileText size={22} color="var(--adm-primary)" />
             </div>
             <div>
-              <h2 className="drawer-title">
+              <h2 id="customer-detail-drawer-title" className="drawer-title">
                 {customer?.name || (loading ? "Loading customer…" : "Customer Details")}
               </h2>
               {customer && (

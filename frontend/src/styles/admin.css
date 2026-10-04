@@ -60,7 +60,7 @@
 
   --adm-text: #0f172a;
   --adm-text-secondary: #334155;
-  --adm-text-muted: #64748b;
+  --adm-text-muted: #475569;
 
   --adm-primary: #2563eb;
   --adm-primary-hover: #1d4ed8;
@@ -171,6 +171,21 @@
 .admin-dashboard-root textarea:focus {
   border-color: var(--adm-primary);
   box-shadow: 0 0 0 3px var(--adm-primary-bg);
+}
+
+.admin-dashboard-root button:focus-visible,
+.admin-dashboard-root a:focus-visible,
+.admin-dashboard-root [tabindex]:focus-visible {
+  outline: 2px solid var(--adm-primary, #3b82f6);
+  outline-offset: 2px;
+}
+
+/* Accessible Responsive Table Container */
+.admin-table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 1rem;
 }
 
 .admin-dashboard-root button.sec,
@@ -1869,6 +1884,58 @@
   .activity-card-header {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  /* Responsive Customer Detail Page on mobile */
+  .customer-detail-page-layout {
+    padding: 16px 12px 60px;
+  }
+
+  .profile-hero-top {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .profile-avatar-wrap {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .profile-status-badges {
+    justify-content: flex-start;
+  }
+
+  .profile-meta-grid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  /* Responsive Drawers & Dialogs on mobile */
+  .drawer-panel {
+    width: 100% !important;
+    max-width: 100vw !important;
+  }
+
+  .admin-action-dialog-card,
+  .decision-confirm-dialog-card,
+  .manual-review-modal-card {
+    width: calc(100vw - 20px) !important;
+    max-width: 100% !important;
+    padding: 18px 14px;
+  }
+
+  .manual-review-backdrop {
+    padding: 10px;
+  }
+
+  .review-split-layout {
+    flex-direction: column;
+  }
+
+  /* Responsive Touch Target Minimums */
+  button, .btn, .sidebar-link {
+    min-height: 38px;
   }
 }
 
@@ -5042,7 +5109,8 @@
   background: var(--adm-card);
   border: 1px solid var(--adm-border);
   border-radius: 14px;
-  overflow: hidden;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
 }
 

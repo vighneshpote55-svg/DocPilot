@@ -77,9 +77,20 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
   });
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    const saved = localStorage.getItem("docpilot_adm_theme");
+    const saved = localStorage.getItem("docpilot_admin_theme") || localStorage.getItem("docpilot_adm_theme");
     return saved !== "light"; // default to dark-blue
   });
+
+  // Global Theme Synchronization on HTML Element
+  useEffect(() => {
+    const theme = isDarkMode ? "dark" : "light";
+    document.documentElement.setAttribute("data-theme", theme);
+    if (!isDarkMode) {
+      document.documentElement.classList.add("admin-theme-light");
+    } else {
+      document.documentElement.classList.remove("admin-theme-light");
+    }
+  }, [isDarkMode]);
 
   // Summary & Stats State
   const [summary, setSummary] = useState<AdminSummary | null>(null);
@@ -116,7 +127,9 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
   const handleToggleTheme = () => {
     setIsDarkMode((prev) => {
       const next = !prev;
-      localStorage.setItem("docpilot_adm_theme", next ? "dark" : "light");
+      const themeVal = next ? "dark" : "light";
+      localStorage.setItem("docpilot_admin_theme", themeVal);
+      localStorage.setItem("docpilot_adm_theme", themeVal);
       return next;
     });
   };
@@ -448,7 +461,7 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
           />
 
           {/* Main Content Area */}
-          <main className="admin-content">
+          <main className="admin-content" id="main-content">
             {/* Secondary / Test-Compatible Navigation Tabs */}
             <nav className="tabs" id="admin-nav-tabs" style={{ display: "flex", gap: 8, marginBottom: 20 }}>
               <button

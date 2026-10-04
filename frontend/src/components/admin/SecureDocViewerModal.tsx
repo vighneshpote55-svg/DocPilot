@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { fetchDocumentFile } from "../../api";
+import { useDialogA11y } from "../../utils/a11yUtils";
 import {
   IconX,
   IconDownload,
@@ -86,16 +87,11 @@ export const SecureDocViewerModal: React.FC<SecureDocViewerModalProps> = ({
     };
   }, [isOpen, docId, loadDocument, cleanupUrl]);
 
-  // Handle escape key
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen) {
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
+  // Accessible Dialog handling
+  const modalRef = useRef<HTMLDivElement>(null);
+  useDialogA11y(isOpen, onClose, modalRef, {
+    initialFocusSelector: "#close-secure-viewer-btn",
+  });
 
   const handleDownload = async () => {
     if (!docId) return;
@@ -128,9 +124,11 @@ export const SecureDocViewerModal: React.FC<SecureDocViewerModalProps> = ({
       onClick={onClose}
       role="dialog"
       aria-modal="true"
+      aria-labelledby="secure-viewer-modal-title"
       id="secure-viewer-backdrop"
     >
       <div
+        ref={modalRef}
         className="modal-box modal-xl secure-viewer-box"
         id="secure-doc-viewer-modal"
         onClick={(e) => e.stopPropagation()}
@@ -143,7 +141,7 @@ export const SecureDocViewerModal: React.FC<SecureDocViewerModalProps> = ({
             </div>
             <div>
               <div className="secure-viewer-title-row">
-                <h3 className="secure-viewer-title">{displayTitle}</h3>
+                <h3 id="secure-viewer-modal-title" className="secure-viewer-title">{displayTitle}</h3>
                 <span className="secure-badge">
                   <IconShieldCheck size={12} color="var(--adm-success)" />
                   AES-256-GCM Decrypted

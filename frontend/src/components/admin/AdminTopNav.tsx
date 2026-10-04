@@ -154,6 +154,7 @@ export const AdminTopNav: React.FC<AdminTopNavProps> = ({
             className="topnav-signout-btn"
             onClick={onSignOut}
             title="Sign out of Admin Dashboard"
+            aria-label="Sign out of Admin Dashboard"
             id="staff-sign-out"
           >
             <IconLogOut size={16} />

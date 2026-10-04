@@ -15,6 +15,9 @@ const AppContent: React.FC = () => {
 
   return (
     <>
+      <a href="#main-content" className="skip-link">
+        Skip to main content
+      </a>
       {!isAdmin && <Header />}
       <main
         style={

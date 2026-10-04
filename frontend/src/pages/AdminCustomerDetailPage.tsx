@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState, useMemo } from "react";
+import React, { useCallback, useEffect, useState, useMemo, useRef } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import {
   getAdminCustomer,
@@ -12,6 +12,7 @@ import {
   getAdminToken,
 } from "../api";
 import type { AdminCustomerDetail, AdminDocumentItem, AdminAuditItem } from "../types";
+import { useDialogA11y } from "../utils/a11yUtils";
 import { AdminSidebar } from "../components/admin/AdminSidebar";
 import { AdminTopNav } from "../components/admin/AdminTopNav";
 import { SecureDocViewerModal } from "../components/admin/SecureDocViewerModal";
@@ -72,7 +73,9 @@ export const AdminCustomerDetailPage: React.FC = () => {
     return "Staff Admin";
   });
   const [theme, setTheme] = useState<"dark" | "light">(() => {
-    return (localStorage.getItem("docpilot_admin_theme") as "dark" | "light") || "dark";
+    return (localStorage.getItem("docpilot_admin_theme") as "dark" | "light") ||
+      (localStorage.getItem("docpilot_adm_theme") as "dark" | "light") ||
+      "dark";
   });
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
@@ -102,6 +105,17 @@ export const AdminCustomerDetailPage: React.FC = () => {
   const [confirmDeleteChecked, setConfirmDeleteChecked] = useState<boolean>(false);
   const [privacyAuditOnly, setPrivacyAuditOnly] = useState<boolean>(false);
 
+  // Modal Accessibility Hooks (WCAG AA Focus & Escape)
+  const closeCaseModalRef = useRef<HTMLDivElement>(null);
+  useDialogA11y(showCloseCaseModal && !busyAction, () => setShowCloseCaseModal(false), closeCaseModalRef, {
+    initialFocusSelector: "#btn-cancel-close-case",
+  });
+
+  const deleteDataModalRef = useRef<HTMLDivElement>(null);
+  useDialogA11y(showDeleteDataModal && !busyAction, () => setShowDeleteDataModal(false), deleteDataModalRef, {
+    initialFocusSelector: "#btn-cancel-delete-data",
+  });
+
   // Guard & Hydrate Admin Session
   useEffect(() => {
     const raw = localStorage.getItem("docpilot_admin_session");
@@ -120,7 +134,13 @@ export const AdminCustomerDetailPage: React.FC = () => {
   // Sync theme
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
+    if (theme === "light") {
+      document.documentElement.classList.add("admin-theme-light");
+    } else {
+      document.documentElement.classList.remove("admin-theme-light");
+    }
     localStorage.setItem("docpilot_admin_theme", theme);
+    localStorage.setItem("docpilot_adm_theme", theme);
   }, [theme]);
 
   const toggleTheme = () => {
@@ -336,7 +356,7 @@ export const AdminCustomerDetailPage: React.FC = () => {
         />
 
         {/* Content Area */}
-        <main className="admin-content" id="customer-detail-page">
+        <main className="admin-content" id="main-content">
           <div className="customer-detail-page-layout">
             {/* Breadcrumbs */}
             <div className="customer-detail-breadcrumbs">
@@ -1430,13 +1450,20 @@ export const AdminCustomerDetailPage: React.FC = () => {
 
       {/* Phase 6: Close Case Confirmation Modal */}
       {showCloseCaseModal && customer && (
-        <div className="admin-action-dialog-backdrop" id="admin-close-case-modal" role="dialog" aria-modal="true">
-          <div className="admin-action-dialog-card">
+        <div
+          className="admin-action-dialog-backdrop"
+          id="admin-close-case-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="title-close-case-modal"
+          onClick={() => { if (!busyAction) setShowCloseCaseModal(false); }}
+        >
+          <div ref={closeCaseModalRef} className="admin-action-dialog-card" onClick={(e) => e.stopPropagation()}>
             <div className="admin-dialog-icon-circle warn">
               <IconAlertTriangle size={26} />
             </div>
 
-            <h3 className="admin-dialog-title">Close Customer Case</h3>
+            <h3 id="title-close-case-modal" className="admin-dialog-title">Close Customer Case</h3>
             <p className="admin-dialog-desc">
               Closing case <strong>{customer.code}</strong> will immediately revoke customer upload credentials and initiate the <strong>7-day retention countdown</strong> towards automated data purging.
             </p>
@@ -1487,13 +1514,20 @@ export const AdminCustomerDetailPage: React.FC = () => {
 
       {/* Phase 6: Delete Customer Data Confirmation Modal */}
       {showDeleteDataModal && customer && (
-        <div className="admin-action-dialog-backdrop" id="admin-delete-data-modal" role="dialog" aria-modal="true">
-          <div className="admin-action-dialog-card danger">
+        <div
+          className="admin-action-dialog-backdrop"
+          id="admin-delete-data-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="title-delete-data-modal"
+          onClick={() => { if (!busyAction) setShowDeleteDataModal(false); }}
+        >
+          <div ref={deleteDataModalRef} className="admin-action-dialog-card danger" onClick={(e) => e.stopPropagation()}>
             <div className="admin-dialog-icon-circle danger">
               <IconTrash2 size={26} />
             </div>
 
-            <h3 className="admin-dialog-title" style={{ color: "var(--adm-danger, #ef4444)" }}>
+            <h3 id="title-delete-data-modal" className="admin-dialog-title" style={{ color: "var(--adm-danger, #ef4444)" }}>
               Permanent Data Deletion &amp; Anonymization
             </h3>
             <p className="admin-dialog-desc">

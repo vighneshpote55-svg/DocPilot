@@ -168,6 +168,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                       onCloseMobile();
                     }}
                     title={isCollapsed ? item.label : undefined}
+                    aria-label={item.label}
                     id={`sidebar-link-${item.key}`}
                   >
                     <span className="sidebar-icon">{item.icon}</span>
