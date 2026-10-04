@@ -11,12 +11,15 @@ import type { AdminNavTab } from "./AdminSidebar";
 interface AdminTopNavProps {
   activeTab: AdminNavTab;
   onOpenMobile: () => void;
-  onAddCustomer: () => void;
+  onAddCustomer?: () => void;
   isDarkMode: boolean;
   onToggleTheme: () => void;
   onSignOut: () => void;
   adminEmail?: string;
+  adminName?: string;
   isSystemLive?: boolean;
+  customTitle?: string;
+  customSubtitle?: string;
 }
 
 const TAB_TITLES: Record<AdminNavTab, { title: string; subtitle: string }> = {
@@ -58,19 +61,26 @@ export const AdminTopNav: React.FC<AdminTopNavProps> = ({
   onToggleTheme,
   onSignOut,
   adminEmail = "staff@docpilot.internal",
+  adminName,
   isSystemLive = true,
+  customTitle,
+  customSubtitle,
 }) => {
-  const { title, subtitle } = TAB_TITLES[activeTab] || {
+  const tabInfo = TAB_TITLES[activeTab] || {
     title: "Admin Portal",
     subtitle: "DocPilot Operations Center",
   };
+  const title = customTitle || tabInfo.title;
+  const subtitle = customSubtitle || tabInfo.subtitle;
 
-  const getInitials = (emailStr: string) => {
-    const parts = emailStr.split("@")[0].split(/[._-]/);
-    if (parts.length >= 2) {
+  const getInitials = (emailStr?: string) => {
+    if (!emailStr) return "AD";
+    const userPart = emailStr.split("@")[0] || "";
+    const parts = userPart.split(/[._-]/).filter(Boolean);
+    if (parts.length >= 2 && parts[0] && parts[1]) {
       return (parts[0][0] + parts[1][0]).toUpperCase();
     }
-    return emailStr.slice(0, 2).toUpperCase();
+    return emailStr.slice(0, 2).toUpperCase() || "AD";
   };
 
   return (
@@ -128,7 +138,7 @@ export const AdminTopNav: React.FC<AdminTopNavProps> = ({
             {getInitials(adminEmail)}
           </div>
           <div className="admin-info">
-            <span className="admin-name">Staff Admin</span>
+            <span className="admin-name">{adminName || "Staff Admin"}</span>
             <span className="admin-email">{adminEmail}</span>
           </div>
           <button

@@ -3,11 +3,9 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   approveReview,
   clearAdminToken,
-  deleteAdminDocumentFile,
   fetchDocumentFile,
   getAdminAudit,
   getAdminCustomers,
-  getAdminDocuments,
   getAdminReviews,
   getAdminSummary,
   getAdminToken,
@@ -17,7 +15,6 @@ import {
 import type {
   AdminAuditItem,
   AdminCustomerListItem,
-  AdminDocumentItem,
   AdminReviewItem,
   AdminSummary,
 } from "../types";
@@ -33,37 +30,11 @@ import { AdminCustomersView } from "../components/admin/AdminCustomersView";
 import { AddCustomerDrawer } from "../components/admin/AddCustomerDrawer";
 import { BulkImportModal } from "../components/admin/BulkImportModal";
 import { CustomerDetailDrawer } from "../components/admin/CustomerDetailDrawer";
+import { AdminDocumentsView } from "../components/admin/AdminDocumentsView";
 import {
-  IconSearch,
   IconEye,
-  IconTrash2,
   IconUsers,
 } from "../components/admin/AdminIcons";
-
-const ALL_DOC_TYPES = [
-  { key: "pan", label: "PAN Card" },
-  { key: "aadhaar", label: "Aadhaar Card" },
-  { key: "passport", label: "Passport" },
-  { key: "voter", label: "Voter ID" },
-  { key: "driving_licence", label: "Driving Licence" },
-  { key: "bank_statement", label: "Bank Statement" },
-  { key: "salary_slip", label: "Salary Slip / Payslip" },
-  { key: "cancelled_cheque", label: "Cancelled Cheque" },
-  { key: "itr", label: "ITR Acknowledgement" },
-  { key: "udyam", label: "Udyam Registration" },
-  { key: "shop_establishment", label: "Shop & Establishment" },
-  { key: "fssai", label: "FSSAI Certificate" },
-  { key: "utility_bill", label: "Utility Bill" },
-  { key: "gst_certificate", label: "GST Registration" },
-  { key: "certificate_of_incorporation", label: "Cert. of Incorporation" },
-  { key: "partnership_deed", label: "Partnership Deed" },
-  { key: "rent_agreement", label: "Rent Agreement" },
-  { key: "form_16", label: "Form 16" },
-  { key: "bank_passbook", label: "Bank Passbook" },
-  { key: "property_tax_receipt", label: "Property Tax Receipt" },
-  { key: "iec_certificate", label: "IEC Certificate" },
-  { key: "income_certificate", label: "Income Certificate" },
-];
 
 function getAdminEmail(): string {
   const token = getAdminToken();
@@ -116,15 +87,6 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
   const [loadingCases, setLoadingCases] = useState(false);
   const CASES_PAGE_SIZE = 20;
 
-  // Documents Tab State
-  const [documents, setDocuments] = useState<AdminDocumentItem[]>([]);
-  const [docsTotalCount, setDocsTotalCount] = useState(0);
-  const [docSearchQuery, setDocSearchQuery] = useState("");
-  const [activeDocSearch, setActiveDocSearch] = useState("");
-  const [docTypeFilter, setDocTypeFilter] = useState("");
-  const [docStatusFilter, setDocStatusFilter] = useState("");
-  const [docOcrStatusFilter, setDocOcrStatusFilter] = useState("");
-  const [loadingDocs, setLoadingDocs] = useState(false);
   const [activeViewUrl, setActiveViewUrl] = useState<string | null>(null);
   const [viewingDocTitle, setViewingDocTitle] = useState("");
 
@@ -199,7 +161,6 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
     queueMicrotask(() => {
       if (ignore) return;
       if (activeTab === "dashboard" || activeTab === "cases") setLoadingCases(true);
-      if (activeTab === "documents") setLoadingDocs(true);
       if (activeTab === "audit") setLoadingAudit(true);
     });
 
@@ -220,22 +181,7 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
         });
     }
 
-    if (activeTab === "documents") {
-      getAdminDocuments(activeDocSearch, docTypeFilter, docStatusFilter, 25, 0, docOcrStatusFilter)
-        .then((res) => {
-          if (!ignore) {
-            setDocuments(res.documents);
-            setDocsTotalCount(res.totalCount);
-            setLoadingDocs(false);
-          }
-        })
-        .catch((err: Error) => {
-          if (!ignore) {
-            setAuthError(err.message);
-            setLoadingDocs(false);
-          }
-        });
-    } else if (activeTab === "reviews") {
+    if (activeTab === "reviews") {
       getAdminReviews("open")
         .then((items) => {
           if (!ignore) setReviews(items);
@@ -268,10 +214,6 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
     activeSearch,
     caseStatusFilter,
     casesPage,
-    activeDocSearch,
-    docTypeFilter,
-    docStatusFilter,
-    docOcrStatusFilter,
   ]);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -353,23 +295,6 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
       setViewingDocTitle(title || "Document Preview");
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Failed to open document file.");
-    }
-  };
-
-  const handleDocSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setActiveDocSearch(docSearchQuery);
-  };
-
-  const handleDeleteFile = async (docId: string) => {
-    if (!window.confirm("Are you sure you want to permanently delete this stored file?")) return;
-    try {
-      await deleteAdminDocumentFile(docId);
-      setDocuments((prev) =>
-        prev.map((d) => (d.id === docId ? { ...d, file_state: "deleted" } : d))
-      );
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Failed to delete file.");
     }
   };
 
@@ -507,7 +432,7 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
                 onClick={() => handleSelectTab("documents")}
                 id="tab-btn-documents"
               >
-                All documents {docsTotalCount > 0 ? `(${docsTotalCount})` : ""}
+                All documents {summary?.metrics?.total_documents ? `(${summary.metrics.total_documents})` : ""}
               </button>
               <button
                 type="button"
@@ -557,7 +482,6 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
                   }}
                   onNavigateTab={(targetTab) => handleSelectTab(targetTab)}
                   onFilterDocFailed={() => {
-                    setDocOcrStatusFilter("failed");
                     handleSelectTab("documents");
                   }}
                 />
@@ -671,7 +595,6 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
                   }}
                   onNavigateTab={(targetTab) => handleSelectTab(targetTab)}
                   onFilterDocFailed={() => {
-                    setDocOcrStatusFilter("failed");
                     handleSelectTab("documents");
                   }}
                 />
@@ -706,218 +629,9 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
 
             {/* --- TAB 2: ALL DOCUMENTS --- */}
             {activeTab === "documents" && (
-              <div id="tab-pane-documents">
-                <div className="card" style={{ marginBottom: 20 }}>
-                  <form
-                    onSubmit={handleDocSearch}
-                    className="row"
-                    style={{ flexWrap: "wrap", gap: 10, alignItems: "center" }}
-                  >
-                    <input
-                      type="search"
-                      placeholder="Search by customer name, email, or filename…"
-                      value={docSearchQuery}
-                      onChange={(e) => setDocSearchQuery(e.target.value)}
-                      style={{ flex: "1 1 260px", maxWidth: 360 }}
-                      id="doc-search-input"
-                    />
-
-                    <select
-                      value={docTypeFilter}
-                      onChange={(e) => setDocTypeFilter(e.target.value)}
-                      style={{ flex: "0 0 160px" }}
-                      id="doc-type-filter"
-                    >
-                      <option value="">All Document Types</option>
-                      {ALL_DOC_TYPES.map((dt) => (
-                        <option key={dt.key} value={dt.key}>
-                          {dt.label}
-                        </option>
-                      ))}
-                    </select>
-
-                    <select
-                      value={docStatusFilter}
-                      onChange={(e) => setDocStatusFilter(e.target.value)}
-                      style={{ flex: "0 0 170px" }}
-                      id="doc-status-filter"
-                    >
-                      <option value="">All Verification Statuses</option>
-                      <option value="verified">Verified</option>
-                      <option value="under_review">Under Review</option>
-                      <option value="unverified">Unverified</option>
-                      <option value="rejected">Rejected</option>
-                    </select>
-
-                    <select
-                      value={docOcrStatusFilter}
-                      onChange={(e) => setDocOcrStatusFilter(e.target.value)}
-                      style={{ flex: "0 0 160px" }}
-                      id="doc-ocr-status-filter"
-                    >
-                      <option value="">All OCR Statuses</option>
-                      <option value="waiting">Waiting</option>
-                      <option value="processing">Processing</option>
-                      <option value="completed">Completed</option>
-                      <option value="failed">Failed / Errors</option>
-                    </select>
-
-                    <button type="submit" className="sec" id="doc-search-btn">
-                      <IconSearch size={14} /> Filter
-                    </button>
-
-                    {(activeDocSearch ||
-                      docTypeFilter ||
-                      docStatusFilter ||
-                      docOcrStatusFilter) && (
-                      <button
-                        type="button"
-                        className="sec"
-                        onClick={() => {
-                          setDocSearchQuery("");
-                          setActiveDocSearch("");
-                          setDocTypeFilter("");
-                          setDocStatusFilter("");
-                          setDocOcrStatusFilter("");
-                        }}
-                      >
-                        Reset
-                      </button>
-                    )}
-                  </form>
-                </div>
-
-                <div className="card">
-                  <div
-                    className="row"
-                    style={{ justifyContent: "space-between", marginBottom: 12 }}
-                  >
-                    <h3 style={{ margin: 0 }}>
-                      Documents list{" "}
-                      <span className="mut" style={{ fontSize: 14 }}>
-                        ({docsTotalCount} total)
-                      </span>
-                    </h3>
-                  </div>
-
-                  {loadingDocs ? (
-                    <p className="mut">Loading documents…</p>
-                  ) : documents.length === 0 ? (
-                    <p className="mut">No documents found matching the filter criteria.</p>
-                  ) : (
-                    <table
-                      style={{ width: "100%", borderCollapse: "collapse" }}
-                      id="all-documents-table"
-                    >
-                      <thead>
-                        <tr style={{ textAlign: "left", borderBottom: "1px solid var(--line)" }}>
-                          <th style={{ padding: "8px 6px" }}>Customer</th>
-                          <th style={{ padding: "8px 6px" }}>Document</th>
-                          <th style={{ padding: "8px 6px" }}>Uploaded</th>
-                          <th style={{ padding: "8px 6px" }}>OCR</th>
-                          <th style={{ padding: "8px 6px" }}>Verification</th>
-                          <th style={{ padding: "8px 6px" }}>File State</th>
-                          <th style={{ padding: "8px 6px" }}>Flags</th>
-                          <th style={{ padding: "8px 6px" }}>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {documents.map((d) => (
-                          <tr key={d.id} style={{ borderBottom: "1px solid var(--line)" }}>
-                            <td style={{ padding: "10px 6px" }}>
-                              <div>
-                                <Link
-                                  to={`/admin/customers/${d.customer_id}`}
-                                  style={{ fontWeight: 600 }}
-                                >
-                                  {d.customer_name || `Customer #${d.customer_id}`}
-                                </Link>
-                              </div>
-                              <span className="mut" style={{ fontSize: 12 }}>
-                                {d.customer_code}
-                              </span>
-                            </td>
-
-                            <td style={{ padding: "10px 6px" }}>
-                              <b>{d.label}</b>
-                              <div className="mut" style={{ fontSize: 12 }}>
-                                {d.filename}
-                              </div>
-                            </td>
-
-                            <td style={{ padding: "10px 6px", fontSize: 13 }}>
-                              {d.uploaded_at
-                                ? new Date(d.uploaded_at).toLocaleString()
-                                : "—"}
-                            </td>
-
-                            <td style={{ padding: "10px 6px" }}>
-                              <span className={`tag ${d.ocr_status}`}>{d.ocr_status}</span>
-                            </td>
-
-                            <td style={{ padding: "10px 6px" }}>
-                              <span className={`tag ${d.verification_status}`}>
-                                {d.verification_status}
-                              </span>
-                            </td>
-
-                            <td style={{ padding: "10px 6px" }}>
-                              <span className={`tag ${d.file_state}`}>{d.file_state}</span>
-                            </td>
-
-                            <td style={{ padding: "10px 6px", fontSize: 12 }}>
-                              {d.flags && d.flags.length > 0 ? (
-                                <span style={{ color: "var(--warn)" }}>
-                                  {d.flags.join(", ")}
-                                </span>
-                              ) : (
-                                <span className="mut">—</span>
-                              )}
-                            </td>
-
-                            <td style={{ padding: "10px 6px" }}>
-                              <div className="row" style={{ gap: 6 }}>
-                                {d.file_state === "stored" ? (
-                                  <>
-                                    <button
-                                      type="button"
-                                      className="btn sec"
-                                      style={{ padding: "4px 8px", fontSize: 12 }}
-                                      onClick={() =>
-                                        handleSecureView(
-                                          d.id,
-                                          `${d.label} - ${d.customer_name || d.customer_code}`
-                                        )
-                                      }
-                                      title="Stream decrypted document safely"
-                                    >
-                                      <IconEye size={13} /> View
-                                    </button>
-                                    <button
-                                      type="button"
-                                      className="btn bad"
-                                      style={{ padding: "4px 8px", fontSize: 12 }}
-                                      onClick={() => handleDeleteFile(d.id)}
-                                      title="Permanently delete stored file"
-                                    >
-                                      <IconTrash2 size={13} /> Delete
-                                    </button>
-                                  </>
-                                ) : (
-                                  <span className="mut" style={{ fontSize: 12 }}>
-                                    Purged
-                                  </span>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                </div>
-              </div>
+              <AdminDocumentsView />
             )}
+
 
             {/* --- TAB 3: MANUAL REVIEWS --- */}
             {activeTab === "reviews" && (

@@ -70,7 +70,7 @@ export const RecentActivityFeed: React.FC<RecentActivityFeedProps> = ({
         };
       default:
         return {
-          label: action.replace(/_/g, " "),
+          label: (action || "activity").replace(/_/g, " "),
           category: "all",
           icon: <IconShield size={16} color="var(--mut)" />,
           colorClass: "act-neutral",
