@@ -39,6 +39,10 @@ const TAB_TITLES: Record<AdminNavTab, { title: string; subtitle: string }> = {
     title: "Manual Review Queue",
     subtitle: "Review flagged documents with masked OCR evidence and decide actions",
   },
+  reminders: {
+    title: "Reminders & Alerts",
+    subtitle: "Automated 3/7/14-day reminder lifecycle and pending document alerts",
+  },
   audit: {
     title: "Audit & Compliance Log",
     subtitle: "Cryptographic, tamper-evident record of all staff and system operations",

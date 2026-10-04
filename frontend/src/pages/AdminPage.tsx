@@ -10,6 +10,7 @@ import {
   getAdminToken,
   loginAdmin,
   rejectReview,
+  resendUploadLink,
 } from "../api";
 import type {
   AdminAuditItem,
@@ -31,6 +32,7 @@ import { BulkImportModal } from "../components/admin/BulkImportModal";
 import { CustomerDetailDrawer } from "../components/admin/CustomerDetailDrawer";
 import { AdminDocumentsView } from "../components/admin/AdminDocumentsView";
 import { AdminReviewsView } from "../components/admin/AdminReviewsView";
+import { AdminRemindersView } from "../components/admin/AdminRemindersView";
 import { SecureDocViewerModal } from "../components/admin/SecureDocViewerModal";
 import {
   IconUsers,
@@ -161,12 +163,12 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
 
     queueMicrotask(() => {
       if (ignore) return;
-      if (activeTab === "dashboard" || activeTab === "cases") setLoadingCases(true);
-      if (activeTab === "audit") setLoadingAudit(true);
+      if (activeTab === "dashboard" || activeTab === "cases" || activeTab === "reminders") setLoadingCases(true);
+      if (activeTab === "audit" || activeTab === "reminders") setLoadingAudit(true);
       if (activeTab === "reviews") setLoadingReviews(true);
     });
 
-    if (activeTab === "dashboard" || activeTab === "cases") {
+    if (activeTab === "dashboard" || activeTab === "cases" || activeTab === "reminders") {
       getAdminCustomers(activeSearch, CASES_PAGE_SIZE, casesPage * CASES_PAGE_SIZE, caseStatusFilter)
         .then((custRes) => {
           if (!ignore) {
@@ -198,7 +200,7 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
             setLoadingReviews(false);
           }
         });
-    } else if (activeTab === "audit") {
+    } else if (activeTab === "audit" || activeTab === "reminders") {
       getAdminAudit(200)
         .then((items) => {
           if (!ignore) {
@@ -407,6 +409,7 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
           onCloseMobile={() => setSidebarMobileOpen(false)}
           openReviewsCount={summary?.open_reviews || 0}
           failedCount={(summary?.metrics?.ocr_failures || 0) + (summary?.jobs?.failed || 0)}
+          activeRemindersCount={customers.filter((c) => c.case_status === "in_progress" && (c.pending_count ?? 1) > 0).length}
         />
 
         {/* Main Content View Container */}
@@ -462,6 +465,14 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
                 id="tab-btn-reviews"
               >
                 Manual reviews {summary?.open_reviews ? `(${summary.open_reviews})` : ""}
+              </button>
+              <button
+                type="button"
+                className={activeTab === "reminders" ? "on" : ""}
+                onClick={() => handleSelectTab("reminders")}
+                id="tab-btn-reminders"
+              >
+                Reminders
               </button>
               <button
                 type="button"
@@ -668,6 +679,27 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
                   onStatusFilterChange={(status) => {
                     setReviewsStatusFilter(status);
                     fetchReviews(status);
+                  }}
+                />
+              </div>
+            )}
+
+            {/* --- TAB: REMINDERS & NOTIFICATION CENTER --- */}
+            {activeTab === "reminders" && (
+              <div id="tab-pane-reminders">
+                <AdminRemindersView
+                  customers={customers}
+                  auditLogs={auditLogs}
+                  loading={loadingCases || loadingAudit}
+                  onRefresh={() => {
+                    refreshCustomers();
+                    getAdminAudit(200).then((items) => setAuditLogs(items)).catch(() => {});
+                  }}
+                  onOpenCustomerDetail={(id) => navigate(`/admin/customers/${id}`)}
+                  onResendReminder={async (id) => {
+                    await resendUploadLink(id);
+                    const updated = await getAdminAudit(200);
+                    setAuditLogs(updated);
                   }}
                 />
               </div>

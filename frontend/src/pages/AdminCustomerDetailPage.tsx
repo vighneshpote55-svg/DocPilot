@@ -20,6 +20,7 @@ import {
   IconCheck,
   IconAlertTriangle,
   IconAlertCircle,
+  IconBell,
   IconClock,
   IconShieldCheck,
   IconMail,
@@ -29,12 +30,14 @@ import {
   IconTrash2,
   IconRefreshCw,
   IconSearch,
+  IconSend,
   IconFileText,
   IconChevronRight,
   IconHistory,
   IconArchive,
   IconInfo,
 } from "../components/admin/AdminIcons";
+import { computeCustomerReminderState } from "../utils/reminderUtils";
 
 export const AdminCustomerDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -259,6 +262,12 @@ export const AdminCustomerDetailPage: React.FC = () => {
     const elapsedMs = Math.max(0, totalRetentionMs - remainingMs);
     return Math.min(100, Math.round((elapsedMs / totalRetentionMs) * 100));
   }, [customer, now]);
+
+  // Phase 7: Compute 3/7/14-day reminder state
+  const reminderState = useMemo(() => {
+    if (!customer) return null;
+    return computeCustomerReminderState(customer, auditLogs);
+  }, [customer, auditLogs]);
 
   // Phase 6: Privacy & Consent Audit Filter
   const privacyAuditLogs = useMemo(() => {
@@ -566,6 +575,194 @@ export const AdminCustomerDetailPage: React.FC = () => {
                     </button>
                   </div>
                 </div>
+
+                {/* 1.5 PHASE 7: AUTOMATED REMINDERS & NOTIFICATION STATUS */}
+                {reminderState && (
+                  <div className="customer-reminders-card" id="customer-reminders-panel">
+                    <div className="customer-reminders-header">
+                      <div className="customer-reminders-title-group">
+                        <IconBell size={18} color="var(--adm-primary, #60a5fa)" />
+                        <h3>Automated Reminders &amp; Schedule (3 / 7 / 14 Days)</h3>
+                      </div>
+                      <div>
+                        {reminderState.overallStatus === "active" ? (
+                          <span className="reminder-status-pill active" id="badge-reminder-status">
+                            <span className="status-beacon live" style={{ width: 6, height: 6 }} />
+                            <span>Active (3/7/14-Day Cycle)</span>
+                          </span>
+                        ) : reminderState.overallStatus === "stopped_completed" ? (
+                          <span className="reminder-status-pill stopped-completed" id="badge-reminder-status">
+                            <IconCheck size={12} />
+                            <span>Reminders Stopped • All Documents Verified</span>
+                          </span>
+                        ) : reminderState.overallStatus === "stopped_withdrawn" ? (
+                          <span className="reminder-status-pill stopped-withdrawn" id="badge-reminder-status">
+                            <IconAlertTriangle size={12} />
+                            <span>Reminders Stopped • Consent Withdrawn</span>
+                          </span>
+                        ) : reminderState.overallStatus === "awaiting_consent" ? (
+                          <span className="reminder-status-pill awaiting" id="badge-reminder-status">
+                            <IconClock size={12} />
+                            <span>Reminders Paused • Awaiting Consent</span>
+                          </span>
+                        ) : (
+                          <span className="reminder-status-pill completed-schedule" id="badge-reminder-status">
+                            <span>Schedule Completed</span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 3 / 7 / 14-Day Milestone Stepper */}
+                    <div
+                      style={{
+                        background: "rgba(15, 23, 42, 0.4)",
+                        border: "1px solid var(--adm-border, rgba(59, 130, 246, 0.2))",
+                        borderRadius: 10,
+                        padding: "14px 18px",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        flexWrap: "wrap",
+                        gap: 12,
+                      }}
+                      id="customer-reminder-stepper"
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "var(--adm-text-secondary, #94a3b8)", textTransform: "uppercase" }}>
+                          Milestone Progression:
+                        </span>
+                        <div className="reminder-stepper">
+                          {/* Day 3 */}
+                          <span
+                            className={`stepper-node ${reminderState.stages.stage3.status}`}
+                            id="customer-stepper-stage3"
+                          >
+                            {reminderState.stages.stage3.status === "sent" ? (
+                              <IconCheck size={12} />
+                            ) : reminderState.stages.stage3.status === "scheduled" ? (
+                              <IconClock size={12} />
+                            ) : (
+                              <span>•</span>
+                            )}
+                            <span>Day 3</span>
+                          </span>
+
+                          <span className={`stepper-line ${reminderState.stages.stage3.status === "sent" ? "active" : ""}`} />
+
+                          {/* Day 7 */}
+                          <span
+                            className={`stepper-node ${reminderState.stages.stage7.status}`}
+                            id="customer-stepper-stage7"
+                          >
+                            {reminderState.stages.stage7.status === "sent" ? (
+                              <IconCheck size={12} />
+                            ) : reminderState.stages.stage7.status === "scheduled" ? (
+                              <IconClock size={12} />
+                            ) : (
+                              <span>•</span>
+                            )}
+                            <span>Day 7</span>
+                          </span>
+
+                          <span className={`stepper-line ${reminderState.stages.stage7.status === "sent" ? "active" : ""}`} />
+
+                          {/* Day 14 */}
+                          <span
+                            className={`stepper-node ${reminderState.stages.stage14.status}`}
+                            id="customer-stepper-stage14"
+                          >
+                            {reminderState.stages.stage14.status === "sent" ? (
+                              <IconCheck size={12} />
+                            ) : reminderState.stages.stage14.status === "scheduled" ? (
+                              <IconClock size={12} />
+                            ) : (
+                              <span>•</span>
+                            )}
+                            <span>Day 14 Final</span>
+                          </span>
+                        </div>
+                      </div>
+
+                      {reminderState.overallStatus === "active" && (
+                        <button
+                          type="button"
+                          className="consent-btn-accept"
+                          style={{ fontSize: 12, padding: "6px 14px" }}
+                          disabled={busyAction}
+                          onClick={() =>
+                            handleAction(
+                              () => resendUploadLink(customer.id),
+                              "Upload link and reminder dispatched to customer."
+                            )
+                          }
+                          id="btn-customer-resend-reminder"
+                        >
+                          <IconSend size={13} />
+                          <span>Resend Reminder Link</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Rationale Banner when Stopped */}
+                    {reminderState.stoppedReason && (
+                      <div
+                        style={{
+                          background: reminderState.overallStatus === "stopped_completed"
+                            ? "rgba(16, 185, 129, 0.08)"
+                            : "rgba(239, 68, 68, 0.08)",
+                          border: `1px solid ${
+                            reminderState.overallStatus === "stopped_completed"
+                              ? "rgba(16, 185, 129, 0.25)"
+                              : "rgba(239, 68, 68, 0.25)"
+                          }`,
+                          borderRadius: 8,
+                          padding: "10px 14px",
+                          fontSize: 12,
+                          color: "var(--adm-text, #f1f5f9)",
+                          lineHeight: 1.5,
+                        }}
+                        id="reminder-stopped-banner"
+                      >
+                        <strong>Policy Status:</strong> {reminderState.stoppedReason}
+                      </div>
+                    )}
+
+                    {/* Metrics Grid */}
+                    <div className="customer-reminders-grid">
+                      <div className="customer-reminders-metric-box">
+                        <span className="customer-reminders-metric-label">Last Reminder Sent</span>
+                        <span className="customer-reminders-metric-value" id="val-last-reminder">
+                          {reminderState.lastReminder
+                            ? `${reminderState.lastReminder.type} (${new Date(reminderState.lastReminder.sentAt).toLocaleDateString()})`
+                            : "None dispatched yet"}
+                        </span>
+                      </div>
+
+                      <div className="customer-reminders-metric-box">
+                        <span className="customer-reminders-metric-label">Next Reminder Due</span>
+                        <span className="customer-reminders-metric-value" id="val-next-reminder">
+                          {reminderState.overallStatus === "active" && reminderState.nextReminder
+                            ? `Day ${reminderState.nextReminder.stage} (in ${reminderState.nextReminder.daysRemaining} days)`
+                            : reminderState.overallStatus === "stopped_completed"
+                            ? "Stopped (Verified)"
+                            : reminderState.overallStatus === "stopped_withdrawn"
+                            ? "Stopped (Withdrawn)"
+                            : "—"}
+                        </span>
+                      </div>
+
+                      <div className="customer-reminders-metric-box">
+                        <span className="customer-reminders-metric-label">Pending Document Triggers</span>
+                        <span className="customer-reminders-metric-value" id="val-pending-docs-count">
+                          {customer.pending_count > 0
+                            ? `${customer.pending_count} document(s) remaining`
+                            : "All documents verified"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* 2. VERIFICATION PROGRESS CARD */}
                 <div className="progress-metrics-card">

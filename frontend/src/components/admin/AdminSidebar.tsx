@@ -10,6 +10,7 @@ import {
   IconChevronLeft,
   IconChevronRight,
   IconX,
+  IconBell,
 } from "./AdminIcons";
 
 export type AdminNavTab =
@@ -17,6 +18,7 @@ export type AdminNavTab =
   | "cases"
   | "documents"
   | "reviews"
+  | "reminders"
   | "audit"
   | "reports"
   | "settings";
@@ -30,6 +32,7 @@ interface AdminSidebarProps {
   onCloseMobile: () => void;
   openReviewsCount?: number;
   failedCount?: number;
+  activeRemindersCount?: number;
 }
 
 export const AdminSidebar: React.FC<AdminSidebarProps> = ({
@@ -41,6 +44,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   onCloseMobile,
   openReviewsCount = 0,
   failedCount = 0,
+  activeRemindersCount = 0,
 }) => {
   const navItems: Array<{
     key: AdminNavTab;
@@ -70,6 +74,13 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       icon: <IconAlertTriangle size={20} />,
       badge: openReviewsCount > 0 ? openReviewsCount : undefined,
       badgeType: "warn",
+    },
+    {
+      key: "reminders",
+      label: "Reminders",
+      icon: <IconBell size={20} />,
+      badge: activeRemindersCount > 0 ? activeRemindersCount : undefined,
+      badgeType: "info",
     },
     {
       key: "audit",
