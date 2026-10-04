@@ -75,9 +75,11 @@ export const SecureDocViewerModal: React.FC<SecureDocViewerModalProps> = ({
         loadDocument(docId);
       });
     } else {
-      cleanupUrl();
-      setZoom(100);
-      setRotation(0);
+      queueMicrotask(() => {
+        cleanupUrl();
+        setZoom(100);
+        setRotation(0);
+      });
     }
     return () => {
       cleanupUrl();

@@ -801,6 +801,18 @@ export const AdminCustomerDetailPage: React.FC = () => {
                                       <IconInfo size={13} /> Inspect
                                     </button>
 
+                                    {(d.verification_status === "manual_review" || d.verification_status === "under_review") && (
+                                      <Link
+                                        to="/admin/reviews"
+                                        className="btn-action-view"
+                                        style={{ background: "rgba(245, 158, 11, 0.15)", color: "#fbbf24", borderColor: "rgba(245, 158, 11, 0.35)", textDecoration: "none" }}
+                                        title="Open in Manual Review Queue"
+                                        id={`btn-open-queue-${d.id}`}
+                                      >
+                                        <IconAlertTriangle size={13} /> Review Queue
+                                      </Link>
+                                    )}
+
                                     {d.file_state === "stored" && (
                                       <button
                                         type="button"

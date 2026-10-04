@@ -199,12 +199,26 @@ export interface AdminReviewItem {
   reason: string | null;
   flags: string[];
   created_at: string;
+  status?: "open" | "approved" | "rejected" | string;
+  decided_by?: string | null;
+  decided_at?: string | null;
+  note?: string | null;
   document: {
     id: string;
+    customer_id?: number;
+    customer_name?: string;
     doc_type: string;
     label: string;
+    filename?: string;
+    file_state?: string;
     ocr_status?: string;
     verification_status?: string;
+    created_at?: string;
+    uploaded_at?: string;
+    reviewed_at?: string;
+    reviewed_by?: string;
+    review_reason?: string;
+    flags?: string[];
   };
   ocr_evidence?: Record<string, any>;
   resubmission_status?: string;

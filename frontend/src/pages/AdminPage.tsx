@@ -3,7 +3,6 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   approveReview,
   clearAdminToken,
-  fetchDocumentFile,
   getAdminAudit,
   getAdminCustomers,
   getAdminReviews,
@@ -31,8 +30,9 @@ import { AddCustomerDrawer } from "../components/admin/AddCustomerDrawer";
 import { BulkImportModal } from "../components/admin/BulkImportModal";
 import { CustomerDetailDrawer } from "../components/admin/CustomerDetailDrawer";
 import { AdminDocumentsView } from "../components/admin/AdminDocumentsView";
+import { AdminReviewsView } from "../components/admin/AdminReviewsView";
+import { SecureDocViewerModal } from "../components/admin/SecureDocViewerModal";
 import {
-  IconEye,
   IconUsers,
 } from "../components/admin/AdminIcons";
 
@@ -97,8 +97,9 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
 
   // Reviews Tab State
   const [reviews, setReviews] = useState<AdminReviewItem[]>([]);
-  const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
-  const [reviewActionLoading, setReviewActionLoading] = useState<string | null>(null);
+  const [reviewsStatusFilter, setReviewsStatusFilter] = useState<"open" | "approved" | "rejected" | "all">("open");
+  const [loadingReviews, setLoadingReviews] = useState<boolean>(false);
+  const [viewingDocId, setViewingDocId] = useState<string | null>(null);
 
   // Audit Tab State
   const [auditLogs, setAuditLogs] = useState<AdminAuditItem[]>([]);
@@ -162,6 +163,7 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
       if (ignore) return;
       if (activeTab === "dashboard" || activeTab === "cases") setLoadingCases(true);
       if (activeTab === "audit") setLoadingAudit(true);
+      if (activeTab === "reviews") setLoadingReviews(true);
     });
 
     if (activeTab === "dashboard" || activeTab === "cases") {
@@ -182,12 +184,19 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
     }
 
     if (activeTab === "reviews") {
-      getAdminReviews("open")
+      const queryStatus = reviewsStatusFilter === "all" ? "open" : reviewsStatusFilter;
+      getAdminReviews(queryStatus)
         .then((items) => {
-          if (!ignore) setReviews(items);
+          if (!ignore) {
+            setReviews(items);
+            setLoadingReviews(false);
+          }
         })
         .catch((err: Error) => {
-          if (!ignore) setAuthError(err.message);
+          if (!ignore) {
+            setAuthError(err.message);
+            setLoadingReviews(false);
+          }
         });
     } else if (activeTab === "audit") {
       getAdminAudit(200)
@@ -214,6 +223,7 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
     activeSearch,
     caseStatusFilter,
     casesPage,
+    reviewsStatusFilter,
   ]);
 
   const handleSearch = (e: React.FormEvent) => {
@@ -266,36 +276,47 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
     refreshCustomers();
   };
 
-  const handleReviewDecision = async (id: string, action: "approve" | "reject") => {
-    setReviewActionLoading(id);
+  const fetchReviews = (statusFilter: "open" | "approved" | "rejected" | "all" = reviewsStatusFilter) => {
+    setLoadingReviews(true);
+    const queryStatus = statusFilter === "all" ? "open" : statusFilter;
+    getAdminReviews(queryStatus)
+      .then((items) => {
+        setReviews(items);
+        setLoadingReviews(false);
+      })
+      .catch((err: Error) => {
+        setAuthError(err.message);
+        setLoadingReviews(false);
+      });
+  };
+
+  const handleReviewDecision = async (id: string, action: "approve" | "reject", note?: string) => {
     try {
-      const note = reviewNotes[id] || undefined;
       if (action === "approve") {
         await approveReview(id, note);
       } else {
         await rejectReview(id, note);
       }
 
-      setReviews((prev) => prev.filter((r) => r.id !== id));
-      setReviewActionLoading(null);
+      setReviews((prev) =>
+        prev.map((r) =>
+          r.id === id
+            ? { ...r, status: action === "approve" ? "approved" : "rejected", note: note || r.note }
+            : r
+        )
+      );
 
       // Refresh summary
       getAdminSummary().then((s) => setSummary(s)).catch(() => {});
     } catch (err: unknown) {
       alert(err instanceof Error ? err.message : "Review action failed.");
-      setReviewActionLoading(null);
+      throw err;
     }
   };
 
-  const handleSecureView = async (docId: string, title?: string) => {
-    try {
-      const blob = await fetchDocumentFile(docId);
-      const url = URL.createObjectURL(blob);
-      setActiveViewUrl(url);
-      setViewingDocTitle(title || "Document Preview");
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : "Failed to open document file.");
-    }
+  const handleSecureView = (docId: string, title?: string) => {
+    setViewingDocId(docId);
+    setViewingDocTitle(title || "Document Preview");
   };
 
   // --- Render Login Form if unauthenticated ---
@@ -636,264 +657,19 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
             {/* --- TAB 3: MANUAL REVIEWS --- */}
             {activeTab === "reviews" && (
               <div id="tab-pane-reviews">
-                {reviews.length === 0 ? (
-                  <div className="card mut" style={{ padding: 28, textAlign: "center" }}>
-                    No pending documents require manual review.
-                  </div>
-                ) : (
-                  reviews.map((r) => (
-                    <div className="card" key={r.id} style={{ marginBottom: 16 }}>
-                      <div className="row" style={{ alignItems: "flex-start" }}>
-                        <div>
-                          <b>
-                            {r.customer_name}{" "}
-                            <span className="mut">({r.customer_code})</span>
-                          </b>
-                          <div style={{ marginTop: 4, fontWeight: 600 }}>
-                            {r.document.label}
-                          </div>
-                        </div>
-
-                        <div
-                          style={{
-                            display: "flex",
-                            gap: "8px",
-                            alignItems: "center",
-                            flexWrap: "wrap",
-                            justifyContent: "flex-end",
-                          }}
-                        >
-                          <span className="tag under_review">
-                            Status: {r.document.verification_status || "requires_review"}
-                          </span>
-                          {r.resubmission_status && (
-                            <span
-                              className="tag"
-                              style={{
-                                background: "var(--info-bg)",
-                                color: "var(--info)",
-                                borderColor: "var(--info-border)",
-                              }}
-                            >
-                              Resubmission:{" "}
-                              {r.resubmission_status === "eligible_for_resubmission"
-                                ? "Eligible"
-                                : r.resubmission_status}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Review Reason & Flags */}
-                      <div
-                        style={{
-                          marginTop: 12,
-                          padding: "10px 14px",
-                          background: "var(--warn-bg)",
-                          border: "1px solid var(--warn-border)",
-                          borderRadius: "6px",
-                        }}
-                      >
-                        <div
-                          style={{
-                            fontWeight: 600,
-                            color: "var(--warn)",
-                            fontSize: "13px",
-                          }}
-                        >
-                          Review Trigger Reason:
-                        </div>
-                        <div
-                          style={{
-                            color: "var(--ink)",
-                            fontSize: "14px",
-                            marginTop: 2,
-                          }}
-                        >
-                          {r.reason || "Confidence below auto-verification threshold"}
-                        </div>
-                        {r.flags && r.flags.length > 0 && (
-                          <div
-                            style={{
-                              marginTop: 6,
-                              fontSize: "12px",
-                              display: "flex",
-                              gap: "6px",
-                              flexWrap: "wrap",
-                              alignItems: "center",
-                            }}
-                          >
-                            <span style={{ fontWeight: 600, color: "var(--mut)" }}>
-                              Flags: {r.flags.join(", ")}
-                            </span>
-                            {r.flags.map((flag, idx) => (
-                              <span
-                                key={idx}
-                                className="tag bad"
-                                style={{ fontSize: "11px", padding: "1px 6px" }}
-                              >
-                                {flag}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Masked OCR Evidence (Privacy Protected) */}
-                      <div
-                        style={{
-                          marginTop: 12,
-                          border: "1px solid var(--line)",
-                          borderRadius: "6px",
-                          background: "var(--card-subtle)",
-                          padding: "12px 14px",
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: "flex",
-                            justifyContent: "space-between",
-                            alignItems: "center",
-                            marginBottom: 8,
-                          }}
-                        >
-                          <span style={{ fontWeight: 600, fontSize: "13px" }}>
-                            Masked OCR Evidence (Privacy Protected)
-                          </span>
-                          {r.ocr_evidence?.confidence !== undefined && (
-                            <span style={{ fontSize: "12px", color: "var(--mut)" }}>
-                              Confidence:{" "}
-                              <b>
-                                {(Number(r.ocr_evidence.confidence) * 100).toFixed(0)}%
-                              </b>
-                            </span>
-                          )}
-                        </div>
-
-                        {r.ocr_evidence ? (
-                          <div>
-                            {r.ocr_evidence.pii_detected &&
-                              r.ocr_evidence.pii_detected.length > 0 && (
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    gap: "6px",
-                                    marginBottom: 8,
-                                    flexWrap: "wrap",
-                                  }}
-                                >
-                                  {r.ocr_evidence.pii_detected.map(
-                                    (p: string, idx: number) => (
-                                      <span
-                                        key={idx}
-                                        className="tag"
-                                        style={{
-                                          fontSize: "11px",
-                                          background: "var(--acc-bg)",
-                                          color: "var(--acc)",
-                                          borderColor: "var(--acc-border)",
-                                        }}
-                                      >
-                                        🛡️ {p} Redacted
-                                      </span>
-                                    )
-                                  )}
-                                </div>
-                              )}
-
-                            {r.ocr_evidence.extracted_fields &&
-                            Object.keys(r.ocr_evidence.extracted_fields).length > 0 ? (
-                              <div
-                                style={{
-                                  display: "grid",
-                                  gridTemplateColumns:
-                                    "repeat(auto-fit, minmax(200px, 1fr))",
-                                  gap: "8px",
-                                  background: "var(--card)",
-                                  padding: "8px 12px",
-                                  borderRadius: "4px",
-                                  border: "1px solid var(--line)",
-                                }}
-                              >
-                                {Object.entries(r.ocr_evidence.extracted_fields).map(
-                                  ([k, v]) => (
-                                    <div key={k} style={{ fontSize: "12px" }}>
-                                      <span
-                                        className="mut"
-                                        style={{ textTransform: "capitalize" }}
-                                      >
-                                        {k.replace(/_/g, " ")}:{" "}
-                                      </span>
-                                      <code style={{ fontWeight: 600 }}>
-                                        {String(v ?? "—")}
-                                      </code>
-                                    </div>
-                                  )
-                                )}
-                              </div>
-                            ) : (
-                              <div className="mut" style={{ fontSize: "12px" }}>
-                                No extracted fields in OCR evidence payload.
-                              </div>
-                            )}
-                          </div>
-                        ) : (
-                          <div className="mut" style={{ fontSize: "12px" }}>
-                            No OCR evidence available yet.
-                          </div>
-                        )}
-                      </div>
-
-                      <p className="mut" style={{ fontSize: 12, marginTop: 8 }}>
-                        Queued: {new Date(r.created_at).toLocaleString()}
-                      </p>
-
-                      <div style={{ margin: "14px 0" }}>
-                        <label htmlFor={`review-note-${r.id}`}>
-                          Reviewer note (optional)
-                        </label>
-                        <input
-                          id={`review-note-${r.id}`}
-                          placeholder="Enter reason or approval notes"
-                          value={reviewNotes[r.id] || ""}
-                          onChange={(e) =>
-                            setReviewNotes({ ...reviewNotes, [r.id]: e.target.value })
-                          }
-                        />
-                      </div>
-
-                      <div
-                        className="row"
-                        style={{ justifyContent: "flex-start", gap: 10 }}
-                      >
-                        <button
-                          type="button"
-                          className="sec"
-                          onClick={() => handleSecureView(r.document.id)}
-                          id={`btn-review-view-${r.id}`}
-                        >
-                          <IconEye size={14} /> Secure view
-                        </button>
-                        <button
-                          className="ok"
-                          disabled={reviewActionLoading === r.id}
-                          onClick={() => handleReviewDecision(r.id, "approve")}
-                          id={`btn-review-approve-${r.id}`}
-                        >
-                          Approve
-                        </button>
-                        <button
-                          className="no"
-                          disabled={reviewActionLoading === r.id}
-                          onClick={() => handleReviewDecision(r.id, "reject")}
-                          id={`btn-review-reject-${r.id}`}
-                        >
-                          Reject & ask resubmit
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
+                <AdminReviewsView
+                  reviews={reviews}
+                  loading={loadingReviews}
+                  onRefresh={() => fetchReviews(reviewsStatusFilter)}
+                  onApproveReview={(id, note) => handleReviewDecision(id, "approve", note)}
+                  onRejectReview={(id, note) => handleReviewDecision(id, "reject", note)}
+                  onSecureView={handleSecureView}
+                  activeStatusFilter={reviewsStatusFilter}
+                  onStatusFilterChange={(status) => {
+                    setReviewsStatusFilter(status);
+                    fetchReviews(status);
+                  }}
+                />
               </div>
             )}
 
@@ -971,7 +747,15 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
         onCustomerUpdated={refreshCustomers}
       />
 
-      {/* Secure Document Viewer Modal */}
+      {/* Streamed Secure Document Viewer Modal */}
+      <SecureDocViewerModal
+        isOpen={Boolean(viewingDocId)}
+        docId={viewingDocId}
+        title={viewingDocTitle}
+        onClose={() => setViewingDocId(null)}
+      />
+
+      {/* Legacy Fallback Viewer */}
       {activeViewUrl && (
         <div
           className="modal-backdrop"
