@@ -215,7 +215,7 @@ export const ConsentPage: React.FC = () => {
 
   return (
     <div className="customer-app-root">
-      <div className="customer-content-wrap customer-content-narrow">
+      <div className="customer-content-wrap customer-content-narrow" id="main-content">
         <div className="consent-panel-card" id="consent-card">
           <div className="consent-header-badge">
             <IconShieldCheck size={14} />

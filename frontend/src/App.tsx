@@ -22,8 +22,8 @@ const AppContent: React.FC = () => {
       <main
         style={
           isAdmin
-            ? { minHeight: "100vh", padding: 0 }
-            : { minHeight: "calc(100vh - 70px)", padding: "16px 0" }
+            ? { minHeight: "100vh", padding: 0, width: "100%", maxWidth: "100vw", overflowX: "hidden" }
+            : { minHeight: "calc(100vh - 70px)", padding: "16px 0", width: "100%", maxWidth: "100vw", overflowX: "hidden" }
         }
       >
         <Routes>

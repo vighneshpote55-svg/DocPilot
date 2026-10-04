@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { requestPrivacy } from "../api";
+import { useDialogA11y } from "../utils/a11yUtils";
 import {
   IconAlertTriangle,
   IconArrowRight,
@@ -27,6 +28,11 @@ export const PrivacyPage: React.FC = () => {
   const [submittedAction, setSubmittedAction] = useState<"withdraw" | "delete">("delete");
   const [statusMsg, setStatusMsg] = useState<{ text: string; ok: boolean } | null>(null);
   const [directToken, setDirectToken] = useState<string>("");
+
+  const confirmModalRef = useRef<HTMLDivElement>(null);
+  useDialogA11y(showConfirmModal, () => {
+    if (!submitting) setShowConfirmModal(false);
+  }, confirmModalRef);
 
   const toggleTheme = () => {
     const next = theme === "dark" ? "light" : "dark";
@@ -117,7 +123,7 @@ export const PrivacyPage: React.FC = () => {
             </button>
           </div>
         </header>
-        <div className="privacy-page-container">
+        <div className="privacy-page-container" id="main-content">
           {/* Success Dispatched State */}
           {statusMsg?.ok ? (
             <div className="privacy-success-box" id="privacy-dispatched-card">
@@ -350,13 +356,22 @@ export const PrivacyPage: React.FC = () => {
 
           {/* Pre-Submission Interactive Confirmation Dialog Modal */}
           {showConfirmModal && (
-            <div className="privacy-dialog-backdrop" id="privacy-request-confirm-modal" role="dialog" aria-modal="true">
-              <div className="privacy-dialog-card">
+            <div
+              className="privacy-dialog-backdrop"
+              id="privacy-request-confirm-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="privacy-dialog-title"
+              onClick={(e) => {
+                if (e.target === e.currentTarget && !submitting) setShowConfirmModal(false);
+              }}
+            >
+              <div className="privacy-dialog-card" ref={confirmModalRef}>
                 <div className={`privacy-dialog-icon ${action === "delete" ? "" : "amber"}`}>
                   {action === "delete" ? <IconTrash2 size={26} /> : <IconAlertTriangle size={26} />}
                 </div>
 
-                <h3 className="privacy-dialog-title">
+                <h3 className="privacy-dialog-title" id="privacy-dialog-title">
                   {action === "delete" ? "Confirm Data Erasure Request" : "Confirm Consent Withdrawal"}
                 </h3>
 

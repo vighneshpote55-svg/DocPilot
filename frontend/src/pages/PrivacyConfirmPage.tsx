@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { Link, useParams } from "react-router-dom";
 import { confirmPrivacy } from "../api";
+import { useDialogA11y } from "../utils/a11yUtils";
 import {
   IconAlertCircle,
   IconAlertTriangle,
@@ -24,6 +25,11 @@ export const PrivacyConfirmPage: React.FC = () => {
   const [completedAction, setCompletedAction] = useState<"delete" | "withdraw" | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [executedAt, setExecutedAt] = useState<string>("");
+
+  const confirmModalRef = useRef<HTMLDivElement>(null);
+  useDialogA11y(showConfirmModal, () => {
+    if (!submitting) setShowConfirmModal(false);
+  }, confirmModalRef);
 
   const toggleTheme = () => {
     const next = theme === "dark" ? "light" : "dark";
@@ -97,7 +103,7 @@ export const PrivacyConfirmPage: React.FC = () => {
             </button>
           </div>
         </header>
-        <div className="privacy-page-container">
+        <div className="privacy-page-container" id="main-content">
           {/* State 1: Completed Success State */}
           {completedAction ? (
             <div className="privacy-success-box" id="privacy-confirm-success-card">
@@ -259,13 +265,22 @@ export const PrivacyConfirmPage: React.FC = () => {
 
           {/* Interactive Modal Confirmation Dialog */}
           {showConfirmModal && (
-            <div className="privacy-dialog-backdrop" id="privacy-confirm-execute-modal" role="dialog" aria-modal="true">
-              <div className="privacy-dialog-card">
+            <div
+              className="privacy-dialog-backdrop"
+              id="privacy-confirm-execute-modal"
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="privacy-confirm-dialog-title"
+              onClick={(e) => {
+                if (e.target === e.currentTarget && !submitting) setShowConfirmModal(false);
+              }}
+            >
+              <div className="privacy-dialog-card" ref={confirmModalRef}>
                 <div className="privacy-dialog-icon">
                   <IconTrash2 size={26} />
                 </div>
 
-                <h3 className="privacy-dialog-title">Execute Privacy Directive?</h3>
+                <h3 className="privacy-dialog-title" id="privacy-confirm-dialog-title">Execute Privacy Directive?</h3>
 
                 <p className="privacy-dialog-desc">
                   Are you absolutely certain you want to proceed? This will immediately consume your one-time token and execute the privacy action in our secure enclave.

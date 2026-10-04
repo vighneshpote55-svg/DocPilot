@@ -535,8 +535,8 @@ export const PortalPage: React.FC = () => {
     total > 0 ? Math.round((verifiedCount / total) * 100) : 0;
 
   return (
-    <div className="customer-app-root">
-      <div className="customer-content-wrap" id="portal-container">
+    <div className="customer-app-root" id="main-content">
+      <main className="customer-content-wrap" id="portal-container">
         {/* Verification Completed Screen (Screen 5) */}
         {isCompleted ? (
           <div
@@ -1271,7 +1271,7 @@ export const PortalPage: React.FC = () => {
           to {portal.max_upload_mb} MB each). All files are encrypted using
           AES-256-GCM and permanently deleted after verification.
         </p>
-      </div>
+      </main>
     </div>
   );
 };

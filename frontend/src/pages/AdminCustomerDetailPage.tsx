@@ -357,7 +357,7 @@ export const AdminCustomerDetailPage: React.FC = () => {
 
         {/* Content Area */}
         <main className="admin-content" id="main-content">
-          <div className="customer-detail-page-layout">
+          <div className="customer-detail-page-layout" id="customer-detail-page">
             {/* Breadcrumbs */}
             <div className="customer-detail-breadcrumbs">
               <Link to="/admin" className="breadcrumb-link">
