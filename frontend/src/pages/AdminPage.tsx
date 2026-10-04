@@ -840,7 +840,13 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
             )}
 
             {/* --- TAB 5: REPORTS & ANALYTICS --- */}
-            {activeTab === "reports" && <AdminReportsView summary={summary} />}
+            {activeTab === "reports" && (
+              <AdminReportsView
+                summary={summary}
+                initialCustomers={customers}
+                initialAuditLogs={auditLogs}
+              />
+            )}
 
             {/* --- TAB 6: SETTINGS & POLICIES --- */}
             {activeTab === "settings" && <AdminSettingsView />}
