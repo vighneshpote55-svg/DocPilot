@@ -1,5 +1,5 @@
 import React from "react";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { Header } from "./components/Header";
 import { HomePage } from "./pages/HomePage";
 import { ConsentPage } from "./pages/ConsentPage";
@@ -9,11 +9,20 @@ import { PrivacyConfirmPage } from "./pages/PrivacyConfirmPage";
 import { AdminPage } from "./pages/AdminPage";
 import { AdminCustomerDetailPage } from "./pages/AdminCustomerDetailPage";
 
-export const App: React.FC = () => {
+const AppContent: React.FC = () => {
+  const location = useLocation();
+  const isAdmin = location.pathname.startsWith("/admin");
+
   return (
-    <BrowserRouter>
-      <Header />
-      <main style={{ minHeight: "calc(100vh - 70px)", padding: "16px 0" }}>
+    <>
+      {!isAdmin && <Header />}
+      <main
+        style={
+          isAdmin
+            ? { minHeight: "100vh", padding: 0 }
+            : { minHeight: "calc(100vh - 70px)", padding: "16px 0" }
+        }
+      >
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/consent/:token" element={<ConsentPage />} />
@@ -25,6 +34,14 @@ export const App: React.FC = () => {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
+    </>
+  );
+};
+
+export const App: React.FC = () => {
+  return (
+    <BrowserRouter>
+      <AppContent />
     </BrowserRouter>
   );
 };
