@@ -5538,4 +5538,218 @@
   }
 }
 
+/* ==========================================================================
+   Phase 6 — Admin Privacy, Retention & Action Dialog Styles
+   ========================================================================== */
+.admin-action-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 250;
+  padding: 20px;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.admin-action-dialog-card {
+  background: var(--adm-surface, #0c1322);
+  border: 1px solid var(--adm-border, rgba(59, 130, 246, 0.2));
+  border-radius: 16px;
+  max-width: 500px;
+  width: 100%;
+  padding: 28px 24px;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.5);
+  text-align: center;
+}
+
+.admin-action-dialog-card.danger {
+  border-color: rgba(239, 68, 68, 0.4);
+  box-shadow: 0 20px 48px rgba(239, 68, 68, 0.15), 0 0 0 1px rgba(239, 68, 68, 0.3);
+}
+
+.admin-dialog-icon-circle {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  margin: 0 auto 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--adm-primary, #60a5fa);
+}
+
+.admin-dialog-icon-circle.danger {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--adm-danger, #ef4444);
+}
+
+.admin-dialog-icon-circle.warn {
+  background: rgba(245, 158, 11, 0.15);
+  color: #f59e0b;
+}
+
+.admin-dialog-title {
+  font-size: 18px;
+  font-weight: 800;
+  margin: 0 0 10px;
+  color: var(--adm-text, #f1f5f9);
+}
+
+.admin-dialog-desc {
+  font-size: 13px;
+  color: var(--adm-text-secondary, #94a3b8);
+  line-height: 1.6;
+  margin: 0 0 20px;
+}
+
+.admin-dialog-textarea {
+  width: 100%;
+  background: var(--adm-card, #10192d);
+  border: 1px solid var(--adm-border, rgba(59, 130, 246, 0.2));
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--adm-text, #f1f5f9);
+  font-size: 13px;
+  font-family: inherit;
+  resize: vertical;
+  box-sizing: border-box;
+  margin-bottom: 20px;
+}
+
+.admin-dialog-textarea:focus {
+  outline: none;
+  border-color: var(--adm-primary, #3b82f6);
+}
+
+.admin-dialog-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--adm-danger, #ef4444);
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 20px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.admin-dialog-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+/* Retention Timeline Panel */
+.retention-timeline-panel {
+  background: var(--adm-card-elevated, #10192d);
+  border: 1px solid var(--adm-border, rgba(59, 130, 246, 0.15));
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin: 20px 0;
+}
+
+.retention-timeline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.retention-timeline-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--adm-text, #f1f5f9);
+}
+
+.retention-timeline-sub {
+  font-size: 12px;
+  color: var(--adm-text-secondary, #94a3b8);
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+
+.retention-progress-track {
+  height: 8px;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 9999px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.retention-progress-bar {
+  height: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, var(--adm-primary, #3b82f6), #f59e0b);
+  transition: width 0.4s ease;
+}
+
+.retention-progress-bar.urgent {
+  background: linear-gradient(90deg, #f59e0b, var(--adm-danger, #ef4444));
+}
+
+.retention-timeline-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--adm-text-muted, #94a3b8);
+}
+
+/* Privacy Audit Badge */
+.privacy-audit-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+.privacy-audit-pill.danger {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.privacy-audit-pill.success {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+/* Light Theme Overrides */
+.admin-theme-light .admin-action-dialog-card,
+[data-theme="light"] .admin-action-dialog-card,
+.admin-theme-light .retention-timeline-panel,
+[data-theme="light"] .retention-timeline-panel {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.admin-theme-light .admin-dialog-textarea,
+[data-theme="light"] .admin-dialog-textarea {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+
 

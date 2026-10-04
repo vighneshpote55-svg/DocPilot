@@ -1215,11 +1215,54 @@ export const PortalPage: React.FC = () => {
           })}
         </div>
 
+        {/* Customer Data Privacy & DPDP Rights Card */}
+        <div className="portal-privacy-footer-card" id="portal-privacy-card">
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <div
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 8,
+                background: "rgba(16, 185, 129, 0.15)",
+                color: "#10b981",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <IconShieldCheck size={20} />
+            </div>
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "var(--adm-text, #f1f5f9)" }}>
+                  Consent: Granted • India DPDP Act 2023 Protected
+                </span>
+                <span className="privacy-trust-pill green" style={{ fontSize: 10, padding: "2px 8px" }}>
+                  Active Enclave
+                </span>
+              </div>
+              <div style={{ fontSize: 12, color: "var(--adm-text-secondary, #94a3b8)", marginTop: 2 }}>
+                Stored encrypted with AES-256-GCM. You have the statutory right to withdraw consent or request immediate data erasure at any time.
+              </div>
+            </div>
+          </div>
+
+          <Link
+            to="/privacy"
+            className="consent-btn-decline"
+            id="portal-manage-privacy-link"
+            style={{ textDecoration: "none", fontSize: 12, padding: "8px 14px", flexShrink: 0, whiteSpace: "nowrap" }}
+          >
+            Manage Privacy &amp; Data
+          </Link>
+        </div>
+
         {/* Security & Retention Micro-Notice */}
         <p
           className="customer-footer"
           style={{
-            marginTop: 32,
+            marginTop: 24,
             justifyContent: "center",
             textAlign: "center",
           }}

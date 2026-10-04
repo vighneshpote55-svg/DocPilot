@@ -85,6 +85,13 @@ export const AdminCustomerDetailPage: React.FC = () => {
   const [viewerDoc, setViewerDoc] = useState<{ id: string; label: string; filename: string } | null>(null);
   const [inspectDoc, setInspectDoc] = useState<AdminDocumentItem | null>(null);
 
+  // Phase 6: Privacy & Lifecycle Action Modals
+  const [showCloseCaseModal, setShowCloseCaseModal] = useState<boolean>(false);
+  const [closeCaseReason, setCloseCaseReason] = useState<string>("");
+  const [showDeleteDataModal, setShowDeleteDataModal] = useState<boolean>(false);
+  const [confirmDeleteChecked, setConfirmDeleteChecked] = useState<boolean>(false);
+  const [privacyAuditOnly, setPrivacyAuditOnly] = useState<boolean>(false);
+
   // Guard & Hydrate Admin Session
   useEffect(() => {
     const raw = localStorage.getItem("docpilot_admin_session");
@@ -241,6 +248,32 @@ export const AdminCustomerDetailPage: React.FC = () => {
     if (days > 0) return `${days}d ${hours}h remaining`;
     return `${hours} hours remaining`;
   }, [customer, now]);
+
+  // Phase 6: Calculate retention timeline percentage (7-day window)
+  const retentionProgressPercent = useMemo(() => {
+    if (!customer || !customer.delete_after) return 0;
+    const target = new Date(customer.delete_after).getTime();
+    const totalRetentionMs = 7 * 24 * 60 * 60 * 1000;
+    const remainingMs = target - now;
+    if (remainingMs <= 0) return 100;
+    const elapsedMs = Math.max(0, totalRetentionMs - remainingMs);
+    return Math.min(100, Math.round((elapsedMs / totalRetentionMs) * 100));
+  }, [customer, now]);
+
+  // Phase 6: Privacy & Consent Audit Filter
+  const privacyAuditLogs = useMemo(() => {
+    return customerAuditLogs.filter((a) => {
+      const act = (a.action || "").toLowerCase();
+      return (
+        act.includes("consent") ||
+        act.includes("privacy") ||
+        act.includes("delete") ||
+        act.includes("close")
+      );
+    });
+  }, [customerAuditLogs]);
+
+  const displayedAuditLogs = privacyAuditOnly ? privacyAuditLogs : customerAuditLogs;
 
   return (
     <div className={`admin-dashboard-root ${theme === "light" ? "admin-theme-light" : ""}`}>
@@ -399,9 +432,24 @@ export const AdminCustomerDetailPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Retention Countdown Banner */}
+                  {/* Phase 6: Consent Withdrawn Notice Banner */}
+                  {customer.consent_status === "withdrawn" && (
+                    <div className="retention-countdown-banner" style={{ background: "rgba(245, 158, 11, 0.1)", borderColor: "rgba(245, 158, 11, 0.35)", marginBottom: 14 }}>
+                      <div className="retention-banner-text">
+                        <IconAlertTriangle size={16} color="#f59e0b" />
+                        <span>
+                          <b>Consent Withdrawn by Customer:</b> Under India DPDP Act 2023, automated verification pipelines, reminder schedulers, and active links have been halted.
+                        </span>
+                      </div>
+                      <span className="retention-countdown-pill" style={{ background: "rgba(245, 158, 11, 0.2)", color: "#fbbf24" }}>
+                        Consent Withdrawn
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Retention Countdown Banner with Progress Meter */}
                   {customer.data_deleted_at ? (
-                    <div className="retention-countdown-banner deleted">
+                    <div className="retention-countdown-banner deleted" id="retention-purged-panel">
                       <div className="retention-banner-text">
                         <IconArchive size={16} color="var(--adm-danger)" />
                         <span>
@@ -412,17 +460,31 @@ export const AdminCustomerDetailPage: React.FC = () => {
                       <span className="retention-countdown-pill">Purged</span>
                     </div>
                   ) : customer.delete_after ? (
-                    <div className="retention-countdown-banner">
-                      <div className="retention-banner-text">
-                        <IconClock size={16} color="var(--adm-primary)" />
-                        <span>
-                          <b>Retention Deletion Policy:</b> Scheduled for automatic permanent purge on{" "}
-                          {new Date(customer.delete_after).toLocaleString()}
-                        </span>
+                    <div className="retention-countdown-banner" id="retention-countdown-panel">
+                      <div style={{ width: "100%" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                          <div className="retention-banner-text">
+                            <IconClock size={16} color="var(--adm-primary)" />
+                            <span>
+                              <b>Retention Deletion Policy:</b> Scheduled for automatic permanent purge on{" "}
+                              {new Date(customer.delete_after).toLocaleString()}
+                            </span>
+                          </div>
+                          <span className="retention-countdown-pill">
+                            {retentionCountdown}
+                          </span>
+                        </div>
+                        <div className="retention-progress-track">
+                          <div
+                            className={`retention-progress-bar ${retentionProgressPercent > 80 ? "urgent" : ""}`}
+                            style={{ width: `${retentionProgressPercent}%` }}
+                          />
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--adm-text-muted)" }}>
+                          <span>Elapsed: {retentionProgressPercent}%</span>
+                          <span>Auto-Purge Window: 7 Days</span>
+                        </div>
                       </div>
-                      <span className="retention-countdown-pill">
-                        {retentionCountdown}
-                      </span>
                     </div>
                   ) : null}
 
@@ -466,9 +528,10 @@ export const AdminCustomerDetailPage: React.FC = () => {
                         className="btn sec"
                         disabled={busyAction}
                         onClick={() => {
-                          const reason = prompt("Optional reason for closing this case:") || undefined;
-                          handleAction(() => closeAdminCase(customer.id, reason), "Case marked as closed by admin.");
+                          setCloseCaseReason("");
+                          setShowCloseCaseModal(true);
                         }}
+                        id="btn-trigger-close-case"
                       >
                         Close Case
                       </button>
@@ -480,17 +543,10 @@ export const AdminCustomerDetailPage: React.FC = () => {
                         className="btn bad"
                         disabled={busyAction}
                         onClick={() => {
-                          if (
-                            confirm(
-                              "WARNING: This will permanently delete all encrypted files, OCR data, and customer records. This action cannot be undone. Proceed?"
-                            )
-                          ) {
-                            handleAction(
-                              () => deleteAdminCustomerData(customer.id),
-                              "Customer data and files have been permanently purged."
-                            );
-                          }
+                          setConfirmDeleteChecked(false);
+                          setShowDeleteDataModal(true);
                         }}
+                        id="btn-trigger-delete-data"
                       >
                         <IconTrash2 size={14} /> Delete Customer Data
                       </button>
@@ -837,27 +893,57 @@ export const AdminCustomerDetailPage: React.FC = () => {
                 {/* 5. CASE ACTIVITY & AUDIT TIMELINE */}
                 <div className="admin-section-block">
                   <div className="section-title-row" style={{ marginBottom: 12 }}>
-                    <h3 className="admin-section-heading" style={{ fontSize: 18 }}>
-                      <IconHistory size={18} style={{ display: "inline", verticalAlign: "-2px", marginRight: 6 }} />
-                      Case Activity & Audit Trail
-                    </h3>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+                      <h3 className="admin-section-heading" style={{ fontSize: 18, margin: 0 }}>
+                        <IconHistory size={18} style={{ display: "inline", verticalAlign: "-2px", marginRight: 6 }} />
+                        Case Activity &amp; Audit Trail
+                      </h3>
+                      <div style={{ display: "inline-flex", borderRadius: 8, padding: 2, background: "var(--adm-card-elevated)" }}>
+                        <button
+                          type="button"
+                          className={`btn-toolbar-tool ${!privacyAuditOnly ? "active" : ""}`}
+                          onClick={() => setPrivacyAuditOnly(false)}
+                          style={{ fontSize: 11, padding: "4px 10px", borderRadius: 6 }}
+                          id="btn-audit-all"
+                        >
+                          All ({customerAuditLogs.length})
+                        </button>
+                        <button
+                          type="button"
+                          className={`btn-toolbar-tool ${privacyAuditOnly ? "active" : ""}`}
+                          onClick={() => setPrivacyAuditOnly(true)}
+                          style={{ fontSize: 11, padding: "4px 10px", borderRadius: 6 }}
+                          id="btn-audit-privacy"
+                        >
+                          Privacy &amp; Consent ({privacyAuditLogs.length})
+                        </button>
+                      </div>
+                    </div>
                     <span className="text-secondary-sm">
-                      {customerAuditLogs.length} compliance event records
+                      {displayedAuditLogs.length} compliance event records
                     </span>
                   </div>
 
-                  {customerAuditLogs.length === 0 ? (
+                  {displayedAuditLogs.length === 0 ? (
                     <div className="admin-table-card" style={{ padding: 24, textAlign: "center" }}>
                       <p style={{ color: "var(--adm-text-secondary)", margin: 0, fontSize: 13 }}>
-                        No specific audit events recorded yet for this customer case.
+                        {privacyAuditOnly
+                          ? "No privacy or consent lifecycle events recorded yet for this customer."
+                          : "No specific audit events recorded yet for this customer case."}
                       </p>
                     </div>
                   ) : (
                     <div className="customer-audit-feed">
-                      {customerAuditLogs.map((log) => {
+                      {displayedAuditLogs.map((log) => {
                         let iconColor = "var(--adm-primary)";
                         const rawAction = log.action || "";
                         let actionLabel = rawAction.replace(/_/g, " ") || "Event";
+
+                        const isPrivacyAction =
+                          rawAction.includes("consent") ||
+                          rawAction.includes("privacy") ||
+                          rawAction.includes("delete") ||
+                          rawAction.includes("close");
 
                         if (rawAction.includes("verified") || rawAction.includes("approved")) {
                           iconColor = "var(--adm-success)";
@@ -874,9 +960,24 @@ export const AdminCustomerDetailPage: React.FC = () => {
                             </div>
                             <div className="audit-feed-content">
                               <div className="audit-feed-action-row">
-                                <span className="audit-feed-action-text" style={{ textTransform: "capitalize" }}>
-                                  {actionLabel}
-                                </span>
+                                <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                                  <span className="audit-feed-action-text" style={{ textTransform: "capitalize" }}>
+                                    {actionLabel}
+                                  </span>
+                                  {isPrivacyAction && (
+                                    <span
+                                      className={`privacy-audit-pill ${
+                                        rawAction.includes("delete")
+                                          ? "danger"
+                                          : rawAction.includes("granted")
+                                          ? "success"
+                                          : ""
+                                      }`}
+                                    >
+                                      Privacy Directive
+                                    </span>
+                                  )}
+                                </div>
                                 <span className="audit-feed-time">
                                   {new Date(log.at).toLocaleString()}
                                 </span>
@@ -928,6 +1029,127 @@ export const AdminCustomerDetailPage: React.FC = () => {
           onDownload={handleDownload}
           onDeleteFile={handleDeleteFile}
         />
+      )}
+
+      {/* Phase 6: Close Case Confirmation Modal */}
+      {showCloseCaseModal && customer && (
+        <div className="admin-action-dialog-backdrop" id="admin-close-case-modal" role="dialog" aria-modal="true">
+          <div className="admin-action-dialog-card">
+            <div className="admin-dialog-icon-circle warn">
+              <IconAlertTriangle size={26} />
+            </div>
+
+            <h3 className="admin-dialog-title">Close Customer Case</h3>
+            <p className="admin-dialog-desc">
+              Closing case <strong>{customer.code}</strong> will immediately revoke customer upload credentials and initiate the <strong>7-day retention countdown</strong> towards automated data purging.
+            </p>
+
+            <label htmlFor="admin-close-case-reason" style={{ display: "block", textAlign: "left", fontSize: 12, fontWeight: 700, color: "var(--adm-text-muted)", marginBottom: 6 }}>
+              Closure Reason (Optional)
+            </label>
+            <textarea
+              id="admin-close-case-reason"
+              rows={3}
+              placeholder="e.g., Verification manually finalized; customer opted out of further processing."
+              value={closeCaseReason}
+              onChange={(e) => setCloseCaseReason(e.target.value)}
+              className="admin-dialog-textarea"
+            />
+
+            <div className="admin-dialog-actions">
+              <button
+                type="button"
+                className="consent-btn-decline"
+                onClick={() => setShowCloseCaseModal(false)}
+                disabled={busyAction}
+                id="btn-cancel-close-case"
+                style={{ fontSize: 13, padding: "8px 16px" }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="consent-btn-accept"
+                onClick={async () => {
+                  setShowCloseCaseModal(false);
+                  await handleAction(
+                    () => closeAdminCase(customer.id, closeCaseReason.trim() || undefined),
+                    "Case marked as closed by admin."
+                  );
+                }}
+                disabled={busyAction}
+                id="btn-confirm-close-case"
+                style={{ fontSize: 13, padding: "8px 18px" }}
+              >
+                Confirm Close Case
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Phase 6: Delete Customer Data Confirmation Modal */}
+      {showDeleteDataModal && customer && (
+        <div className="admin-action-dialog-backdrop" id="admin-delete-data-modal" role="dialog" aria-modal="true">
+          <div className="admin-action-dialog-card danger">
+            <div className="admin-dialog-icon-circle danger">
+              <IconTrash2 size={26} />
+            </div>
+
+            <h3 className="admin-dialog-title" style={{ color: "var(--adm-danger, #ef4444)" }}>
+              Permanent Data Deletion &amp; Anonymization
+            </h3>
+            <p className="admin-dialog-desc">
+              You are about to permanently purge all data for <strong>{customer.name}</strong> ({customer.code}).
+              This action executes immediate cryptographic deletion of all AES-256 encrypted documents from Storage, wipes OCR payloads, and anonymizes customer PII.
+            </p>
+
+            <label className="admin-dialog-checkbox-label">
+              <input
+                type="checkbox"
+                checked={confirmDeleteChecked}
+                onChange={(e) => setConfirmDeleteChecked(e.target.checked)}
+                id="confirm-delete-data-checkbox"
+                style={{ width: 16, height: 16, accentColor: "#ef4444" }}
+              />
+              <span>I confirm that this action is irreversible and compliant with DPDP Act erasure policies.</span>
+            </label>
+
+            <div className="admin-dialog-actions">
+              <button
+                type="button"
+                className="consent-btn-decline"
+                onClick={() => setShowDeleteDataModal(false)}
+                disabled={busyAction}
+                id="btn-cancel-delete-data"
+                style={{ fontSize: 13, padding: "8px 16px" }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="consent-btn-accept"
+                disabled={busyAction || !confirmDeleteChecked}
+                onClick={async () => {
+                  setShowDeleteDataModal(false);
+                  await handleAction(
+                    () => deleteAdminCustomerData(customer.id),
+                    "Customer data and files have been permanently purged."
+                  );
+                }}
+                id="btn-confirm-delete-data"
+                style={{
+                  fontSize: 13,
+                  padding: "8px 18px",
+                  background: confirmDeleteChecked ? "#ef4444" : "#475569",
+                  cursor: confirmDeleteChecked ? "pointer" : "not-allowed",
+                }}
+              >
+                {busyAction ? "Purging Data…" : "Permanently Purge Data"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
