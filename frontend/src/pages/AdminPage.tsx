@@ -73,13 +73,34 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
   // Shell Layout State
   const [activeTab, setActiveTab] = useState<AdminNavTab>(initialTab);
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
-    return localStorage.getItem("docpilot_adm_sidebar_collapsed") === "true";
+    const saved = localStorage.getItem("docpilot_adm_sidebar_collapsed");
+    if (saved !== null) {
+      return saved === "true";
+    }
+    // Auto-collapse to icon rail on screens <= 1280px (e.g. 1920x1080 @ 150% scaling, laptops)
+    return typeof window !== "undefined" && window.innerWidth <= 1280;
   });
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem("docpilot_admin_theme") || localStorage.getItem("docpilot_adm_theme");
     return saved !== "light"; // default to dark-blue
   });
+
+  // Responsive sidebar adaptation for 150% scaling / laptop displays
+  useEffect(() => {
+    const handleResize = () => {
+      const saved = localStorage.getItem("docpilot_adm_sidebar_collapsed");
+      if (saved === null && typeof window !== "undefined") {
+        if (window.innerWidth <= 1280) {
+          setSidebarCollapsed(true);
+        } else {
+          setSidebarCollapsed(false);
+        }
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // Global Theme Synchronization on HTML Element
   useEffect(() => {

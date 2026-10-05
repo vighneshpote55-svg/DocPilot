@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { clearAdminToken, getAdminToken } from "../api";
-import { IconShieldCheck, IconSun, IconMoon } from "./admin/AdminIcons";
+import { IconShieldCheck } from "./admin/AdminIcons";
+import { ThemeToggle } from "./ThemeToggle";
 
 export const Header: React.FC = () => {
   const navigate = useNavigate();
@@ -10,6 +11,7 @@ export const Header: React.FC = () => {
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     return (localStorage.getItem("docpilot_customer_theme") as "dark" | "light") ||
       (localStorage.getItem("docpilot_admin_theme") as "dark" | "light") ||
+      (localStorage.getItem("docpilot_theme") as "dark" | "light") ||
       "dark";
   });
 
@@ -17,10 +19,15 @@ export const Header: React.FC = () => {
     document.documentElement.setAttribute("data-theme", theme);
     if (theme === "light") {
       document.documentElement.classList.add("admin-theme-light");
+      document.documentElement.classList.add("customer-theme-light");
     } else {
       document.documentElement.classList.remove("admin-theme-light");
+      document.documentElement.classList.remove("customer-theme-light");
     }
     localStorage.setItem("docpilot_customer_theme", theme);
+    localStorage.setItem("docpilot_admin_theme", theme);
+    localStorage.setItem("docpilot_theme", theme);
+    window.dispatchEvent(new CustomEvent("docpilot_theme_changed", { detail: theme }));
   }, [theme]);
 
   const toggleTheme = () => {
@@ -50,20 +57,12 @@ export const Header: React.FC = () => {
           <span>256-Bit SSL Enclave</span>
         </div>
 
-        <button
-          type="button"
+        <ThemeToggle
+          id="theme-toggle-btn"
           className="customer-theme-toggle"
-          onClick={toggleTheme}
-          title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
-          aria-label="Toggle visual theme"
-          id="customer-theme-toggle"
-        >
-          {theme === "dark" ? (
-            <IconSun size={18} color="#f59e0b" />
-          ) : (
-            <IconMoon size={18} color="#3b82f6" />
-          )}
-        </button>
+          theme={theme}
+          onToggle={toggleTheme}
+        />
 
         <Link to="/privacy" className="customer-nav-link" id="nav-privacy-link">
           Data Rights

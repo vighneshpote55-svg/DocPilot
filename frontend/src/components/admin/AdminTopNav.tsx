@@ -1,11 +1,10 @@
 import React from "react";
 import {
   IconMenu,
-  IconSun,
-  IconMoon,
   IconPlus,
   IconLogOut,
 } from "./AdminIcons";
+import { ThemeToggle } from "../ThemeToggle";
 import type { AdminNavTab } from "./AdminSidebar";
 
 interface AdminTopNavProps {
@@ -129,16 +128,12 @@ export const AdminTopNav: React.FC<AdminTopNavProps> = ({
         </button>
 
         {/* Theme Toggle */}
-        <button
-          type="button"
-          className="topnav-icon-btn"
-          onClick={onToggleTheme}
-          aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark blue mode"}
-          title={isDarkMode ? "Switch to Light Enterprise theme" : "Switch to Dark Blue theme"}
+        <ThemeToggle
           id="theme-toggle-btn"
-        >
-          {isDarkMode ? <IconSun size={18} /> : <IconMoon size={18} />}
-        </button>
+          className="admin-theme-toggle"
+          theme={isDarkMode ? "dark" : "light"}
+          onToggle={onToggleTheme}
+        />
 
         {/* Admin Profile & Sign Out */}
         <div className="admin-profile-menu">

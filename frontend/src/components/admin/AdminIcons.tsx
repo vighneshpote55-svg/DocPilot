@@ -86,9 +86,9 @@ export const IconSettings: React.FC<IconProps> = ({ size = 20, className = "", s
   </svg>
 );
 
-export const IconSun: React.FC<IconProps> = ({ size = 20, className = "", style, color = "currentColor" }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} style={style}>
-    <circle cx="12" cy="12" r="4" />
+export const IconSun: React.FC<IconProps & { fill?: string }> = ({ size = 20, className = "", style, color = "currentColor", fill = "none" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} style={style}>
+    <circle cx="12" cy="12" r="4" fill={fill !== "none" ? fill : "none"} />
     <path d="M12 2v2" />
     <path d="M12 20v2" />
     <path d="m4.93 4.93 1.41 1.41" />
@@ -100,9 +100,9 @@ export const IconSun: React.FC<IconProps> = ({ size = 20, className = "", style,
   </svg>
 );
 
-export const IconMoon: React.FC<IconProps> = ({ size = 20, className = "", style, color = "currentColor" }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} style={style}>
-    <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+export const IconMoon: React.FC<IconProps & { fill?: string }> = ({ size = 20, className = "", style, color = "currentColor", fill = "none" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} style={style}>
+    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
   </svg>
 );
 
@@ -167,11 +167,42 @@ export const IconLogOut: React.FC<IconProps> = ({ size = 20, className = "", sty
 );
 
 export const IconPlus: React.FC<IconProps> = ({ size = 20, className = "", style, color = "currentColor" }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} style={style}>
-    <path d="M5 12h14" />
-    <path d="M12 5v14" />
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className} style={style}>
+    <line x1="12" y1="5" x2="12" y2="19" />
+    <line x1="5" y1="12" x2="19" y2="12" />
   </svg>
 );
+
+export const IconMinus: React.FC<IconProps> = ({ size = 20, className = "", style, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className} style={style}>
+    <line x1="5" y1="12" x2="19" y2="12" />
+  </svg>
+);
+
+export const IconMultiply: React.FC<IconProps> = ({ size = 20, className = "", style, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className} style={style}>
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+);
+
+export const IconDivide: React.FC<IconProps> = ({ size = 20, className = "", style, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className} style={style}>
+    <circle cx="12" cy="6" r="1.5" fill={color} />
+    <line x1="5" y1="12" x2="19" y2="12" />
+    <circle cx="12" cy="18" r="1.5" fill={color} />
+  </svg>
+);
+
+export const IconEqual: React.FC<IconProps> = ({ size = 20, className = "", style, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className} style={style}>
+    <line x1="5" y1="9" x2="19" y2="9" />
+    <line x1="5" y1="15" x2="19" y2="15" />
+  </svg>
+);
+
+export const IconX: React.FC<IconProps> = IconMultiply;
+export const IconClose: React.FC<IconProps> = IconMultiply;
 
 export const IconRefreshCw: React.FC<IconProps> = ({ size = 20, className = "", style, color = "currentColor" }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} style={style}>
@@ -206,13 +237,6 @@ export const IconXCircle: React.FC<IconProps> = ({ size = 20, className = "", st
     <circle cx="12" cy="12" r="10" />
     <path d="m15 9-6 6" />
     <path d="m9 9 6 6" />
-  </svg>
-);
-
-export const IconX: React.FC<IconProps> = ({ size = 20, className = "", style, color = "currentColor" }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={className} style={style}>
-    <line x1="18" y1="6" x2="6" y2="18" />
-    <line x1="6" y1="6" x2="18" y2="18" />
   </svg>
 );
 

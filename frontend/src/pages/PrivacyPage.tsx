@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { requestPrivacy } from "../api";
 import { useDialogA11y } from "../utils/a11yUtils";
@@ -8,10 +8,8 @@ import {
   IconCheck,
   IconLock,
   IconMail,
-  IconMoon,
   IconShield,
   IconShieldCheck,
-  IconSun,
   IconTrash2,
 } from "../components/admin/AdminIcons";
 
@@ -34,16 +32,6 @@ export const PrivacyPage: React.FC = () => {
     if (!submitting) setShowConfirmModal(false);
   }, confirmModalRef);
 
-  const toggleTheme = () => {
-    const next = theme === "dark" ? "light" : "dark";
-    setTheme(next);
-    localStorage.setItem("docpilot_theme", next);
-    if (next === "light") {
-      document.documentElement.setAttribute("data-theme", "light");
-    } else {
-      document.documentElement.removeAttribute("data-theme");
-    }
-  };
 
   const handleOpenConfirm = (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,6 +71,17 @@ export const PrivacyPage: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    const handleTheme = () => {
+      const cur = (document.documentElement.getAttribute("data-theme") as "dark" | "light") ||
+        (localStorage.getItem("docpilot_customer_theme") as "dark" | "light") ||
+        "dark";
+      setTheme(cur);
+    };
+    window.addEventListener("docpilot_theme_changed", handleTheme);
+    return () => window.removeEventListener("docpilot_theme_changed", handleTheme);
+  }, []);
+
   return (
     <div className={`customer-app-root ${theme === "light" ? "customer-theme-light" : ""}`} data-theme={theme}>
       <div className="customer-content-wrap">
@@ -95,32 +94,6 @@ export const PrivacyPage: React.FC = () => {
               <div className="portal-brand-name">DocPilot</div>
               <div className="portal-brand-badge">Privacy &amp; Data Rights</div>
             </div>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <button
-              type="button"
-              id="theme-toggle-btn"
-              onClick={toggleTheme}
-              className="admin-topbar-btn"
-              title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
-              aria-label="Toggle theme"
-              style={{
-                background: "var(--adm-card, #10192d)",
-                border: "1px solid var(--adm-border, rgba(59, 130, 246, 0.2))",
-                borderRadius: 8,
-                padding: "8px 14px",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                color: "var(--adm-text, #f1f5f9)",
-                cursor: "pointer",
-                fontSize: 12,
-                fontWeight: 600,
-              }}
-            >
-              {theme === "dark" ? <IconSun size={15} /> : <IconMoon size={15} />}
-              <span>{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>
-            </button>
           </div>
         </header>
         <div className="privacy-page-container" id="main-content">
