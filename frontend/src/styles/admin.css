@@ -1971,6 +1971,10 @@
     display: block;
   }
 
+  .system-status-pill {
+    display: none;
+  }
+
   .admin-info {
     display: none;
   }
@@ -1982,16 +1986,84 @@
 
 /* Mobile (< 640px) */
 @media (max-width: 640px) {
+  .admin-topnav {
+    padding: 0 10px;
+    gap: 6px;
+  }
+
+  .topnav-left {
+    gap: 8px;
+    min-width: 0;
+    flex-shrink: 1;
+  }
+
+  .topnav-titles {
+    min-width: 0;
+  }
+
+  .topnav-page-title {
+    font-size: 15px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    max-width: 120px;
+  }
+
+  .topnav-right {
+    gap: 6px;
+  }
+
+  .topnav-add-btn {
+    padding: 6px 8px;
+  }
+
+  .topnav-add-btn span {
+    display: none;
+  }
+
+  .topnav-signout-btn {
+    padding: 6px 8px;
+  }
+
+  .topnav-signout-btn .signout-text {
+    display: none;
+  }
+
+  .admin-profile-menu {
+    border-left: none;
+    padding-left: 0;
+    gap: 6px;
+  }
+
+  .admin-avatar {
+    width: 30px;
+    height: 30px;
+    font-size: 11px;
+  }
+
+  .proper-theme-toggle .theme-toggle-track {
+    width: 50px;
+    height: 26px;
+    padding: 0 4px;
+  }
+
+  .proper-theme-toggle .theme-toggle-thumb {
+    width: 18px;
+    height: 18px;
+    top: 2px;
+    left: 2px;
+  }
+
+  .proper-theme-toggle.is-dark .theme-toggle-thumb {
+    transform: translateX(24px);
+  }
+
   .admin-content {
     padding: 14px;
   }
 
   .kpi-grid-container {
     grid-template-columns: 1fr;
-  }
-
-  .topnav-add-btn span {
-    display: none;
   }
 
   .reports-metrics-row,

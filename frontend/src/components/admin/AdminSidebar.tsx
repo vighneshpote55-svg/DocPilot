@@ -111,6 +111,8 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
     },
   ];
 
+  const showLabels = !isCollapsed || isMobileOpen;
+
   return (
     <>
       {/* Mobile Backdrop */}
@@ -123,7 +125,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       )}
 
       <aside
-        className={`admin-sidebar ${isCollapsed ? "collapsed" : ""} ${
+        className={`admin-sidebar ${isCollapsed && !isMobileOpen ? "collapsed" : ""} ${
           isMobileOpen ? "mobile-open" : ""
         }`}
         id="admin-sidebar"
@@ -135,7 +137,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             <div className="brand-mark">
               <span className="brand-mark-inner">DP</span>
             </div>
-            {!isCollapsed && (
+            {showLabels && (
               <div className="brand-text">
                 <span className="brand-name">DocPilot</span>
                 <span className="brand-tag">Ops Center</span>
@@ -167,21 +169,21 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
                       onSelectTab(item.key);
                       onCloseMobile();
                     }}
-                    title={isCollapsed ? item.label : undefined}
+                    title={!showLabels ? item.label : undefined}
                     aria-label={item.label}
                     id={`sidebar-link-${item.key}`}
                   >
                     <span className="sidebar-icon">{item.icon}</span>
-                    {!isCollapsed && (
+                    {showLabels && (
                       <span className="sidebar-label">{item.label}</span>
                     )}
                     {item.badge !== undefined && (
                       <span
                         className={`sidebar-badge badge-${item.badgeType || "info"} ${
-                          isCollapsed ? "badge-dot" : ""
+                          !showLabels ? "badge-dot" : ""
                         }`}
                       >
-                        {isCollapsed ? "" : item.badge}
+                        {!showLabels ? "" : item.badge}
                       </span>
                     )}
                   </button>
@@ -193,7 +195,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
 
         {/* Sidebar Footer with Collapse Toggle */}
         <div className="sidebar-footer">
-          {failedCount > 0 && !isCollapsed && (
+          {failedCount > 0 && showLabels && (
             <div className="sidebar-alert-card">
               <div className="sidebar-alert-title">
                 <span>Attention Required</span>
@@ -204,22 +206,24 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
             </div>
           )}
 
-          <button
-            type="button"
-            className="sidebar-collapse-btn"
-            onClick={onToggleCollapse}
-            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-          >
-            {isCollapsed ? (
-              <IconChevronRight size={18} />
-            ) : (
-              <>
-                <IconChevronLeft size={18} />
-                <span className="collapse-label">Collapse Menu</span>
-              </>
-            )}
-          </button>
+          {!isMobileOpen && (
+            <button
+              type="button"
+              className="sidebar-collapse-btn"
+              onClick={onToggleCollapse}
+              aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {isCollapsed ? (
+                <IconChevronRight size={18} />
+              ) : (
+                <>
+                  <IconChevronLeft size={18} />
+                  <span className="collapse-label">Collapse Menu</span>
+                </>
+              )}
+            </button>
+          )}
         </div>
       </aside>
     </>

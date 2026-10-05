@@ -65,8 +65,8 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
   const [, startTransition] = useTransition();
 
   // Auth State
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("admin@docpilot.internal");
+  const [password, setPassword] = useState("Password@123");
   const [authError, setAuthError] = useState<string | null>(null);
   const [signingIn, setSigningIn] = useState(false);
 
@@ -427,6 +427,29 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
               >
                 {signingIn ? "Authenticating…" : "Sign in to Dashboard"}
               </button>
+            </div>
+
+            <div
+              style={{
+                marginTop: 14,
+                padding: "10px 14px",
+                background: "rgba(59, 130, 246, 0.08)",
+                border: "1px solid rgba(59, 130, 246, 0.22)",
+                borderRadius: 8,
+                fontSize: 12,
+                color: "var(--adm-text-secondary)",
+                lineHeight: 1.5,
+              }}
+            >
+              <div style={{ fontWeight: 600, color: "var(--adm-text)", marginBottom: 2 }}>
+                Admin Portal Credentials:
+              </div>
+              <div>
+                Email: <code style={{ color: "var(--adm-primary)" }}>admin@docpilot.internal</code>
+              </div>
+              <div>
+                Password: <code style={{ color: "var(--adm-primary)" }}>Password@123</code>
+              </div>
             </div>
           </form>
         </div>
