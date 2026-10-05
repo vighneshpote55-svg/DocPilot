@@ -2669,19 +2669,66 @@
   padding-left: 34px;
   padding-right: 28px;
   height: 36px;
-  background: var(--adm-surface);
-  border: 1px solid var(--adm-border);
+  background-color: var(--adm-surface) !important;
+  border: 1px solid var(--adm-border) !important;
   border-radius: 8px;
-  color: var(--adm-text);
+  color: var(--adm-text) !important;
   font-size: 13px;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
   transition: var(--adm-transition);
 }
 
+.search-input-wrap input::placeholder {
+  color: var(--adm-text-muted) !important;
+  opacity: 1;
+}
+
 .search-input-wrap input:focus {
-  border-color: var(--adm-primary);
-  background: var(--adm-surface);
+  border-color: var(--adm-primary) !important;
+  background-color: var(--adm-surface) !important;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
   outline: none;
+}
+
+/* Explicit Light Mode rules to ensure crisp white surface in light mode */
+.admin-theme-light .search-input-wrap input,
+.admin-theme-light input[type="search"] {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+.admin-theme-light .search-input-wrap input::placeholder,
+.admin-theme-light input[type="search"]::placeholder {
+  color: #64748b !important;
+}
+
+.admin-theme-light .filter-select {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+.admin-theme-light .customers-filter-card {
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+.admin-theme-light .reviews-search-box {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+}
+
+.admin-theme-light .reviews-search-input {
+  color: #0f172a !important;
+}
+
+.admin-theme-light .reviews-select-filter {
+  background-color: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
 }
 
 .search-clear-btn {
@@ -2704,7 +2751,7 @@
 .filter-select {
   height: 36px;
   padding: 0 10px;
-  background: var(--adm-surface);
+  background-color: var(--adm-surface);
   border: 1px solid var(--adm-border);
   border-radius: 8px;
   color: var(--adm-text);
@@ -2712,11 +2759,12 @@
   cursor: pointer;
   white-space: nowrap;
   flex: 0 1 auto;
+  outline: none;
   transition: var(--adm-transition);
 }
 
 .filter-select:focus {
-  border-color: var(--adm-primary);
+  border-color: var(--adm-primary) !important;
   outline: none;
 }
 
