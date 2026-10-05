@@ -374,8 +374,8 @@ async function runPhase9ReportsVerification() {
   await page.goto("http://localhost:5180/admin", { waitUntil: "networkidle" });
 
   // 2. Click Reports tab in sidebar
-  console.log("2. Navigating to Reports & Analytics via #tab-btn-reports...");
-  const reportsTabBtn = page.locator("#tab-btn-reports");
+  console.log("2. Navigating to Reports & Analytics via #sidebar-link-reports...");
+  const reportsTabBtn = page.locator("#sidebar-link-reports, #tab-btn-reports");
   await reportsTabBtn.waitFor({ state: "visible", timeout: 5000 });
   await reportsTabBtn.click();
   await page.waitForTimeout(600);

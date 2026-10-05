@@ -89,8 +89,8 @@ async function runPhase10SettingsVerification() {
   await page.goto("http://localhost:5180/admin", { waitUntil: "networkidle" });
 
   // 2. Click Settings tab in sidebar
-  console.log("2. Navigating to Settings via #tab-btn-settings...");
-  const settingsTabBtn = page.locator("#tab-btn-settings");
+  console.log("2. Navigating to Settings via #sidebar-link-settings...");
+  const settingsTabBtn = page.locator("#sidebar-link-settings, #tab-btn-settings");
   await settingsTabBtn.waitFor({ state: "visible", timeout: 5000 });
   await settingsTabBtn.click();
   await page.waitForTimeout(500);

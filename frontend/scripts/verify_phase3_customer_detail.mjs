@@ -334,7 +334,7 @@ async function run() {
   console.log("5. Navigating to Documents Repository View...");
   await page.goto("http://localhost:5180/admin");
   await page.waitForSelector("#admin-dashboard", { timeout: 8000 });
-  await page.click("#tab-btn-documents");
+  await page.click("#sidebar-link-documents, #tab-btn-documents");
   await page.waitForSelector("#tab-pane-documents", { timeout: 5000 });
   await page.waitForTimeout(500);
 

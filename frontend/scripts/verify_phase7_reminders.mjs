@@ -286,10 +286,10 @@ async function run() {
   // -------------------------------------------------------------
   // Test 1: Navigation to Admin Reminder Center
   // -------------------------------------------------------------
-  console.log("1. Navigating to Admin Reminders Center via #tab-btn-reminders...");
+  console.log("1. Navigating to Admin Reminders Center via #sidebar-link-reminders...");
   await page.goto("http://localhost:5180/admin");
   await page.waitForSelector("#admin-dashboard", { timeout: 8000 });
-  await page.click("#tab-btn-reminders");
+  await page.click("#sidebar-link-reminders, #tab-btn-reminders");
   await page.waitForSelector("#admin-reminders-center", { timeout: 6000 });
   await page.waitForSelector("#admin-reminders-table", { timeout: 6000 });
   await page.waitForTimeout(600);
@@ -437,7 +437,7 @@ async function run() {
   console.log("10. Testing High-Contrast Light Mode on Reminders Center...");
   await page.goto("http://localhost:5180/admin");
   await page.waitForSelector("#admin-dashboard", { timeout: 8000 });
-  await page.click("#tab-btn-reminders");
+  await page.click("#sidebar-link-reminders, #tab-btn-reminders");
   await page.waitForSelector("#admin-reminders-center", { timeout: 6000 });
   await page.click("#theme-toggle-btn");
   await page.waitForTimeout(500);

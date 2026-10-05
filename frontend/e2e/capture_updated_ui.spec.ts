@@ -33,13 +33,13 @@ test("2. Capture Admin Dashboard screenshots", async ({ page }) => {
   await page.screenshot({ path: path.join(ARTIFACT_DIR, "admin_dashboard.png"), fullPage: true });
 
   // Switch to All documents tab
-  await page.locator("#tab-btn-documents").click();
+  await page.locator("#sidebar-link-documents, #tab-btn-documents").click();
   await page.waitForSelector("#tab-pane-documents", { timeout: 15000 });
   await page.waitForTimeout(1000);
   await page.screenshot({ path: path.join(ARTIFACT_DIR, "admin_documents_tab.png"), fullPage: true });
 
   // Switch to Manual Reviews tab
-  await page.locator("#tab-btn-reviews").click();
+  await page.locator("#sidebar-link-reviews, #tab-btn-reviews").click();
   await page.waitForSelector("#tab-pane-reviews", { timeout: 15000 });
   await page.waitForTimeout(1500);
   await page.screenshot({ path: path.join(ARTIFACT_DIR, "admin_reviews_tab.png"), fullPage: true });

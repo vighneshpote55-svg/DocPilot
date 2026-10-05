@@ -71,7 +71,10 @@ export const AddCustomerDrawer: React.FC<AddCustomerDrawerProps> = ({
 
   const drawerRef = useRef<HTMLDivElement>(null);
   useDialogA11y(isOpen && !isSubmitting, onClose, drawerRef, {
-    initialFocusSelector: ".drawer-close-btn",
+    initialFocusSelector: "#new-cust-name",
+    disableBodyScroll: true,
+    closeOnEscape: true,
+    trapFocus: true,
   });
 
   // Reset state when drawer opens
@@ -182,47 +185,45 @@ export const AddCustomerDrawer: React.FC<AddCustomerDrawerProps> = ({
 
   return (
     <div
-      className="drawer-overlay"
+      className="modal-backdrop add-customer-modal-backdrop"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
-      aria-labelledby="add-customer-drawer-title"
+      aria-labelledby="add-customer-modal-title"
     >
       <div
         ref={drawerRef}
-        className="drawer-panel"
+        className="modal-box add-customer-modal"
         id="add-customer-drawer"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Drawer Header */}
-        <div className="drawer-header">
-          <div className="drawer-title-group">
-            <div className="drawer-icon-box">
-              <IconUserPlus size={22} color="var(--adm-primary)" />
-            </div>
-            <div>
-              <h2 id="add-customer-drawer-title" className="drawer-title">
-                Add New Customer
-              </h2>
-              <p className="drawer-subtitle">
-                Initiate a secure KYC / business document verification case
-              </p>
-            </div>
+        {/* Modal Header */}
+        <div className="modal-header add-customer-modal-header">
+          <div className="modal-header-icon">
+            <IconUserPlus size={22} color="var(--adm-primary)" />
+          </div>
+          <div className="modal-header-text">
+            <h2 id="add-customer-modal-title" className="modal-title">
+              Add New Customer
+            </h2>
+            <p className="modal-subtitle">
+              Initiate a secure KYC / business document verification case
+            </p>
           </div>
           <button
             type="button"
-            className="drawer-close-btn"
+            className="modal-close-btn drawer-close-btn"
             onClick={onClose}
-            aria-label="Close drawer"
+            aria-label="Close modal"
           >
             <IconX size={18} />
           </button>
         </div>
 
-        {/* Drawer Content */}
-        <div className="drawer-body">
-          {createdCustomer ? (
-            /* Success State */
+        {/* Modal Body / Success Card or Form */}
+        {createdCustomer ? (
+          <div className="modal-body add-customer-modal-body">
+            {/* Success State */}
             <div className="intake-success-card">
               <div className="intake-success-icon-wrap">
                 <IconCheck size={36} color="var(--adm-success)" />
@@ -282,9 +283,11 @@ export const AddCustomerDrawer: React.FC<AddCustomerDrawerProps> = ({
                 </button>
               </div>
             </div>
-          ) : (
-            /* Main Form */
-            <form onSubmit={handleSubmit} id="add-customer-form">
+          </div>
+        ) : (
+          /* Form Wrapping Scrollable Body & Sticky Footer */
+          <form onSubmit={handleSubmit} id="add-customer-form" className="add-customer-form-wrapper">
+            <div className="modal-body add-customer-modal-body">
               {errorMsg && (
                 <div className="msg err" role="alert" style={{ marginBottom: 16 }}>
                   <IconAlertCircle size={16} />
@@ -292,84 +295,92 @@ export const AddCustomerDrawer: React.FC<AddCustomerDrawerProps> = ({
                 </div>
               )}
 
-              {/* Name Field */}
-              <div className="form-group">
-                <label htmlFor="new-cust-name">
-                  Full Customer Name <span className="req">*</span>
-                </label>
-                <input
-                  id="new-cust-name"
-                  type="text"
-                  placeholder="e.g. Vikram Malhotra or Apex Industries Ltd"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  onBlur={() => setTouched((p) => ({ ...p, name: true }))}
-                  className={nameError ? "input-err" : ""}
-                  required
-                />
-                {nameError && <span className="field-err">{nameError}</span>}
-              </div>
+              {/* 1. Customer Information */}
+              <div className="add-cust-section">
+                <div className="add-cust-section-title">
+                  <span className="section-num-badge">1</span>
+                  <span className="section-title-text">Customer Information</span>
+                </div>
 
-              {/* Email Field */}
-              <div className="form-group">
-                <label htmlFor="new-cust-email">
-                  Email Address <span className="req">*</span>
-                </label>
-                <input
-                  id="new-cust-email"
-                  type="email"
-                  placeholder="e.g. vikram.m@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  onBlur={() => setTouched((p) => ({ ...p, email: true }))}
-                  className={emailError ? "input-err" : ""}
-                  required
-                />
-                {emailError && <span className="field-err">{emailError}</span>}
-                {duplicateEmailWarning && !emailError && (
-                  <span className="field-warn">
-                    <IconAlertCircle size={13} /> {duplicateEmailWarning}
-                  </span>
-                )}
-                <span className="field-hint">
-                  Used for single-use consent, upload links, and automated reminder emails.
-                </span>
-              </div>
+                <div className="form-group">
+                  <label htmlFor="new-cust-name">
+                    Full Customer Name <span className="req">*</span>
+                  </label>
+                  <input
+                    id="new-cust-name"
+                    type="text"
+                    placeholder="e.g. Vikram Malhotra or Apex Industries Ltd"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    onBlur={() => setTouched((p) => ({ ...p, name: true }))}
+                    className={nameError ? "input-err" : ""}
+                    required
+                  />
+                  {nameError && <span className="field-err">{nameError}</span>}
+                </div>
 
-              {/* Mobile Field */}
-              <div className="form-group">
-                <label htmlFor="new-cust-mobile">
-                  Mobile Number <span className="mut" style={{ fontWeight: 400 }}>(Optional)</span>
-                </label>
-                <input
-                  id="new-cust-mobile"
-                  type="tel"
-                  placeholder="e.g. +91 98765 43210"
-                  value={mobile}
-                  onChange={(e) => setMobile(e.target.value)}
-                />
-                <span className="field-hint">
-                  Supports international or Indian mobile numbers for contact records.
-                </span>
-              </div>
-
-              <div className="drawer-divider" />
-
-              {/* Document Requirement Section */}
-              <div className="form-group">
-                <div className="form-section-header">
-                  <div>
-                    <label style={{ margin: 0 }}>
-                      Required Documents <span className="req">*</span>
+                <div className="form-row-2col">
+                  <div className="form-group">
+                    <label htmlFor="new-cust-email">
+                      Email Address <span className="req">*</span>
                     </label>
-                    <span className="field-hint" style={{ marginTop: 2 }}>
-                      Select the specific identity or financial slots this customer must upload.
+                    <input
+                      id="new-cust-email"
+                      type="email"
+                      placeholder="e.g. vikram.m@example.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      onBlur={() => setTouched((p) => ({ ...p, email: true }))}
+                      className={emailError ? "input-err" : ""}
+                      required
+                    />
+                    {emailError && <span className="field-err">{emailError}</span>}
+                    {duplicateEmailWarning && !emailError && (
+                      <span className="field-warn">
+                        <IconAlertCircle size={13} /> {duplicateEmailWarning}
+                      </span>
+                    )}
+                    <span className="field-hint">
+                      Used for single-use consent, upload links, and automated reminder emails.
                     </span>
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="new-cust-mobile">
+                      Mobile Number <span className="mut" style={{ fontWeight: 400 }}>(Optional)</span>
+                    </label>
+                    <input
+                      id="new-cust-mobile"
+                      type="tel"
+                      placeholder="e.g. +91 98765 43210"
+                      value={mobile}
+                      onChange={(e) => setMobile(e.target.value)}
+                    />
+                    <span className="field-hint">
+                      Supports international or Indian mobile numbers.
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="add-cust-divider" />
+
+              {/* 2. Required Documents */}
+              <div className="add-cust-section">
+                <div className="add-cust-section-title">
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span className="section-num-badge">2</span>
+                    <span className="section-title-text">Required Documents</span>
+                    <span className="req">*</span>
                   </div>
                   <span className="doc-count-badge">
                     {selectedDocs.length} selected
                   </span>
                 </div>
+
+                <span className="field-hint" style={{ marginTop: 2, marginBottom: 12, display: "block" }}>
+                  Select the specific identity or financial slots this customer must upload.
+                </span>
 
                 {docsError && (
                   <div className="field-err" style={{ marginBottom: 8 }}>
@@ -413,12 +424,14 @@ export const AddCustomerDrawer: React.FC<AddCustomerDrawerProps> = ({
                     placeholder="Filter 22 supported document types…"
                     value={docFilter}
                     onChange={(e) => setDocFilter(e.target.value)}
+                    id="doc-filter-input"
                   />
                   {docFilter && (
                     <button
                       type="button"
                       className="doc-search-clear"
                       onClick={() => setDocFilter("")}
+                      aria-label="Clear document filter"
                     >
                       <IconX size={12} />
                     </button>
@@ -452,60 +465,66 @@ export const AddCustomerDrawer: React.FC<AddCustomerDrawerProps> = ({
                 </div>
               </div>
 
-              <div className="drawer-divider" />
+              <div className="add-cust-divider" />
 
-              {/* Consent Dispatch Toggle */}
-              <div className="form-group">
-                <label className="intake-toggle-card">
-                  <input
-                    type="checkbox"
-                    checked={sendConsentNow}
-                    onChange={(e) => setSendConsentNow(e.target.checked)}
-                  />
-                  <div>
-                    <div className="intake-toggle-title">
-                      Send consent authorization email immediately
-                    </div>
-                    <div className="intake-toggle-desc">
-                      Dispatches the cryptographic single-use consent URL to the customer. When
-                      consent is granted, their document upload link activates.
-                    </div>
-                  </div>
-                </label>
-              </div>
+              {/* 3. Consent & Notifications */}
+              <div className="add-cust-section">
+                <div className="add-cust-section-title">
+                  <span className="section-num-badge">3</span>
+                  <span className="section-title-text">Consent & Notifications</span>
+                </div>
 
-              {/* Drawer Footer Actions */}
-              <div className="drawer-footer">
-                <button
-                  type="submit"
-                  className="ok"
-                  disabled={isSubmitting || !isFormValid}
-                  id="btn-submit-add-customer"
-                  style={{ flex: 1, justifyContent: "center", padding: "12px 18px" }}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <span className="spinner-sm" /> Creating Customer…
-                    </>
-                  ) : (
-                    <>
-                      <IconUserPlus size={16} /> Create Customer Case
-                    </>
-                  )}
-                </button>
-                <button
-                  type="button"
-                  className="sec"
-                  onClick={onClose}
-                  disabled={isSubmitting}
-                  style={{ padding: "12px 18px" }}
-                >
-                  Cancel
-                </button>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="intake-toggle-card">
+                    <input
+                      type="checkbox"
+                      checked={sendConsentNow}
+                      onChange={(e) => setSendConsentNow(e.target.checked)}
+                    />
+                    <div>
+                      <div className="intake-toggle-title">
+                        Send consent authorization email immediately
+                      </div>
+                      <div className="intake-toggle-desc">
+                        Dispatches the cryptographic single-use consent URL to the customer. When
+                        consent is granted, their document upload link activates.
+                      </div>
+                    </div>
+                  </label>
+                </div>
               </div>
-            </form>
-          )}
-        </div>
+            </div>
+
+            {/* Sticky Modal Footer: Cancel on left, Create Customer on right */}
+            <div className="modal-footer add-customer-modal-footer">
+              <button
+                type="button"
+                className="sec btn-modal-cancel"
+                onClick={onClose}
+                disabled={isSubmitting}
+                id="btn-cancel-add-customer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="ok btn-modal-submit"
+                disabled={isSubmitting || !isFormValid}
+                id="btn-submit-add-customer"
+              >
+                {isSubmitting ? (
+                  <>
+                    <span className="spinner-sm" /> Creating Customer…
+                  </>
+                ) : (
+                  <>
+                    <IconUserPlus size={16} /> Create Customer Case
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );

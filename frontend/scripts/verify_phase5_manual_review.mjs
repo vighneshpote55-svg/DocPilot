@@ -436,7 +436,7 @@ async function run() {
   console.log("1. Navigating to Admin Manual Review Queue...");
   await page.goto("http://localhost:5180/admin");
   await page.waitForSelector("#admin-dashboard", { timeout: 8000 });
-  await page.click("#tab-btn-reviews");
+  await page.click("#sidebar-link-reviews, #tab-btn-reviews");
   await page.waitForSelector("#admin-reviews-view", { timeout: 6000 });
   await page.waitForTimeout(600);
 

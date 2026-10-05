@@ -359,7 +359,7 @@ async function runPhase11UxA11yVerification() {
 
   // 2.2 Test Bulk Import Modal (in Cases tab)
   console.log("Navigating to Cases tab to test Bulk Import Modal...");
-  const casesTabNavBtn = page.locator("#tab-btn-cases");
+  const casesTabNavBtn = page.locator("#sidebar-link-cases, #tab-btn-cases");
   await casesTabNavBtn.click();
   await page.waitForTimeout(400);
 
@@ -452,12 +452,15 @@ async function runPhase11UxA11yVerification() {
   }
   console.log("✓ Mobile layout has zero horizontal overflow");
 
-  // Navigate to Cases tab and test Drawer width constraint
-  const casesTabBtn = page.locator("#tab-btn-cases, button:has-text('Cases')").first();
-  if (await casesTabBtn.isVisible()) {
-    await casesTabBtn.click();
-    await page.waitForTimeout(400);
+  // Navigate to Cases tab via mobile toggle if in drawer mode
+  const mobileToggle = page.locator(".topnav-mobile-toggle");
+  if (await mobileToggle.isVisible()) {
+    await mobileToggle.click();
+    await page.waitForSelector(".admin-sidebar.mobile-open", { timeout: 4000 });
   }
+  const casesTabBtn = page.locator("#sidebar-link-cases");
+  await casesTabBtn.click();
+  await page.waitForTimeout(400);
 
   await page.screenshot({
     path: path.join(ARTIFACT_DIR, "a11y_04_mobile_view.png"),

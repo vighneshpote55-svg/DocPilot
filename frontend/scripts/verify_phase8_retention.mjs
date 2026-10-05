@@ -438,7 +438,7 @@ async function runPhase8Verification() {
   // 10. High-Contrast Light Mode
   console.log("10. Testing High-Contrast Light Mode on Retention Center...");
   await page.goto("http://localhost:5180/admin", { waitUntil: "networkidle" });
-  await page.click("#tab-btn-retention");
+  await page.click("#sidebar-link-retention, #tab-btn-retention");
   await page.waitForSelector("#admin-retention-center", { timeout: 6000 });
   await page.click("#theme-toggle-btn");
   await page.waitForTimeout(400);

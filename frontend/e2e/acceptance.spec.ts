@@ -269,13 +269,10 @@ test.describe("DocPilot Acceptance Tests (SPEC Section 8)", () => {
 
     await page.goto("/admin");
 
-    await page.waitForSelector("#admin-nav-tabs", { timeout: 15000 });
-
-
+    await page.waitForSelector("#admin-sidebar, #admin-dashboard", { timeout: 15000 });
 
     // Open Manual Reviews tab
-
-    await page.locator("#tab-btn-reviews").click();
+    await page.locator("#sidebar-link-reviews, #tab-btn-reviews").click();
 
 
 
@@ -317,7 +314,7 @@ test.describe("DocPilot Acceptance Tests (SPEC Section 8)", () => {
 
     await page.goto("/admin");
 
-    await page.locator("#tab-btn-reviews").click();
+    await page.locator("#sidebar-link-reviews, #tab-btn-reviews").click();
 
     await expect(page.locator("#tab-pane-reviews")).toContainText("RAHUL KHANNA", { timeout: 15000 });
 
