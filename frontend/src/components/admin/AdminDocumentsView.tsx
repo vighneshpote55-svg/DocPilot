@@ -185,9 +185,9 @@ export const AdminDocumentsView: React.FC = () => {
       {/* Title & Stats Bar */}
       <div className="documents-header-row">
         <div>
-          <h2 className="admin-section-heading">Documents Repository</h2>
+          <h2 className="admin-section-heading">Documents</h2>
           <p className="admin-section-subheading">
-            Inspect, filter, and stream customer documents across all verification pipelines
+            Review uploaded documents, OCR processing and verification status
           </p>
         </div>
 
@@ -208,26 +208,34 @@ export const AdminDocumentsView: React.FC = () => {
       </div>
 
       {/* Filter Card */}
-      <div className="admin-filter-card">
-        <form onSubmit={handleSearchSubmit} className="doc-filter-form">
-          <div className="filter-input-wrap" style={{ flex: "1 1 280px" }}>
-            <IconSearch size={16} className="filter-input-icon" />
+      <div className="customers-filter-card">
+        <form onSubmit={handleSearchSubmit} className="customers-search-form">
+          <div className="search-input-wrap">
+            <IconSearch size={16} className="search-icon" />
             <input
               type="search"
               placeholder="Search by customer name, email, code, or filename..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="admin-input-styled with-icon"
               id="doc-search-input"
             />
+            {searchQuery && (
+              <button
+                type="button"
+                className="search-clear-btn"
+                onClick={() => setSearchQuery("")}
+                aria-label="Clear search"
+              >
+                ×
+              </button>
+            )}
           </div>
 
           <select
             value={docTypeFilter}
             onChange={(e) => setDocTypeFilter(e.target.value)}
-            className="admin-select-styled"
+            className="filter-select"
             id="doc-type-filter"
-            style={{ flex: "0 0 180px" }}
           >
             <option value="">All Document Types</option>
             {ALL_DOC_TYPES.map((dt) => (
@@ -240,9 +248,8 @@ export const AdminDocumentsView: React.FC = () => {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="admin-select-styled"
+            className="filter-select"
             id="doc-status-filter"
-            style={{ flex: "0 0 190px" }}
           >
             <option value="">All Verification States</option>
             <option value="verified">Verified</option>
@@ -255,9 +262,8 @@ export const AdminDocumentsView: React.FC = () => {
           <select
             value={ocrFilter}
             onChange={(e) => setOcrFilter(e.target.value)}
-            className="admin-select-styled"
+            className="filter-select"
             id="doc-ocr-status-filter"
-            style={{ flex: "0 0 160px" }}
           >
             <option value="">All OCR States</option>
             <option value="waiting">Waiting</option>
@@ -266,14 +272,14 @@ export const AdminDocumentsView: React.FC = () => {
             <option value="failed">Failed / Errors</option>
           </select>
 
-          <button type="submit" className="btn pri" id="doc-search-btn">
+          <button type="submit" className="sec search-btn" id="doc-search-btn">
             <IconFilter size={14} /> Filter
           </button>
 
           {(activeSearch || docTypeFilter || statusFilter || ocrFilter) && (
             <button
               type="button"
-              className="btn sec"
+              className="sec reset-btn"
               onClick={handleResetFilters}
             >
               Reset
@@ -300,11 +306,15 @@ export const AdminDocumentsView: React.FC = () => {
         ) : documents.length === 0 ? (
           <div className="table-empty-state">
             <IconFileText size={40} color="var(--adm-text-muted)" />
-            <p className="empty-title">No documents found</p>
+            <p className="empty-title">
+              {activeSearch || docTypeFilter || statusFilter || ocrFilter
+                ? "No matching documents found"
+                : "No documents have been submitted yet."}
+            </p>
             <p className="empty-desc">
               {activeSearch || docTypeFilter || statusFilter || ocrFilter
                 ? "Try adjusting your search query or clear filters to see more results."
-                : "No customer documents have been uploaded yet."}
+                : "Uploaded customer documents, OCR extracted data, and verification statuses will appear here."}
             </p>
           </div>
         ) : (

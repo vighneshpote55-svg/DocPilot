@@ -92,11 +92,11 @@ export const VerificationTrendChart: React.FC<VerificationTrendChartProps> = ({
 
   // Dimensions
   const width = 640;
-  const height = 220;
-  const paddingLeft = 36;
-  const paddingRight = 20;
-  const paddingTop = 20;
-  const paddingBottom = 30;
+  const height = 165;
+  const paddingLeft = 32;
+  const paddingRight = 16;
+  const paddingTop = 14;
+  const paddingBottom = 24;
 
   const chartW = width - paddingLeft - paddingRight;
   const chartH = height - paddingTop - paddingBottom;

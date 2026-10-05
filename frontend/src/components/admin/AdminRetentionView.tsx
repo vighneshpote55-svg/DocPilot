@@ -252,16 +252,16 @@ export const AdminRetentionView: React.FC<AdminRetentionViewProps> = ({
         {loading ? (
           <div id="retention-loading-state" style={{ padding: 40, textAlign: "center" }} className="mut">
             <IconRefreshCw size={24} className="spin" style={{ marginBottom: 8 }} />
-            <p>Loading statutory retention records and purge pipeline…</p>
+            <p>Loading configured 7-day retention records and purge pipeline…</p>
           </div>
         ) : filteredCustomers.length === 0 ? (
           <div id="retention-empty-state" style={{ padding: 48, textAlign: "center" }}>
             <div style={{ margin: "0 auto 12px", width: 44, height: 44, borderRadius: "50%", background: "rgba(16, 185, 129, 0.15)", display: "flex", alignItems: "center", justifyContent: "center", color: "#10b981" }}>
               <IconShield size={24} />
             </div>
-            <h3 style={{ margin: "0 0 6px", fontSize: 16 }}>No Retention Queue Records</h3>
+            <h3 style={{ margin: "0 0 6px", fontSize: 16 }}>No documents are currently in the retention queue.</h3>
             <p className="mut" style={{ fontSize: 13, maxWidth: 440, margin: "0 auto" }}>
-              No customer records match the active filter. All data is either in active intake or complies with 7-day retention deletion policies.
+              No customer records match the active filter. All data is either in active intake or complies with configured 7-day retention deletion policies.
             </p>
           </div>
         ) : (

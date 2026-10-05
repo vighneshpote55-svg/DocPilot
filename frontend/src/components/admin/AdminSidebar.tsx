@@ -12,6 +12,7 @@ import {
   IconX,
   IconBell,
   IconTrash2,
+  IconUser,
 } from "./AdminIcons";
 
 export type AdminNavTab =
@@ -36,6 +37,8 @@ interface AdminSidebarProps {
   failedCount?: number;
   activeRemindersCount?: number;
   retentionCount?: number;
+  adminEmail?: string;
+  adminName?: string;
 }
 
 export const AdminSidebar: React.FC<AdminSidebarProps> = ({
@@ -49,65 +52,91 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   failedCount = 0,
   activeRemindersCount = 0,
   retentionCount = 0,
+  adminEmail = "admin@docpilot.internal",
+  adminName = "Admin",
 }) => {
-  const navItems: Array<{
-    key: AdminNavTab;
-    label: string;
-    icon: React.ReactNode;
-    badge?: number;
-    badgeType?: "warn" | "bad" | "info";
-  }> = [
-    {
-      key: "dashboard",
-      label: "Dashboard",
-      icon: <IconDashboard size={20} />,
-    },
-    {
-      key: "cases",
-      label: "Customers",
-      icon: <IconUsers size={20} />,
-    },
-    {
-      key: "documents",
-      label: "Documents",
-      icon: <IconFileText size={20} />,
-    },
-    {
-      key: "reviews",
-      label: "Manual Reviews",
-      icon: <IconAlertTriangle size={20} />,
-      badge: openReviewsCount > 0 ? openReviewsCount : undefined,
-      badgeType: "warn",
-    },
-    {
-      key: "reminders",
-      label: "Reminders",
-      icon: <IconBell size={20} />,
-      badge: activeRemindersCount > 0 ? activeRemindersCount : undefined,
-      badgeType: "info",
-    },
-    {
-      key: "retention",
-      label: "Retention & Purge",
-      icon: <IconTrash2 size={20} />,
-      badge: retentionCount > 0 ? retentionCount : undefined,
-      badgeType: "warn",
-    },
-    {
-      key: "audit",
-      label: "Audit Log",
-      icon: <IconShield size={20} />,
-    },
-    {
-      key: "reports",
-      label: "Reports",
-      icon: <IconBarChart3 size={20} />,
-    },
+  interface NavGroup {
+    title: string;
+    items: Array<{
+      key: AdminNavTab;
+      label: string;
+      icon: React.ReactNode;
+      badge?: number;
+      badgeType?: "warn" | "bad" | "info";
+    }>;
+  }
 
+  const navGroups: NavGroup[] = [
     {
-      key: "settings",
-      label: "Settings",
-      icon: <IconSettings size={20} />,
+      title: "OPERATIONS",
+      items: [
+        {
+          key: "dashboard",
+          label: "Dashboard",
+          icon: <IconDashboard size={20} />,
+        },
+        {
+          key: "cases",
+          label: "Customers",
+          icon: <IconUsers size={20} />,
+        },
+        {
+          key: "documents",
+          label: "Documents",
+          icon: <IconFileText size={20} />,
+        },
+        {
+          key: "reviews",
+          label: "Manual Reviews",
+          icon: <IconAlertTriangle size={20} />,
+          badge: openReviewsCount > 0 ? openReviewsCount : undefined,
+          badgeType: "warn",
+        },
+        {
+          key: "reminders",
+          label: "Reminders",
+          icon: <IconBell size={20} />,
+          badge: activeRemindersCount > 0 ? activeRemindersCount : undefined,
+          badgeType: "info",
+        },
+      ],
+    },
+    {
+      title: "DATA & COMPLIANCE",
+      items: [
+        {
+          key: "retention",
+          label: "Retention & Purge",
+          icon: <IconTrash2 size={20} />,
+          badge: retentionCount > 0 ? retentionCount : undefined,
+          badgeType: "warn",
+        },
+        {
+          key: "audit",
+          label: "Audit Log",
+          icon: <IconShield size={20} />,
+        },
+      ],
+    },
+    {
+      title: "INSIGHTS",
+      items: [
+        {
+          key: "reports",
+          label: "Reports",
+          icon: <IconBarChart3 size={20} />,
+        },
+      ],
+    },
+    {
+      title: "SYSTEM",
+      items: [
+        {
+          key: "settings",
+          label: "Settings",
+          icon: <IconSettings size={20} />,
+        },
+      ],
     },
   ];
 
@@ -155,45 +184,65 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           </button>
         </div>
 
-        {/* Navigation List */}
+        {/* Navigation List Organized into Sections */}
         <nav className="sidebar-nav">
-          <ul className="sidebar-menu">
-            {navItems.map((item) => {
-              const isActive = activeTab === item.key;
-              return (
-                <li key={item.key} className="sidebar-item">
-                  <button
-                    type="button"
-                    className={`sidebar-link ${isActive ? "active" : ""}`}
-                    onClick={() => {
-                      onSelectTab(item.key);
-                      onCloseMobile();
-                    }}
-                    title={!showLabels ? item.label : undefined}
-                    aria-label={item.label}
-                    id={`sidebar-link-${item.key}`}
-                  >
-                    <span className="sidebar-icon">{item.icon}</span>
-                    {showLabels && (
-                      <span className="sidebar-label">{item.label}</span>
-                    )}
-                    {item.badge !== undefined && (
-                      <span
-                        className={`sidebar-badge badge-${item.badgeType || "info"} ${
-                          !showLabels ? "badge-dot" : ""
-                        }`}
+          {navGroups.map((group, gIdx) => (
+            <div key={group.title} className="sidebar-group" style={{ marginBottom: gIdx === navGroups.length - 1 ? 0 : 12 }}>
+              {showLabels && (
+                <div
+                  className="sidebar-section-title"
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                    color: "var(--adm-text-muted)",
+                    padding: "6px 12px 4px",
+                    opacity: 0.8,
+                  }}
+                >
+                  {group.title}
+                </div>
+              )}
+              <ul className="sidebar-menu">
+                {group.items.map((item) => {
+                  const isActive = activeTab === item.key;
+                  return (
+                    <li key={item.key} className="sidebar-item">
+                      <button
+                        type="button"
+                        className={`sidebar-link ${isActive ? "active" : ""}`}
+                        onClick={() => {
+                          onSelectTab(item.key);
+                          onCloseMobile();
+                        }}
+                        title={!showLabels ? item.label : undefined}
+                        aria-label={item.label}
+                        id={`sidebar-link-${item.key}`}
                       >
-                        {!showLabels ? "" : item.badge}
-                      </span>
-                    )}
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+                        <span className="sidebar-icon">{item.icon}</span>
+                        {showLabels && (
+                          <span className="sidebar-label">{item.label}</span>
+                        )}
+                        {item.badge !== undefined && (
+                          <span
+                            className={`sidebar-badge badge-${item.badgeType || "info"} ${
+                              !showLabels ? "badge-dot" : ""
+                            }`}
+                          >
+                            {!showLabels ? "" : item.badge}
+                          </span>
+                        )}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
         </nav>
 
-        {/* Sidebar Footer with Collapse Toggle */}
+        {/* Sidebar Footer with Admin Profile Chip & Collapse Toggle */}
         <div className="sidebar-footer">
           {failedCount > 0 && showLabels && (
             <div className="sidebar-alert-card">
@@ -205,6 +254,19 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
               </p>
             </div>
           )}
+
+          {/* Admin Profile User Chip matching reference layout */}
+          <div className="sidebar-user-chip" title={adminEmail}>
+            <div className="sidebar-user-avatar">
+              <IconUser size={16} />
+            </div>
+            {showLabels && (
+              <div className="sidebar-user-info">
+                <span className="sidebar-user-name">{adminName || "Admin"}</span>
+                <span className="sidebar-user-email">{adminEmail || "admin@docpilot.internal"}</span>
+              </div>
+            )}
+          </div>
 
           {!isMobileOpen && (
             <button

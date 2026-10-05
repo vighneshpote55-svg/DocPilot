@@ -359,10 +359,14 @@ export const AdminRemindersView: React.FC<AdminRemindersViewProps> = ({
                 <td colSpan={7} style={{ textAlign: "center", padding: "48px 20px" }}>
                   <div style={{ fontSize: 32, marginBottom: 8 }}>🔔</div>
                   <div style={{ fontWeight: 700, fontSize: 15, color: "var(--adm-text, #f1f5f9)", marginBottom: 4 }}>
-                    No Reminders Found
+                    {searchQuery || statusFilter !== "all" || stageFilter !== "all"
+                      ? "No Matching Reminders Found"
+                      : "No active reminders."}
                   </div>
                   <div style={{ fontSize: 12, color: "var(--adm-text-muted, #94a3b8)", maxWidth: 360, margin: "0 auto" }}>
-                    No customer records matched your selected search criteria or filter tabs.
+                    {searchQuery || statusFilter !== "all" || stageFilter !== "all"
+                      ? "No customer records matched your selected search criteria or filter tabs."
+                      : "All customers have completed document intake or are outside reminder windows."}
                   </div>
                 </td>
               </tr>

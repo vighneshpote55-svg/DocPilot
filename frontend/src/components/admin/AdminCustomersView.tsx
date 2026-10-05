@@ -71,9 +71,9 @@ export const AdminCustomersView: React.FC<AdminCustomersViewProps> = ({
       {/* Top Header & Intake Action Bar */}
       <div className="customers-header-bar">
         <div>
-          <h2 className="view-title">Customer Case Directory</h2>
+          <h2 className="view-title">Customers</h2>
           <span className="view-subtitle">
-            Manage customer document intake workflows, verification progress, and lifecycle status
+            Manage customer verification cases and document collection
           </span>
         </div>
 
@@ -94,7 +94,7 @@ export const AdminCustomersView: React.FC<AdminCustomersViewProps> = ({
             id="btn-add-customer"
           >
             <IconPlus size={16} />
-            <span>Add Customer</span>
+            <span>New Customer</span>
           </button>
         </div>
       </div>
@@ -181,11 +181,15 @@ export const AdminCustomersView: React.FC<AdminCustomersViewProps> = ({
             <div className="empty-icon-wrap">
               <IconUsers size={32} color="var(--adm-text-muted)" />
             </div>
-            <h3 className="empty-title">No Customer Cases Found</h3>
+            <h3 className="empty-title">
+              {searchQuery || caseStatusFilter || verificationFilter
+                ? "No Customer Cases Found"
+                : "No customer cases yet"}
+            </h3>
             <p className="empty-desc">
               {searchQuery || caseStatusFilter || verificationFilter
                 ? "No customer cases matched your current search filters. Try clearing the filter criteria."
-                : "No customer intake records registered yet. Create your first case or import via Excel."}
+                : "Create your first customer case to begin document collection and verification."}
             </p>
             <div className="empty-actions">
               {(searchQuery || caseStatusFilter || verificationFilter) ? (
@@ -205,7 +209,7 @@ export const AdminCustomersView: React.FC<AdminCustomersViewProps> = ({
                   className="ok"
                   onClick={onOpenAddCustomer}
                 >
-                  <IconPlus size={16} /> Add First Customer
+                  <IconPlus size={16} /> New Customer
                 </button>
               )}
             </div>

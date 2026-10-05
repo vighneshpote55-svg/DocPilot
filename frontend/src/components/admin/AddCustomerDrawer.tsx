@@ -9,6 +9,8 @@ import {
   IconAlertCircle,
   IconShield,
   IconSearch,
+  IconUser,
+  IconBuilding,
 } from "./AdminIcons";
 import { SUPPORTED_DOC_TYPES } from "../../utils/excelImport";
 
@@ -46,6 +48,8 @@ const PRESETS = [
   },
 ];
 
+const CATEGORIES = ["All", "Identity", "Financial", "Business", "Address & Other"] as const;
+
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/i;
 
 export const AddCustomerDrawer: React.FC<AddCustomerDrawerProps> = ({
@@ -54,10 +58,12 @@ export const AddCustomerDrawer: React.FC<AddCustomerDrawerProps> = ({
   onCustomerCreated,
   existingEmails = new Set(),
 }) => {
+  const [customerType, setCustomerType] = useState<"individual" | "business">("individual");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [mobile, setMobile] = useState("");
   const [selectedDocs, setSelectedDocs] = useState<string[]>(["pan", "aadhaar"]);
+  const [activeCategory, setActiveCategory] = useState<string>("All");
   const [sendConsentNow, setSendConsentNow] = useState(true);
 
   // Filter for doc checklist
@@ -81,10 +87,12 @@ export const AddCustomerDrawer: React.FC<AddCustomerDrawerProps> = ({
   useEffect(() => {
     if (!isOpen) return;
     queueMicrotask(() => {
+      setCustomerType("individual");
       setName("");
       setEmail("");
       setMobile("");
       setSelectedDocs(["pan", "aadhaar"]);
+      setActiveCategory("All");
       setSendConsentNow(true);
       setTouched({});
       setErrorMsg(null);
@@ -129,12 +137,25 @@ export const AddCustomerDrawer: React.FC<AddCustomerDrawerProps> = ({
     setSelectedDocs(docs);
   };
 
+  const handleRemoveDoc = (key: string) => {
+    setSelectedDocs(selectedDocs.filter((x) => x !== key));
+  };
+
+  const handleTypeChange = (type: "individual" | "business") => {
+    setCustomerType(type);
+    if (type === "individual") {
+      setSelectedDocs(["pan", "aadhaar"]);
+    } else {
+      setSelectedDocs(["pan", "gst_certificate", "udyam", "bank_statement"]);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setTouched({ name: true, email: true });
 
     if (!isFormValid) {
-      setErrorMsg("Please correct the errors in the form before submitting.");
+      setErrorMsg("Please complete all required fields correctly before submitting.");
       return;
     }
 
@@ -163,23 +184,29 @@ export const AddCustomerDrawer: React.FC<AddCustomerDrawerProps> = ({
   };
 
   const handleResetForNext = () => {
+    setCustomerType("individual");
     setName("");
     setEmail("");
     setMobile("");
     setSelectedDocs(["pan", "aadhaar"]);
+    setActiveCategory("All");
     setSendConsentNow(true);
     setTouched({});
     setErrorMsg(null);
     setCreatedCustomer(null);
+    setDocFilter("");
   };
 
   const filteredDocTypes = SUPPORTED_DOC_TYPES.filter((d) => {
+    const matchesCat = activeCategory === "All" || d.category === activeCategory;
+    if (!matchesCat) return false;
     if (!docFilter) return true;
     const q = docFilter.toLowerCase();
     return (
       d.label.toLowerCase().includes(q) ||
       d.key.toLowerCase().includes(q) ||
-      d.category.toLowerCase().includes(q)
+      d.category.toLowerCase().includes(q) ||
+      d.description.toLowerCase().includes(q)
     );
   });
 
@@ -207,7 +234,7 @@ export const AddCustomerDrawer: React.FC<AddCustomerDrawerProps> = ({
               Add New Customer
             </h2>
             <p className="modal-subtitle">
-              Initiate a secure KYC / business document verification case
+              Initiate a secure document verification case
             </p>
           </div>
           <button
@@ -243,7 +270,7 @@ export const AddCustomerDrawer: React.FC<AddCustomerDrawerProps> = ({
                   <span>{createdCustomer.email}</span>
                 </div>
                 <div className="intake-success-detail-row">
-                  <span className="mut">Required Docs</span>
+                  <span className="mut">Required Documents</span>
                   <span>{createdCustomer.required_count} items</span>
                 </div>
                 <div className="intake-success-detail-row">
@@ -298,28 +325,55 @@ export const AddCustomerDrawer: React.FC<AddCustomerDrawerProps> = ({
               {/* 1. Customer Information */}
               <div className="add-cust-section">
                 <div className="add-cust-section-title">
-                  <span className="section-num-badge">1</span>
-                  <span className="section-title-text">Customer Information</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span className="section-num-badge">1</span>
+                    <span className="section-title-text">Customer Information</span>
+                  </div>
                 </div>
 
-                <div className="form-group">
-                  <label htmlFor="new-cust-name">
-                    Full Customer Name <span className="req">*</span>
+                {/* Customer Account Type Toggle */}
+                <div className="form-group" style={{ marginBottom: 4 }}>
+                  <label style={{ fontSize: 12, fontWeight: 700, color: "var(--adm-text-secondary)", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                    Account Type
                   </label>
-                  <input
-                    id="new-cust-name"
-                    type="text"
-                    placeholder="e.g. Vikram Malhotra or Apex Industries Ltd"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    onBlur={() => setTouched((p) => ({ ...p, name: true }))}
-                    className={nameError ? "input-err" : ""}
-                    required
-                  />
-                  {nameError && <span className="field-err">{nameError}</span>}
+                  <div className="customer-type-toggle">
+                    <button
+                      type="button"
+                      className={`customer-type-btn ${customerType === "individual" ? "active" : ""}`}
+                      onClick={() => handleTypeChange("individual")}
+                    >
+                      <IconUser size={16} />
+                      <span>Individual Customer</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`customer-type-btn ${customerType === "business" ? "active" : ""}`}
+                      onClick={() => handleTypeChange("business")}
+                    >
+                      <IconBuilding size={16} />
+                      <span>Business / Corporate / MSME</span>
+                    </button>
+                  </div>
                 </div>
 
                 <div className="form-row-2col">
+                  <div className="form-group">
+                    <label htmlFor="new-cust-name">
+                      Full Customer Name <span className="req">*</span>
+                    </label>
+                    <input
+                      id="new-cust-name"
+                      type="text"
+                      placeholder={customerType === "individual" ? "e.g. Vikram Malhotra" : "e.g. Apex Industries Ltd"}
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      onBlur={() => setTouched((p) => ({ ...p, name: true }))}
+                      className={nameError ? "input-err" : ""}
+                      required
+                    />
+                    {nameError && <span className="field-err">{nameError}</span>}
+                  </div>
+
                   <div className="form-group">
                     <label htmlFor="new-cust-email">
                       Email Address <span className="req">*</span>
@@ -327,7 +381,7 @@ export const AddCustomerDrawer: React.FC<AddCustomerDrawerProps> = ({
                     <input
                       id="new-cust-email"
                       type="email"
-                      placeholder="e.g. vikram.m@example.com"
+                      placeholder="e.g. customer@example.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       onBlur={() => setTouched((p) => ({ ...p, email: true }))}
@@ -340,26 +394,23 @@ export const AddCustomerDrawer: React.FC<AddCustomerDrawerProps> = ({
                         <IconAlertCircle size={13} /> {duplicateEmailWarning}
                       </span>
                     )}
-                    <span className="field-hint">
-                      Used for single-use consent, upload links, and automated reminder emails.
-                    </span>
                   </div>
+                </div>
 
-                  <div className="form-group">
-                    <label htmlFor="new-cust-mobile">
-                      Mobile Number <span className="mut" style={{ fontWeight: 400 }}>(Optional)</span>
-                    </label>
-                    <input
-                      id="new-cust-mobile"
-                      type="tel"
-                      placeholder="e.g. +91 98765 43210"
-                      value={mobile}
-                      onChange={(e) => setMobile(e.target.value)}
-                    />
-                    <span className="field-hint">
-                      Supports international or Indian mobile numbers.
-                    </span>
-                  </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label htmlFor="new-cust-mobile">
+                    Mobile Number <span className="mut" style={{ fontWeight: 400 }}>(Optional)</span>
+                  </label>
+                  <input
+                    id="new-cust-mobile"
+                    type="tel"
+                    placeholder="e.g. +91 98765 43210"
+                    value={mobile}
+                    onChange={(e) => setMobile(e.target.value)}
+                  />
+                  <span className="field-hint">
+                    Customer receives single-use consent, document upload links, and automated reminders via email.
+                  </span>
                 </div>
               </div>
 
@@ -378,12 +429,8 @@ export const AddCustomerDrawer: React.FC<AddCustomerDrawerProps> = ({
                   </span>
                 </div>
 
-                <span className="field-hint" style={{ marginTop: 2, marginBottom: 12, display: "block" }}>
-                  Select the specific identity or financial slots this customer must upload.
-                </span>
-
                 {docsError && (
-                  <div className="field-err" style={{ marginBottom: 8 }}>
+                  <div className="field-err" style={{ marginBottom: 4 }}>
                     {docsError}
                   </div>
                 )}
@@ -416,29 +463,77 @@ export const AddCustomerDrawer: React.FC<AddCustomerDrawerProps> = ({
                   </button>
                 </div>
 
-                {/* Doc Filter Search */}
-                <div className="doc-search-box">
-                  <IconSearch size={14} color="var(--adm-text-muted)" />
-                  <input
-                    type="search"
-                    placeholder="Filter 22 supported document types…"
-                    value={docFilter}
-                    onChange={(e) => setDocFilter(e.target.value)}
-                    id="doc-filter-input"
-                  />
-                  {docFilter && (
-                    <button
-                      type="button"
-                      className="doc-search-clear"
-                      onClick={() => setDocFilter("")}
-                      aria-label="Clear document filter"
-                    >
-                      <IconX size={12} />
-                    </button>
-                  )}
+                {/* Selected Documents Chips Summary Bar */}
+                {selectedDocs.length > 0 && (
+                  <div className="selected-docs-summary-bar">
+                    <span style={{ fontWeight: 600, color: "var(--adm-primary)" }}>
+                      Selected ({selectedDocs.length}):
+                    </span>
+                    {selectedDocs.map((docKey) => {
+                      const dt = SUPPORTED_DOC_TYPES.find((d) => d.key === docKey);
+                      return (
+                        <span key={docKey} className="selected-doc-pill">
+                          <IconCheck size={12} />
+                          <span>{dt?.label || docKey}</span>
+                          <button
+                            type="button"
+                            className="selected-doc-pill-remove"
+                            onClick={() => handleRemoveDoc(docKey)}
+                            title={`Remove ${dt?.label || docKey}`}
+                            aria-label={`Remove ${dt?.label || docKey}`}
+                          >
+                            <IconX size={12} />
+                          </button>
+                        </span>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Category Filter Pills & Search in one responsive toolbar */}
+                <div className="doc-filter-toolbar">
+                  <div className="doc-category-tabs">
+                    {CATEGORIES.map((cat) => {
+                      const count =
+                        cat === "All"
+                          ? SUPPORTED_DOC_TYPES.length
+                          : SUPPORTED_DOC_TYPES.filter((d) => d.category === cat).length;
+                      return (
+                        <button
+                          key={cat}
+                          type="button"
+                          className={`doc-category-tab ${activeCategory === cat ? "active" : ""}`}
+                          onClick={() => setActiveCategory(cat)}
+                        >
+                          {cat} ({count})
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="doc-search-box">
+                    <IconSearch size={14} color="var(--adm-text-muted)" />
+                    <input
+                      type="search"
+                      placeholder="Search documents…"
+                      value={docFilter}
+                      onChange={(e) => setDocFilter(e.target.value)}
+                      id="doc-filter-input"
+                    />
+                    {docFilter && (
+                      <button
+                        type="button"
+                        className="doc-search-clear"
+                        onClick={() => setDocFilter("")}
+                        aria-label="Clear document filter"
+                      >
+                        <IconX size={12} />
+                      </button>
+                    )}
+                  </div>
                 </div>
 
-                {/* Checklist Grid */}
+                {/* Document Selection Grid */}
                 <div className="doc-selection-grid">
                   {filteredDocTypes.map((dt) => {
                     const isChecked = selectedDocs.includes(dt.key);
@@ -470,18 +565,21 @@ export const AddCustomerDrawer: React.FC<AddCustomerDrawerProps> = ({
               {/* 3. Consent & Notifications */}
               <div className="add-cust-section">
                 <div className="add-cust-section-title">
-                  <span className="section-num-badge">3</span>
-                  <span className="section-title-text">Consent & Notifications</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <span className="section-num-badge">3</span>
+                    <span className="section-title-text">Consent & Notifications</span>
+                  </div>
                 </div>
 
                 <div className="form-group" style={{ marginBottom: 0 }}>
-                  <label className="intake-toggle-card">
+                  <label className={`intake-toggle-card ${sendConsentNow ? "active" : ""}`} htmlFor="send-consent-toggle">
                     <input
                       type="checkbox"
+                      id="send-consent-toggle"
                       checked={sendConsentNow}
                       onChange={(e) => setSendConsentNow(e.target.checked)}
                     />
-                    <div>
+                    <div className="intake-toggle-content">
                       <div className="intake-toggle-title">
                         Send consent authorization email immediately
                       </div>
@@ -495,7 +593,7 @@ export const AddCustomerDrawer: React.FC<AddCustomerDrawerProps> = ({
               </div>
             </div>
 
-            {/* Sticky Modal Footer: Cancel on left, Create Customer on right */}
+            {/* Sticky Modal Footer */}
             <div className="modal-footer add-customer-modal-footer">
               <button
                 type="button"
@@ -518,7 +616,7 @@ export const AddCustomerDrawer: React.FC<AddCustomerDrawerProps> = ({
                   </>
                 ) : (
                   <>
-                    <IconUserPlus size={16} /> Create Customer Case
+                    <IconUserPlus size={16} /> Create Customer Case ({selectedDocs.length} doc{selectedDocs.length === 1 ? "" : "s"})
                   </>
                 )}
               </button>

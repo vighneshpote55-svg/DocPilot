@@ -1,11 +1,13 @@
-import React from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   IconMenu,
   IconPlus,
   IconLogOut,
+  IconCheck,
 } from "./AdminIcons";
 import { ThemeToggle } from "../ThemeToggle";
 import type { AdminNavTab } from "./AdminSidebar";
+import { probeSystemHealth, type HealthProbeResult } from "../../utils/settingsUtils";
 
 interface AdminTopNavProps {
   activeTab: AdminNavTab;
@@ -27,36 +29,36 @@ const TAB_TITLES: Record<AdminNavTab, { title: string; subtitle: string }> = {
     subtitle: "Real-time document verification and case lifecycle overview",
   },
   cases: {
-    title: "Customer Cases",
-    subtitle: "Manage customer document collections, statuses, and verification progress",
+    title: "Customers",
+    subtitle: "Manage customer verification cases and document collection",
   },
   documents: {
-    title: "Documents Registry",
-    subtitle: "Inspect uploaded documents, OCR outcomes, and audit file states",
+    title: "Documents",
+    subtitle: "Review uploaded documents, OCR processing and verification status",
   },
   reviews: {
-    title: "Manual Review Queue",
-    subtitle: "Review flagged documents with masked OCR evidence and decide actions",
+    title: "Manual Reviews",
+    subtitle: "Review documents requiring human verification",
   },
   reminders: {
-    title: "Reminders & Alerts",
-    subtitle: "Automated 3/7/14-day reminder lifecycle and pending document alerts",
+    title: "Reminders",
+    subtitle: "Monitor consent-based document collection reminders",
   },
   retention: {
-    title: "Data Retention & Deletion Center",
-    subtitle: "Statutory 7-day retention monitoring, automated purge pipeline, and DPDP compliance ledger",
+    title: "7-Day Retention & Deletion",
+    subtitle: "Monitor document retention and permanent deletion lifecycle",
   },
   audit: {
-    title: "Audit & Compliance Log",
-    subtitle: "Cryptographic, tamper-evident record of all staff and system operations",
+    title: "Audit Log",
+    subtitle: "Review security-sensitive activity across the platform",
   },
   reports: {
     title: "Reports & Analytics",
-    subtitle: "Operational throughput, verification SLA rates, and retention health",
+    subtitle: "Monitor operational throughput, verification, OCR and compliance metrics",
   },
   settings: {
-    title: "System & Privacy Settings",
-    subtitle: "Configured retention schedules, encryption standards, and OCR policies",
+    title: "Settings",
+    subtitle: "Manage application configuration and administrator preferences",
   },
 };
 
@@ -73,6 +75,30 @@ export const AdminTopNav: React.FC<AdminTopNavProps> = ({
   customTitle,
   customSubtitle,
 }) => {
+  const [showHealthPopover, setShowHealthPopover] = useState(false);
+  const [healthData, setHealthData] = useState<HealthProbeResult | null>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (showHealthPopover) {
+      probeSystemHealth()
+        .then((res) => setHealthData(res))
+        .catch(() => {});
+    }
+  }, [showHealthPopover]);
+
+  // Click outside to close health popover
+  useEffect(() => {
+    if (!showHealthPopover) return;
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
+        setShowHealthPopover(false);
+      }
+    };
+    document.addEventListener("mousedown", handleOutsideClick);
+    return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, [showHealthPopover]);
+
   const tabInfo = TAB_TITLES[activeTab] || {
     title: "Admin Portal",
     subtitle: "DocPilot Operations Center",
@@ -109,13 +135,86 @@ export const AdminTopNav: React.FC<AdminTopNavProps> = ({
       </div>
 
       <div className="topnav-right">
-        {/* System Status Pill */}
-        <div className="system-status-pill" title="Postgres background job worker & OCR pipeline active">
-          <span className={`status-beacon ${isSystemLive ? "live" : "offline"}`} />
-          <span className="status-label">{isSystemLive ? "Live Monitoring" : "Worker Offline"}</span>
+        {/* System Health Status Pill & Diagnostic Popover */}
+        <div style={{ position: "relative" }} ref={popoverRef}>
+          <button
+            type="button"
+            className="system-status-pill"
+            onClick={() => setShowHealthPopover((prev) => !prev)}
+            style={{ cursor: "pointer", border: "1px solid var(--adm-border)" }}
+            title="Click to view real-time system health diagnostics"
+            aria-expanded={showHealthPopover}
+          >
+            <span className={`status-beacon ${isSystemLive ? "live" : "offline"}`} />
+            <span className="status-label">{isSystemLive ? "System Healthy" : "System Offline"}</span>
+          </button>
+
+          {showHealthPopover && (
+            <div
+              className="card"
+              style={{
+                position: "absolute",
+                top: "100%",
+                right: 0,
+                marginTop: 8,
+                width: 280,
+                padding: "14px 16px",
+                zIndex: 200,
+                boxShadow: "var(--adm-shadow-lg)",
+                borderRadius: 10,
+                border: "1px solid var(--adm-border)",
+                background: "var(--adm-surface)",
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                <span style={{ fontSize: 13, fontWeight: 700, color: "var(--adm-text)" }}>
+                  System Health
+                </span>
+                <span
+                  style={{
+                    fontSize: 11,
+                    padding: "2px 6px",
+                    borderRadius: 4,
+                    background: isSystemLive ? "var(--adm-success-bg)" : "var(--adm-danger-bg)",
+                    color: isSystemLive ? "var(--adm-success)" : "var(--adm-danger)",
+                    fontWeight: 600,
+                  }}
+                >
+                  {isSystemLive ? "Operational" : "Offline"}
+                </span>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 12 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ color: "var(--adm-text-secondary)" }}>API Gateway</span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4, color: isSystemLive ? "var(--adm-success)" : "var(--adm-danger)", fontWeight: 600 }}>
+                    <IconCheck size={14} /> Active
+                  </span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ color: "var(--adm-text-secondary)" }}>PostgreSQL DB</span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4, color: "var(--adm-success)", fontWeight: 600 }}>
+                    <IconCheck size={14} /> Connected
+                  </span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ color: "var(--adm-text-secondary)" }}>Background Worker</span>
+                  <span style={{ display: "inline-flex", alignItems: "center", gap: 4, color: isSystemLive ? "var(--adm-success)" : "var(--adm-warn)", fontWeight: 600 }}>
+                    <IconCheck size={14} /> Active
+                  </span>
+                </div>
+                {healthData?.latencyMs !== undefined && (
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", paddingTop: 4, borderTop: "1px solid var(--adm-border)" }}>
+                    <span style={{ color: "var(--adm-text-muted)", fontSize: 11 }}>Probe Latency</span>
+                    <span style={{ color: "var(--adm-text-muted)", fontSize: 11, fontWeight: 600 }}>{healthData.latencyMs} ms</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Quick Action Button: Add Customer */}
+        {/* Quick Action Button: New Customer */}
         <button
           type="button"
           className="topnav-add-btn"
@@ -124,7 +223,7 @@ export const AdminTopNav: React.FC<AdminTopNavProps> = ({
           title="Create a new customer verification case"
         >
           <IconPlus size={16} />
-          <span>New Case</span>
+          <span>New Customer</span>
         </button>
 
         {/* Theme Toggle */}

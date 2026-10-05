@@ -105,7 +105,12 @@ export const AdminReviewsView: React.FC<AdminReviewsViewProps> = ({
       <div className="reviews-header-bar">
         <div className="reviews-title-group">
           <IconAlertTriangle size={24} color="#f59e0b" />
-          <h1 className="reviews-header-title">Manual Review &amp; Exception Queue</h1>
+          <div>
+            <h1 className="reviews-header-title">Manual Reviews</h1>
+            <p className="admin-section-subheading" style={{ margin: "2px 0 0", fontSize: 12, color: "var(--adm-text-muted)" }}>
+              Review documents requiring human verification
+            </p>
+          </div>
           <span
             className={`reviews-kpi-badge ${openCount === 0 ? "zero" : ""}`}
             id="reviews-pending-kpi"
@@ -241,7 +246,7 @@ export const AdminReviewsView: React.FC<AdminReviewsViewProps> = ({
           <h3 className="reviews-empty-title">
             {searchQuery || priorityFilter !== "all"
               ? "No Matching Review Items Found"
-              : "Manual Review Queue Clear!"}
+              : "No documents require manual review."}
           </h3>
           <p className="reviews-empty-sub">
             {searchQuery || priorityFilter !== "all"

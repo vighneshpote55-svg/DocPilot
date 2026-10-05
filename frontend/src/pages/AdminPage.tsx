@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useTransition } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   approveReview,
   clearAdminToken,
@@ -24,7 +24,6 @@ import { AdminTopNav } from "../components/admin/AdminTopNav";
 import { KpiCardGrid } from "../components/admin/KpiCardGrid";
 import { VerificationTrendChart } from "../components/admin/VerificationTrendChart";
 import { DocumentStatusChart } from "../components/admin/DocumentStatusChart";
-import { RecentActivityFeed } from "../components/admin/RecentActivityFeed";
 import { AdminReportsView } from "../components/admin/AdminReportsView";
 import { AdminSettingsView } from "../components/admin/AdminSettingsView";
 import { AdminCustomersView } from "../components/admin/AdminCustomersView";
@@ -37,10 +36,7 @@ import { AdminRemindersView } from "../components/admin/AdminRemindersView";
 import { AdminRetentionView } from "../components/admin/AdminRetentionView";
 import { calculateRetentionSummary } from "../utils/retentionUtils";
 import { SecureDocViewerModal } from "../components/admin/SecureDocViewerModal";
-import {
-  IconClock,
-  IconUsers,
-} from "../components/admin/AdminIcons";
+import { NeedsAttentionBanner } from "../components/admin/NeedsAttentionBanner";
 
 
 function getAdminEmail(): string {
@@ -72,34 +68,16 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
 
   // Shell Layout State
   const [activeTab, setActiveTab] = useState<AdminNavTab>(initialTab);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
-    const saved = localStorage.getItem("docpilot_adm_sidebar_collapsed");
-    if (saved !== null) {
-      return saved === "true";
-    }
-    // Auto-collapse to icon rail on screens <= 1280px (e.g. 1920x1080 @ 150% scaling, laptops)
-    return typeof window !== "undefined" && window.innerWidth <= 1280;
-  });
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem("docpilot_admin_theme") || localStorage.getItem("docpilot_adm_theme");
-    return saved !== "light"; // default to dark-blue
+    return saved === "dark"; // Default to light theme matching user reference mockup
   });
 
-  // Responsive sidebar adaptation for 150% scaling / laptop displays
+  // Ensure left sidebar is always displayed on load
   useEffect(() => {
-    const handleResize = () => {
-      const saved = localStorage.getItem("docpilot_adm_sidebar_collapsed");
-      if (saved === null && typeof window !== "undefined") {
-        if (window.innerWidth <= 1280) {
-          setSidebarCollapsed(true);
-        } else {
-          setSidebarCollapsed(false);
-        }
-      }
-    };
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    localStorage.removeItem("docpilot_adm_sidebar_collapsed");
   }, []);
 
   // Global Theme Synchronization on HTML Element
@@ -483,6 +461,8 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
           failedCount={(summary?.metrics?.ocr_failures || 0) + (summary?.jobs?.failed || 0)}
           activeRemindersCount={customers.filter((c) => c.case_status === "in_progress" && (c.pending_count ?? 1) > 0).length}
           retentionCount={retentionMetrics.activeRetentionCount + retentionMetrics.duePurgeCount}
+          adminEmail={getAdminEmail()}
+          adminName="Admin"
         />
 
 
@@ -524,143 +504,21 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
                   }}
                 />
 
-                {/* SVG Visualizations Row: Verification Trend + Document Status */}
+                {/* Operations Needs Attention Section */}
+                <NeedsAttentionBanner
+                  summary={summary}
+                  activeRemindersCount={customers.filter((c) => c.case_status === "in_progress" && (c.pending_count ?? 1) > 0).length}
+                  retentionDueCount={retentionMetrics.duePurgeCount}
+                  onNavigateTab={(targetTab) => handleSelectTab(targetTab)}
+                />
+
+                {/* SVG Visualizations Row: Verification Trend + Document Status Side-by-Side */}
                 <div className="charts-grid-row">
                   <VerificationTrendChart
                     auditLogs={auditLogs}
                     customers={customers}
                   />
                   <DocumentStatusChart summary={summary} />
-                </div>
-
-                {/* Phase 8: Statutory 7-Day Retention Status Card */}
-                <div className="dashboard-retention-card" id="dashboard-retention-card">
-                  <div className="dashboard-retention-header">
-                    <div className="dashboard-retention-title-group">
-                      <div style={{ width: 36, height: 36, borderRadius: 8, background: "rgba(59, 130, 246, 0.15)", display: "flex", alignItems: "center", justifyContent: "center", color: "#60a5fa" }}>
-                        <IconClock size={20} />
-                      </div>
-                      <div>
-                        <h3 style={{ margin: 0, fontSize: 16 }}>7-Day Statutory Retention & Deletion Pipeline</h3>
-                        <span className="mut" style={{ fontSize: 12 }}>
-                          DPDP Act automated purge queue and customer data retention lifecycle
-                        </span>
-                      </div>
-                    </div>
-
-                    <button
-                      type="button"
-                      id="btn-dashboard-to-retention"
-                      className="btn sec"
-                      style={{ fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}
-                      onClick={() => handleSelectTab("retention")}
-                    >
-                      Open Retention Center →
-                    </button>
-                  </div>
-
-                  <div className="dashboard-retention-grid">
-                    <div className="dashboard-retention-stat-box">
-                      <span className="mut" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>In 7-Day Retention</span>
-                      <span style={{ fontSize: 20, fontWeight: 800, color: "#60a5fa" }}>{retentionMetrics.activeRetentionCount} cases</span>
-                    </div>
-                    <div className="dashboard-retention-stat-box">
-                      <span className="mut" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>Due for Purge Today</span>
-                      <span style={{ fontSize: 20, fontWeight: 800, color: retentionMetrics.duePurgeCount > 0 ? "#fbbf24" : "var(--adm-text)" }}>
-                        {retentionMetrics.duePurgeCount} cases
-                      </span>
-                    </div>
-                    <div className="dashboard-retention-stat-box">
-                      <span className="mut" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>Permanently Purged</span>
-                      <span style={{ fontSize: 20, fontWeight: 800, color: "#f87171" }}>{retentionMetrics.permanentlyPurgedCount} cases</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Bottom Grid: Live Recent Activity Stream + Recent Customer Cases */}
-                <div className="dashboard-bottom-grid">
-
-                  <RecentActivityFeed
-                    logs={auditLogs}
-                    onViewAllAudit={() => handleSelectTab("audit")}
-                  />
-
-                  {/* Recent Customer Cases */}
-                  <div className="recent-cases-card">
-                    <div className="activity-card-header">
-                      <div className="activity-title-group">
-                        <div className="activity-icon-box">
-                          <IconUsers size={18} />
-                        </div>
-                        <div>
-                          <h2 className="activity-title">Recent Customer Cases</h2>
-                          <span className="activity-subtitle">
-                            Latest active customer verification workflows
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div style={{ flex: 1, overflowX: "auto" }}>
-                      {customers.length === 0 ? (
-                        <p className="mut" style={{ padding: 16 }}>
-                          No active customer cases found.
-                        </p>
-                      ) : (
-                        <table style={{ width: "100%", fontSize: 13 }}>
-                          <thead>
-                            <tr>
-                              <th>Customer</th>
-                              <th>Status</th>
-                              <th>Verified</th>
-                              <th>Action</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {customers.slice(0, 5).map((c) => (
-                              <tr key={c.id}>
-                                <td>
-                                  <b>{c.name}</b>
-                                  <div className="mut" style={{ fontSize: 11 }}>
-                                    {c.code}
-                                  </div>
-                                </td>
-                                <td>
-                                  <span className={`tag ${c.case_status}`}>
-                                    {c.case_status}
-                                  </span>
-                                </td>
-                                <td>
-                                  <span style={{ fontWeight: 600 }}>
-                                    {c.received_count}/{c.required_count}
-                                  </span>
-                                </td>
-                                <td>
-                                  <Link
-                                    to={`/admin/customers/${c.id}`}
-                                    className="btn sec"
-                                    style={{ padding: "3px 8px", fontSize: 12 }}
-                                  >
-                                    View
-                                  </Link>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      )}
-                    </div>
-
-                    <div className="activity-card-footer">
-                      <button
-                        type="button"
-                        className="activity-view-all-btn"
-                        onClick={() => handleSelectTab("cases")}
-                      >
-                        View All Customers ({casesTotalCount}) →
-                      </button>
-                    </div>
-                  </div>
                 </div>
               </div>
             )}
@@ -782,39 +640,60 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
 
             {activeTab === "audit" && (
               <div id="tab-pane-audit" className="card wrap" style={{ padding: 0 }}>
+                <div style={{ padding: "16px 20px", borderBottom: "1px solid var(--adm-border)" }}>
+                  <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "var(--adm-text)" }}>
+                    Audit Log
+                  </h2>
+                  <p className="mut" style={{ margin: "2px 0 0", fontSize: 12 }}>
+                    Review security-sensitive activity across the platform
+                  </p>
+                </div>
                 {loadingAudit ? (
-                  <p style={{ padding: 20 }} className="mut">
+                  <p style={{ padding: 24 }} className="mut">
                     Loading audit records…
                   </p>
+                ) : auditLogs.length === 0 ? (
+                  <div style={{ padding: 48, textAlign: "center" }}>
+                    <h3 style={{ margin: "0 0 6px", fontSize: 15, color: "var(--adm-text)" }}>
+                      No audit events match the selected filters.
+                    </h3>
+                    <p className="mut" style={{ margin: 0, fontSize: 12 }}>
+                      Security and operational actions will record here automatically.
+                    </p>
+                  </div>
                 ) : (
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Timestamp (UTC)</th>
-                        <th>Actor</th>
-                        <th>Action</th>
-                        <th>Entity</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {auditLogs.map((a) => (
-                        <tr key={a.id}>
-                          <td className="mut" style={{ fontSize: 13 }}>
-                            {new Date(a.at).toLocaleString()}
-                          </td>
-                          <td>
-                            <b>{a.actor}</b>
-                          </td>
-                          <td>
-                            <span className="tag">{a.action}</span>
-                          </td>
-                          <td className="mut">
-                            {a.entity_type} #{a.entity_id}
-                          </td>
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", fontSize: 13 }}>
+                      <thead>
+                        <tr>
+                          <th>Timestamp (UTC)</th>
+                          <th>Actor</th>
+                          <th>Action</th>
+                          <th>Entity</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {auditLogs.map((a) => (
+                          <tr key={a.id}>
+                            <td className="mut" style={{ fontSize: 12.5 }}>
+                              {new Date(a.at).toLocaleString()}
+                            </td>
+                            <td>
+                              <b>{a.actor}</b>
+                            </td>
+                            <td>
+                              <span className="tag" style={{ textTransform: "capitalize" }}>
+                                {a.action.replace(/_/g, " ")}
+                              </span>
+                            </td>
+                            <td className="mut" style={{ fontSize: 12 }}>
+                              {a.entity_type} {a.entity_id ? `(#${a.entity_id.slice(0, 8)})` : ""}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </div>
             )}
