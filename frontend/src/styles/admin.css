@@ -8093,46 +8093,66 @@
 }
 
 .report-date-pill.active {
-  background: var(--adm-primary, #3b82f6);
+  background: var(--adm-primary);
   color: #ffffff;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.35);
+  box-shadow: 0 2px 8px rgba(7, 94, 91, 0.35);
 }
 
 /* Filter Dock */
 .reports-filter-dock {
-  background: var(--adm-card, #0f172a);
-  border: 1px solid var(--adm-border, rgba(59, 130, 246, 0.2));
-  border-radius: 12px;
-  padding: 14px 20px;
+  background: var(--adm-card);
+  border: 1px solid var(--adm-border);
+  border-radius: var(--r-md, 10px);
+  padding: 10px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
-  gap: 14px;
+  gap: 12px 16px;
 }
 
 .reports-filter-group {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  flex: 1 1 auto;
+  min-width: 0;
   flex-wrap: wrap;
 }
 
 .report-filter-select {
-  background: rgba(15, 23, 42, 0.6);
-  border: 1px solid var(--adm-border, rgba(59, 130, 246, 0.2));
-  color: var(--adm-text, #f8fafc);
+  width: auto;
+  min-width: 180px;
+  max-width: 260px;
+  flex: 0 1 auto;
+  background: var(--adm-surface);
+  border: 1px solid var(--adm-border);
+  color: var(--adm-text);
   font-size: 13px;
   font-weight: 500;
-  padding: 8px 14px;
+  padding: 7px 12px;
   border-radius: 8px;
   outline: none;
   cursor: pointer;
-  transition: border-color 0.2s;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
 .report-filter-select:focus {
-  border-color: var(--adm-primary, #3b82f6);
+  border-color: var(--adm-primary);
+  box-shadow: 0 0 0 3px var(--adm-primary-bg);
+}
+
+@media (max-width: 640px) {
+  .reports-filter-group {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .report-filter-select {
+    width: 100%;
+    max-width: none;
+  }
 }
 
 /* 8-Card KPI Grid */
@@ -8398,20 +8418,20 @@
 [data-theme="light"] .report-date-pills,
 .admin-theme-light .report-filter-select,
 [data-theme="light"] .report-filter-select {
-  background: #f8fafc;
-  border-color: #cbd5e1;
-  color: #0f172a;
+  background: var(--adm-surface);
+  border-color: var(--adm-border);
+  color: var(--adm-text);
 }
 
 .admin-theme-light .report-date-pill:hover,
 [data-theme="light"] .report-date-pill:hover {
-  background: #e2e8f0;
-  color: #0f172a;
+  background: var(--adm-card-hover);
+  color: var(--adm-text);
 }
 
 .admin-theme-light .report-date-pill.active,
 [data-theme="light"] .report-date-pill.active {
-  background: #2563eb;
+  background: var(--adm-primary);
   color: #ffffff;
 }
 
