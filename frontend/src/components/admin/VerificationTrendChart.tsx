@@ -195,14 +195,14 @@ export const VerificationTrendChart: React.FC<VerificationTrendChartProps> = ({
           <defs>
             {/* Emerald Gradient for Verified Area */}
             <linearGradient id="verifiedGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#10b981" stopOpacity="0.35" />
-              <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
+              <stop offset="0%" stopColor="var(--c-primary)" stopOpacity="0.12" />
+              <stop offset="100%" stopColor="var(--c-primary)" stopOpacity="0.0" />
             </linearGradient>
 
             {/* Teal Forest Gradient for Uploads Stroke */}
             <linearGradient id="uploadsGradient" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0%" stopColor="#075E5B" />
-              <stop offset="100%" stopColor="#2BA99A" />
+              <stop offset="0%" stopColor="var(--c-primary-2)" />
+              <stop offset="100%" stopColor="var(--c-primary-2)" />
             </linearGradient>
           </defs>
 
@@ -261,15 +261,17 @@ export const VerificationTrendChart: React.FC<VerificationTrendChartProps> = ({
           <path
             d={upPath}
             fill="none"
-            stroke="url(#uploadsGradient)"
-            strokeWidth="2.5"
+            stroke="var(--c-primary-2)"
+            strokeWidth="1.5"
             strokeLinecap="round"
+            className="trend-line-uploads"
+            style={{ strokeDasharray: "var(--trend-dash, none)" }}
           />
           <path
             d={verPath}
             fill="none"
-            stroke="#10b981"
-            strokeWidth="2.5"
+            stroke="var(--c-primary)"
+            strokeWidth="2.25"
             strokeLinecap="round"
           />
 
@@ -300,8 +302,8 @@ export const VerificationTrendChart: React.FC<VerificationTrendChartProps> = ({
                 cx={p.x}
                 cy={p.yVer}
                 r="4"
-                fill="#10b981"
-                stroke="var(--card)"
+                fill="var(--c-primary)"
+                stroke="var(--c-surface)"
                 strokeWidth="2"
                 className="point-dot dot-verified"
               />
@@ -309,8 +311,8 @@ export const VerificationTrendChart: React.FC<VerificationTrendChartProps> = ({
                 cx={p.x}
                 cy={p.yUp}
                 r="3.5"
-                fill="var(--adm-primary, #075E5B)"
-                stroke="var(--card)"
+                fill="var(--c-primary-2)"
+                stroke="var(--c-surface)"
                 strokeWidth="2"
                 className="point-dot dot-uploads"
               />

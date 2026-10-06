@@ -11,6 +11,7 @@ import {
   IconUsers,
 } from "./AdminIcons";
 import { Skeleton } from "./Skeleton";
+import { EmptyState } from "./EmptyState";
 
 interface AdminCustomersViewProps {
   customers: AdminCustomerListItem[];
@@ -178,43 +179,18 @@ export const AdminCustomersView: React.FC<AdminCustomersViewProps> = ({
             </p>
           </div>
         ) : filteredCustomers.length === 0 ? (
-          <div className="table-empty-state">
-            <div className="empty-icon-wrap">
-              <IconUsers size={32} color="var(--adm-text-muted)" />
-            </div>
-            <h3 className="empty-title">
-              {searchQuery || caseStatusFilter || verificationFilter
-                ? "No Customer Cases Found"
-                : "No customer cases yet"}
-            </h3>
-            <p className="empty-desc">
-              {searchQuery || caseStatusFilter || verificationFilter
-                ? "No customer cases matched your current search filters. Try clearing the filter criteria."
-                : "Create your first customer case to begin document collection and verification."}
-            </p>
-            <div className="empty-actions">
-              {(searchQuery || caseStatusFilter || verificationFilter) ? (
-                <button
-                  type="button"
-                  className="sec"
-                  onClick={() => {
-                    setVerificationFilter("");
-                    onResetFilters();
-                  }}
-                >
-                  Clear All Filters
-                </button>
+          <EmptyState
+            icon={<IconUsers size={32} />}
+            title={searchQuery || caseStatusFilter || verificationFilter ? "No Customer Cases Found" : "No customer cases yet"}
+            description={searchQuery || caseStatusFilter || verificationFilter ? "No customer cases matched your current search filters. Try clearing the filter criteria." : "Create your first customer case to begin document collection and verification."}
+            actions={
+              (searchQuery || caseStatusFilter || verificationFilter) ? (
+                <button type="button" className="sec" onClick={() => { setVerificationFilter(""); onResetFilters(); }}>Clear All Filters</button>
               ) : (
-                <button
-                  type="button"
-                  className="ok"
-                  onClick={onOpenAddCustomer}
-                >
-                  <IconPlus size={16} /> New Customer
-                </button>
-              )}
-            </div>
-          </div>
+                <button type="button" className="ok" onClick={onOpenAddCustomer}><IconPlus size={16} /> New Customer</button>
+              )
+            }
+          />
         ) : (
           <>
             <div className="table-scroll-container">

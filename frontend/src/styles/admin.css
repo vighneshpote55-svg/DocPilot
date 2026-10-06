@@ -1992,7 +1992,7 @@
    ========================================================================== */
 
 /* Laptops & 150% Scaling (max-width: 1366px, covering 1280px effective viewport) */
-@media (max-width: 1366px) {
+@media (max-width: 1024px) {
   .admin-topnav {
     padding: 0 16px;
     gap: 10px;
@@ -2076,7 +2076,7 @@
 }
 
 /* Tablet & Compact Desktop (max-width: 1199px) */
-@media (max-width: 1199px) {
+@media (max-width: 1024px) {
   :root {
     --adm-sidebar-width: 230px;
   }
@@ -2120,18 +2120,18 @@
   }
 }
 
-/* Tablet & Medium Screens (max-width: 900px) - Left sidebar remains displayed */
-@media (max-width: 900px) {
+/* Tablet & Medium Screens (max-width: 1024px) - Left sidebar hidden behind hamburger */
+@media (max-width: 1024px) {
   :root {
     --adm-sidebar-width: 236px;
   }
 
   .admin-sidebar {
-    transform: none;
-    position: fixed;
-    top: 0;
-    bottom: 0;
-    left: 0;
+    transform: translateX(-100%);
+  }
+
+  .admin-sidebar.mobile-open {
+    transform: translateX(0);
   }
 
   .sidebar-link {
@@ -2140,20 +2140,17 @@
     font-size: 13.5px;
   }
 
-  .admin-main-container {
-    margin-left: var(--adm-sidebar-width);
-  }
-
+  .admin-main-container,
   .admin-main-container.sidebar-collapsed {
-    margin-left: var(--adm-sidebar-collapsed-width);
+    margin-left: 0;
   }
 
   .topnav-mobile-toggle {
-    display: none;
+    display: flex;
   }
 
   .sidebar-mobile-close {
-    display: none;
+    display: block;
   }
 
   .system-status-pill {
@@ -2171,27 +2168,6 @@
 
 /* Mobile (< 640px) */
 @media (max-width: 640px) {
-  .admin-sidebar {
-    transform: translateX(-100%);
-  }
-
-  .admin-sidebar.mobile-open {
-    transform: translateX(0);
-  }
-
-  .sidebar-mobile-close {
-    display: block;
-  }
-
-  .admin-main-container,
-  .admin-main-container.sidebar-collapsed {
-    margin-left: 0;
-  }
-
-  .topnav-mobile-toggle {
-    display: flex;
-  }
-
   .admin-topnav {
     padding: 0 10px;
     gap: 6px;
@@ -2838,7 +2814,7 @@
   color: var(--adm-text);
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   .customers-search-form {
     flex-wrap: wrap;
   }
@@ -3563,7 +3539,7 @@
   flex-shrink: 0;
 }
 
-@media (max-width: 680px) {
+@media (max-width: 640px) {
   .doc-filter-toolbar {
     flex-direction: column;
     align-items: stretch;
@@ -4295,7 +4271,7 @@
   box-shadow: 0 2px 10px rgba(7, 94, 91, 0.3);
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .add-customer-modal {
     width: 95vw;
     max-height: 94vh;
@@ -4979,7 +4955,7 @@
 }
 
 /* Responsive Overrides for Phase 2 */
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .customers-header-bar {
     flex-direction: column;
     align-items: flex-start;
@@ -6337,7 +6313,7 @@
   white-space: nowrap;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .reviews-filter-group {
     flex-wrap: wrap;
     width: 100%;
@@ -6860,7 +6836,7 @@
 }
 
 /* Responsive Split Layout */
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   .review-split-layout {
     flex-direction: column;
     overflow-y: auto;
@@ -8162,7 +8138,7 @@
   gap: 16px;
 }
 
-@media (max-width: 1200px) {
+@media (max-width: 1024px) {
   .reports-kpi-grid {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -8242,7 +8218,7 @@
   gap: 18px;
 }
 
-@media (max-width: 1080px) {
+@media (max-width: 1024px) {
   .reports-charts-grid {
     grid-template-columns: 1fr;
   }
@@ -8293,7 +8269,7 @@
   gap: 18px;
 }
 
-@media (max-width: 980px) {
+@media (max-width: 1024px) {
   .reports-distribution-grid {
     grid-template-columns: 1fr;
   }
@@ -8589,7 +8565,7 @@
   gap: 18px;
 }
 
-@media (max-width: 1080px) {
+@media (max-width: 1024px) {
   .settings-sections-grid {
     grid-template-columns: 1fr;
   }

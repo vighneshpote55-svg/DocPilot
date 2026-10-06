@@ -38,10 +38,10 @@ export const DocumentStatusChart: React.FC<DocumentStatusChartProps> = ({ summar
   const circumference = 2 * Math.PI * radius;
 
   const rawSegments: Array<{ key: string; label: string; count: number; color: string }> = [
-    { key: "verified", label: "Verified", count: verifiedCount, color: "#10b981" },
-    { key: "under_review", label: "Under Review", count: underReviewCount, color: "#f59e0b" },
-    { key: "rejected", label: "Rejected", count: rejectedCount, color: "#ef4444" },
-    { key: "processing", label: "Processing / Pending", count: processingCount, color: "#06b6d4" },
+    { key: "verified", label: "Verified", count: verifiedCount, color: "var(--c-success)" },
+    { key: "under_review", label: "Under Review", count: underReviewCount, color: "var(--c-warn)" },
+    { key: "rejected", label: "Rejected", count: rejectedCount, color: "var(--c-danger)" },
+    { key: "processing", label: "Processing / Pending", count: processingCount, color: "var(--c-info)" },
   ];
 
   let cumulativeOffset = 0;
@@ -134,15 +134,15 @@ export const DocumentStatusChart: React.FC<DocumentStatusChartProps> = ({ summar
             <div className="donut-center-info">
               {activeHovered ? (
                 <>
-                  <span className="center-value" style={{ color: activeHovered.color }}>
+                  <span className="center-label" style={{ fontSize: 11, textTransform: "uppercase" }}>{activeHovered.label}</span>
+                  <span className="center-value" style={{ color: activeHovered.color, fontSize: 28, fontWeight: 700 }}>
                     {activeHovered.percentage}%
                   </span>
-                  <span className="center-label">{activeHovered.label}</span>
                 </>
               ) : (
                 <>
-                  <span className="center-value">{totalDocs}</span>
-                  <span className="center-label">Total Docs</span>
+                  <span className="center-label" style={{ fontSize: 11, textTransform: "uppercase" }}>Total Docs</span>
+                  <span className="center-value" style={{ fontSize: 28, fontWeight: 700 }}>{totalDocs}</span>
                 </>
               )}
             </div>

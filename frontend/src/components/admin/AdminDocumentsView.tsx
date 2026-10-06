@@ -19,6 +19,7 @@ import {
 import { SecureDocViewerModal } from "./SecureDocViewerModal";
 import { DocumentDetailsDrawer } from "./DocumentDetailsDrawer";
 import { Skeleton } from "./Skeleton";
+import { EmptyState } from "./EmptyState";
 
 const IDENTITY_DOCS = [
   { key: "aadhaar", label: "Aadhaar Card" },
@@ -337,19 +338,11 @@ export const AdminDocumentsView: React.FC = () => {
             </button>
           </div>
         ) : documents.length === 0 ? (
-          <div className="table-empty-state">
-            <IconFileText size={40} color="var(--adm-text-muted)" />
-            <p className="empty-title">
-              {activeSearch || docTypeFilter || statusFilter || ocrFilter
-                ? "No matching documents found"
-                : "No documents have been submitted yet."}
-            </p>
-            <p className="empty-desc">
-              {activeSearch || docTypeFilter || statusFilter || ocrFilter
-                ? "Try adjusting your search query or clear filters to see more results."
-                : "Uploaded customer documents, OCR extracted data, and verification statuses will appear here."}
-            </p>
-          </div>
+          <EmptyState
+            icon={<IconFileText size={40} />}
+            title={activeSearch || docTypeFilter || statusFilter || ocrFilter ? "No matching documents found" : "No documents have been submitted yet."}
+            description={activeSearch || docTypeFilter || statusFilter || ocrFilter ? "Try adjusting your search query or clear filters to see more results." : "Uploaded customer documents, OCR extracted data, and verification statuses will appear here."}
+          />
         ) : (
           <div className="admin-table-responsive">
             <table className="admin-data-table" id="all-documents-table">

@@ -189,18 +189,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
           {navGroups.map((group, gIdx) => (
             <div key={group.title} className="sidebar-group" style={{ marginBottom: gIdx === navGroups.length - 1 ? 0 : 12 }}>
               {showLabels && (
-                <div
-                  className="sidebar-section-title"
-                  style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.08em",
-                    color: "var(--adm-text-muted)",
-                    padding: "6px 12px 4px",
-                    opacity: 0.8,
-                  }}
-                >
+                <div className="sidebar-section-title">
                   {group.title}
                 </div>
               )}

@@ -274,8 +274,9 @@ export const AdminReviewsView: React.FC<AdminReviewsViewProps> = ({
             <thead>
               <tr>
                 <th style={{ width: "24%" }}>Customer Profile</th>
-                <th style={{ width: "18%" }}>Document Slot</th>
-                <th style={{ width: "26%" }}>Review Reason &amp; Risk Flags</th>
+                <th style={{ width: "16%" }}>Document Slot</th>
+                <th style={{ width: "18%" }}>Exception Trigger</th>
+                <th style={{ width: "10%" }}>Risk Flags</th>
                 <th style={{ width: "12%" }}>Status</th>
                 <th style={{ width: "10%" }}>Queued</th>
                 <th style={{ width: "10%", textAlign: "right" }}>Actions</th>
@@ -334,13 +335,18 @@ export const AdminReviewsView: React.FC<AdminReviewsViewProps> = ({
                       </div>
                     </td>
 
-                    {/* Trigger Reason & Risk Flags */}
+                    {/* Exception Trigger */}
                     <td>
                       <div className="reviews-reason-cell">
                         <div className="reviews-reason-text">
                           {r.reason || "Confidence below auto-verification threshold"}
                         </div>
-                        {r.flags && r.flags.length > 0 && (
+                      </div>
+                    </td>
+
+                    {/* Risk Flags */}
+                    <td>
+                        {r.flags && r.flags.length > 0 ? (
                           <div className="reviews-flags-row">
                             {r.flags.map((flag, idx) => (
                               <span key={idx} className="review-flag-pill">
@@ -348,8 +354,9 @@ export const AdminReviewsView: React.FC<AdminReviewsViewProps> = ({
                               </span>
                             ))}
                           </div>
+                        ) : (
+                          <span className="text-muted-sm">—</span>
                         )}
-                      </div>
                     </td>
 
                     {/* Verification / Review Status */}
@@ -357,10 +364,10 @@ export const AdminReviewsView: React.FC<AdminReviewsViewProps> = ({
                       <span
                         className={`status-pill ${
                           isApproved
-                            ? "case-completed"
+                            ? "verified"
                             : isRejected
-                            ? "case-deleted"
-                            : "consent-pending"
+                            ? "rejected"
+                            : "warn"
                         }`}
                         id={`review-status-badge-${r.id}`}
                       >
