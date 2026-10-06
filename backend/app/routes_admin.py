@@ -678,3 +678,93 @@ def audit_log(limit: int = Query(100, le=500), db: Session = Depends(get_db), ad
 
              "entity_type": a.entity_type, "entity_id": a.entity_id, "details": a.details} for a in rows]
 
+
+class OCRConfigIn(BaseModel):
+    ocr_url: str | None = None
+    ocr_api_key: str | None = None
+
+
+@router.get("/settings/ocr")
+def get_ocr_settings(admin: str = Depends(require_admin)):
+    """Return current OCR endpoint and masked API key status."""
+    s = get_settings()
+    has_key = bool(s.ocr_api_key)
+    masked_key = f"{s.ocr_api_key[:4]}••••••••••••••••••••••••" if len(s.ocr_api_key) >= 4 else ("••••••••" if has_key else "")
+    return {
+        "ocr_url": s.ocr_url,
+        "has_api_key": has_key,
+        "masked_api_key": masked_key,
+        "mock_ocr_mode": s.mock_ocr_mode,
+        "timeout_seconds": s.ocr_timeout_seconds,
+    }
+
+
+@router.put("/settings/ocr")
+def update_ocr_settings(payload: OCRConfigIn, db: Session = Depends(get_db), admin: str = Depends(require_admin)):
+    """Update active OCR endpoint and API key in runtime and persist to .env."""
+    from pathlib import Path
+    s = get_settings()
+    updated = {}
+
+    if payload.ocr_url is not None:
+        new_url = payload.ocr_url.strip()
+        if new_url:
+            s.ocr_url = new_url
+            updated["ocr_url"] = new_url
+
+    if payload.ocr_api_key is not None:
+        new_key = payload.ocr_api_key.strip()
+        s.ocr_api_key = new_key
+        updated["ocr_api_key"] = "[UPDATED]"
+
+    # Persist changes to .env file if it exists
+    env_path = Path(__file__).resolve().parent.parent / ".env"
+    if env_path.exists() and (payload.ocr_url is not None or payload.ocr_api_key is not None):
+        try:
+            content = env_path.read_text(encoding="utf-8")
+            if payload.ocr_url is not None and payload.ocr_url.strip():
+                content = re.sub(r"^OCR_URL=.*$", f"OCR_URL={payload.ocr_url.strip()}", content, flags=re.MULTILINE)
+            if payload.ocr_api_key is not None:
+                content = re.sub(r"^OCR_API_KEY=.*$", f"OCR_API_KEY={payload.ocr_api_key.strip()}", content, flags=re.MULTILINE)
+            env_path.write_text(content, encoding="utf-8")
+        except Exception:
+            pass
+
+    services.audit(db, admin, "ocr_settings_updated", "system", None, details={"updated": list(updated.keys())})
+    db.commit()
+
+    has_key = bool(s.ocr_api_key)
+    masked_key = f"{s.ocr_api_key[:4]}••••••••••••••••••••••••" if len(s.ocr_api_key) >= 4 else ("••••••••" if has_key else "")
+    return {
+        "status": "ok",
+        "ocr_url": s.ocr_url,
+        "has_api_key": has_key,
+        "masked_api_key": masked_key,
+    }
+
+
+@router.post("/settings/ocr/test")
+def test_ocr_connection(payload: OCRConfigIn | None = None, admin: str = Depends(require_admin)):
+    """Test connectivity to the OCR model service."""
+    import httpx
+    s = get_settings()
+    test_url = (payload.ocr_url.strip() if payload and payload.ocr_url else s.ocr_url).rstrip("/")
+    test_key = (payload.ocr_api_key.strip() if payload and payload.ocr_api_key is not None else s.ocr_api_key)
+    headers = {"Authorization": f"Bearer {test_key}"} if test_key else {}
+
+    try:
+        # Test either root / or /health or /ocr/pan ping
+        r = httpx.get(f"{test_url}/health", headers=headers, timeout=httpx.Timeout(5.0, connect=3.0))
+        if r.status_code == 200:
+            return {"connected": True, "status_code": r.status_code, "message": "OCR service reachable (/health 200 OK)"}
+    except Exception:
+        pass
+
+    try:
+        r = httpx.get(test_url, headers=headers, timeout=httpx.Timeout(5.0, connect=3.0))
+        if r.status_code < 500:
+            return {"connected": True, "status_code": r.status_code, "message": f"OCR service reachable (HTTP {r.status_code})"}
+        return {"connected": False, "status_code": r.status_code, "message": f"OCR service returned HTTP {r.status_code}"}
+    except Exception as e:
+        return {"connected": False, "status_code": 0, "message": f"Connection failed: {str(e)}"}
+

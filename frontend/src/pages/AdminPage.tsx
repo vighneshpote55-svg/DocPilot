@@ -21,6 +21,7 @@ import type {
 } from "../types";
 import { AdminSidebar, type AdminNavTab } from "../components/admin/AdminSidebar";
 import { AdminTopNav } from "../components/admin/AdminTopNav";
+import { IconClock } from "../components/admin/AdminIcons";
 import { KpiCardGrid } from "../components/admin/KpiCardGrid";
 import { VerificationTrendChart } from "../components/admin/VerificationTrendChart";
 import { DocumentStatusChart } from "../components/admin/DocumentStatusChart";
@@ -519,6 +520,50 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
                     customers={customers}
                   />
                   <DocumentStatusChart summary={summary} />
+                </div>
+
+                {/* Phase 8: Statutory 7-Day Retention Status Card */}
+                <div className="dashboard-retention-card" id="dashboard-retention-card">
+                  <div className="dashboard-retention-header">
+                    <div className="dashboard-retention-title-group">
+                      <div style={{ width: 36, height: 36, borderRadius: 8, background: "rgba(7, 94, 91, 0.15)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--adm-primary)" }}>
+                        <IconClock size={20} />
+                      </div>
+                      <div>
+                        <h3 style={{ margin: 0, fontSize: 16 }}>7-Day Statutory Retention & Deletion Pipeline</h3>
+                        <span className="mut" style={{ fontSize: 12 }}>
+                          DPDP Act automated purge queue and customer data retention lifecycle
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      id="btn-dashboard-to-retention"
+                      className="btn sec"
+                      style={{ fontSize: 12, display: "inline-flex", alignItems: "center", gap: 6 }}
+                      onClick={() => handleSelectTab("retention")}
+                    >
+                      Open Retention Center →
+                    </button>
+                  </div>
+
+                  <div className="dashboard-retention-grid">
+                    <div className="dashboard-retention-stat-box">
+                      <span className="mut" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>In 7-Day Retention</span>
+                      <span style={{ fontSize: 20, fontWeight: 800, color: "var(--adm-primary)" }}>{retentionMetrics.activeRetentionCount} cases</span>
+                    </div>
+                    <div className="dashboard-retention-stat-box">
+                      <span className="mut" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>Due for Purge Today</span>
+                      <span style={{ fontSize: 20, fontWeight: 800, color: retentionMetrics.duePurgeCount > 0 ? "var(--adm-warning)" : "var(--adm-text)" }}>
+                        {retentionMetrics.duePurgeCount} cases
+                      </span>
+                    </div>
+                    <div className="dashboard-retention-stat-box">
+                      <span className="mut" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>Permanently Purged</span>
+                      <span style={{ fontSize: 20, fontWeight: 800, color: "var(--adm-danger)" }}>{retentionMetrics.permanentlyPurgedCount} cases</span>
+                    </div>
+                  </div>
                 </div>
               </div>
             )}

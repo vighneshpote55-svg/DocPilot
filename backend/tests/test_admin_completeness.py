@@ -207,3 +207,41 @@ def test_admin_list_documents_and_summary_metrics(client):
     for doc in r_filtered.json():
         assert doc["doc_type"] == "pan"
 
+
+def test_admin_ocr_settings_api(client):
+    """Verify admin OCR settings management and masking."""
+    # Auth checks
+    assert client.get("/api/admin/settings/ocr").status_code in (401, 403)
+    assert client.put("/api/admin/settings/ocr", json={"ocr_url": "http://127.0.0.1:8000"}).status_code in (401, 403)
+
+    # Get OCR settings with admin token
+    r = client.get("/api/admin/settings/ocr", headers=admin_headers())
+    assert r.status_code == 200
+    data = r.json()
+    assert "ocr_url" in data
+    assert "has_api_key" in data
+    assert "masked_api_key" in data
+    # Invariant: Never return raw OCR API key
+    if data["has_api_key"]:
+        assert "••••" in data["masked_api_key"]
+
+    # Update OCR settings
+    r_up = client.put("/api/admin/settings/ocr", headers=admin_headers(), json={
+        "ocr_url": "http://127.0.0.1:8000",
+        "ocr_api_key": "test_api_key_sample_12345678",
+    })
+    assert r_up.status_code == 200
+    up_data = r_up.json()
+    assert up_data["ocr_url"] == "http://127.0.0.1:8000"
+    assert up_data["has_api_key"] is True
+    assert "test••••" in up_data["masked_api_key"]
+
+    # Test connectivity endpoint
+    r_test = client.post("/api/admin/settings/ocr/test", headers=admin_headers(), json={
+        "ocr_url": "http://127.0.0.1:8000",
+        "ocr_api_key": "test_api_key_sample_12345678",
+    })
+    assert r_test.status_code == 200
+    assert "connected" in r_test.json()
+
+

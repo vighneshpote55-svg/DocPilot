@@ -84,6 +84,40 @@ async function runPhase10SettingsVerification() {
     });
   });
 
+  // Intercept customers
+  await page.route("**/api/admin/customers**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      headers: { "X-Total-Count": "0" },
+      contentType: "application/json",
+      body: JSON.stringify([]),
+    });
+  });
+
+  // Intercept audit
+  await page.route("**/api/admin/audit**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify([]),
+    });
+  });
+
+  // Intercept OCR settings
+  await page.route("**/api/admin/settings/ocr**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        ocr_url: "http://localhost:8000",
+        has_api_key: true,
+        masked_api_key: "••••••••••••••••",
+        mock_ocr_mode: false,
+        timeout_seconds: 15,
+      }),
+    });
+  });
+
   // 1. Navigate to /admin
   console.log("1. Navigating to Admin Dashboard...");
   await page.goto("http://localhost:5180/admin", { waitUntil: "networkidle" });

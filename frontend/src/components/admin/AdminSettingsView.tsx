@@ -1,5 +1,12 @@
 import React, { useCallback, useEffect, useState, useRef } from "react";
-import { clearAdminToken, getAdminToken } from "../../api";
+import {
+  clearAdminToken,
+  getAdminToken,
+  getAdminOcrSettings,
+  updateAdminOcrSettings,
+  testAdminOcrConnection,
+  type OcrSettingsData,
+} from "../../api";
 import type { AdminSummary } from "../../types";
 import { useDialogA11y } from "../../utils/a11yUtils";
 import {
@@ -57,6 +64,15 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
   // Decoded Session JWT (pure initializer)
   const [decodedJwt] = useState<DecodedAdminJwt | null>(() => parseAdminJwt(getAdminToken()));
 
+  // OCR Service & Key State
+  const [ocrData, setOcrData] = useState<OcrSettingsData | null>(null);
+  const [ocrUrlInput, setOcrUrlInput] = useState<string>("");
+  const [ocrKeyInput, setOcrKeyInput] = useState<string>("");
+  const [showOcrKeyInput, setShowOcrKeyInput] = useState<boolean>(false);
+  const [savingOcr, setSavingOcr] = useState<boolean>(false);
+  const [testingOcr, setTestingOcr] = useState<boolean>(false);
+  const [ocrTestResult, setOcrTestResult] = useState<{ connected: boolean; message: string } | null>(null);
+
   // Action Confirmation Modals
   const [confirmModal, setConfirmModal] = useState<"cache" | "signout" | null>(null);
   const confirmModalRef = useRef<HTMLDivElement>(null);
@@ -111,6 +127,69 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
       ignore = true;
     };
   }, [summary]);
+
+  // Load OCR Settings
+  useEffect(() => {
+    let ignore = false;
+    getAdminOcrSettings()
+      .then((data) => {
+        if (!ignore && data) {
+          setOcrData(data);
+          setOcrUrlInput(data.ocr_url || "");
+        }
+      })
+      .catch(() => {
+        // Fallback to SYSTEM_CONFIG defaults if endpoint unavailable
+        if (!ignore) {
+          setOcrUrlInput(SYSTEM_CONFIG.ocrUrl);
+        }
+      });
+    return () => {
+      ignore = true;
+    };
+  }, []);
+
+  // Save OCR Settings
+  const handleSaveOcrSettings = async () => {
+    setSavingOcr(true);
+    setOcrTestResult(null);
+    try {
+      const payload: { ocr_url?: string; ocr_api_key?: string } = {};
+      if (ocrUrlInput.trim()) payload.ocr_url = ocrUrlInput.trim();
+      if (ocrKeyInput.trim()) payload.ocr_api_key = ocrKeyInput.trim();
+
+      const updated = await updateAdminOcrSettings(payload);
+      setOcrData(updated);
+      setOcrKeyInput(""); // Clear plain text input once saved
+      setToastMessage({ text: "OCR model endpoint & API key successfully updated.", type: "success" });
+      setTimeout(() => setToastMessage(null), 4000);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to update OCR settings";
+      setToastMessage({ text: msg, type: "error" });
+      setTimeout(() => setToastMessage(null), 4000);
+    } finally {
+      setSavingOcr(false);
+    }
+  };
+
+  // Test OCR Connection
+  const handleTestOcrConnection = async () => {
+    setTestingOcr(true);
+    setOcrTestResult(null);
+    try {
+      const payload: { ocr_url?: string; ocr_api_key?: string } = {};
+      if (ocrUrlInput.trim()) payload.ocr_url = ocrUrlInput.trim();
+      if (ocrKeyInput.trim()) payload.ocr_api_key = ocrKeyInput.trim();
+
+      const res = await testAdminOcrConnection(payload);
+      setOcrTestResult({ connected: res.connected, message: res.message });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "OCR connection test failed";
+      setOcrTestResult({ connected: false, message: msg });
+    } finally {
+      setTestingOcr(false);
+    }
+  };
 
   // Handle Cache Reset
   const handleClearCacheConfirm = () => {
@@ -422,10 +501,139 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
             </div>
 
             <div className="config-fields-list">
+              {/* OCR Model Connection & API Key Configuration */}
+              <div className="config-field-row" style={{ flexDirection: "column", alignItems: "stretch", gap: 12, border: "1px solid rgba(59, 130, 246, 0.3)", background: "rgba(59, 130, 246, 0.04)" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+                  <div>
+                    <span className="config-field-label" style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 600, fontSize: 13 }}>
+                      <IconKey size={14} color="var(--adm-primary)" /> OCR Service API Key & Connection
+                    </span>
+                    <p className="config-field-desc" style={{ marginTop: 2 }}>
+                      Configure service bearer authentication key and target model endpoint URL for document processing
+                    </p>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    {ocrData?.has_api_key && (
+                      <span className="tag tag-good" style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                        <IconCheckCircle2 size={12} /> Connected
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      className="btn-settings-action"
+                      onClick={handleTestOcrConnection}
+                      disabled={testingOcr}
+                      style={{ fontSize: 12, padding: "5px 10px" }}
+                      id="btn-test-ocr-connection"
+                    >
+                      <IconRefreshCw size={12} className={testingOcr ? "spin-icon" : ""} />
+                      {testingOcr ? "Testing..." : "Test Connection"}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Status or test result feedback */}
+                {ocrTestResult && (
+                  <div
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: 6,
+                      fontSize: 12,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 8,
+                      background: ocrTestResult.connected ? "rgba(16, 185, 129, 0.12)" : "rgba(239, 68, 68, 0.12)",
+                      border: `1px solid ${ocrTestResult.connected ? "rgba(16, 185, 129, 0.3)" : "rgba(239, 68, 68, 0.3)"}`,
+                      color: ocrTestResult.connected ? "#10b981" : "#ef4444",
+                    }}
+                  >
+                    {ocrTestResult.connected ? <IconCheckCircle2 size={14} /> : <IconAlertTriangle size={14} />}
+                    <span>{ocrTestResult.message}</span>
+                  </div>
+                )}
+
+                {/* Form fields */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 12 }}>
+                  <div>
+                    <label htmlFor="ocr-service-url-input" style={{ fontSize: 12, color: "var(--adm-text-muted)", margin: "0 0 4px", fontWeight: 500 }}>
+                      OCR Model Endpoint URL
+                    </label>
+                    <input
+                      type="url"
+                      id="ocr-service-url-input"
+                      value={ocrUrlInput}
+                      onChange={(e) => setOcrUrlInput(e.target.value)}
+                      placeholder="e.g. http://127.0.0.1:8000"
+                      style={{
+                        width: "100%",
+                        height: 36,
+                        fontSize: 13,
+                        borderRadius: 6,
+                        boxSizing: "border-box",
+                        padding: "6px 10px",
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="ocr-api-key-input" style={{ fontSize: 12, color: "var(--adm-text-muted)", margin: "0 0 4px", fontWeight: 500 }}>
+                      OCR Service API Key {ocrData?.has_api_key && <span style={{ opacity: 0.7 }}>(Leave blank to keep current)</span>}
+                    </label>
+                    <div style={{ display: "flex", gap: 6 }}>
+                      <input
+                        type={showOcrKeyInput ? "text" : "password"}
+                        id="ocr-api-key-input"
+                        value={ocrKeyInput}
+                        onChange={(e) => setOcrKeyInput(e.target.value)}
+                        placeholder={ocrData?.has_api_key ? ocrData.masked_api_key : "Enter OCR API key…"}
+                        style={{
+                          flex: 1,
+                          height: 36,
+                          fontSize: 13,
+                          borderRadius: 6,
+                          boxSizing: "border-box",
+                          padding: "6px 10px",
+                          fontFamily: showOcrKeyInput ? "inherit" : "monospace",
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowOcrKeyInput(!showOcrKeyInput)}
+                        style={{
+                          padding: "0 10px",
+                          height: 36,
+                          borderRadius: 6,
+                          border: "1px solid var(--adm-border)",
+                          background: "var(--adm-surface)",
+                          color: "var(--adm-text-muted)",
+                          cursor: "pointer",
+                          fontSize: 12,
+                        }}
+                        title={showOcrKeyInput ? "Hide characters" : "Show characters"}
+                      >
+                        {showOcrKeyInput ? "Hide" : "Show"}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 4 }}>
+                  <button
+                    type="button"
+                    className="btn-settings-action primary"
+                    onClick={handleSaveOcrSettings}
+                    disabled={savingOcr}
+                    id="btn-save-ocr-settings"
+                    style={{ fontSize: 13, padding: "7px 16px" }}
+                  >
+                    {savingOcr ? "Saving Settings..." : "Save OCR Settings"}
+                  </button>
+                </div>
+              </div>
+
               <div className="config-field-row">
                 <div className="config-field-top">
-                  <span className="config-field-label">OCR Service Endpoint</span>
-                  <span className="config-field-value">{SYSTEM_CONFIG.ocrUrl}</span>
+                  <span className="config-field-label">OCR Active Endpoint</span>
+                  <span className="config-field-value">{ocrData?.ocr_url || SYSTEM_CONFIG.ocrUrl}</span>
                 </div>
                 <p className="config-field-desc">External stateless document parser host (send bytes, receive JSON)</p>
               </div>

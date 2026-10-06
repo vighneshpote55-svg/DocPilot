@@ -479,3 +479,32 @@ export async function rejectReview(id: string, note?: string): Promise<{ message
 export async function getAdminAudit(limit: number = 200): Promise<AdminAuditItem[]> {
   return request<AdminAuditItem[]>(`/api/admin/audit?limit=${limit}`, { isAdmin: true });
 }
+
+export interface OcrSettingsData {
+  ocr_url: string;
+  has_api_key: boolean;
+  masked_api_key: string;
+  mock_ocr_mode?: boolean;
+  timeout_seconds?: number;
+}
+
+export async function getAdminOcrSettings(): Promise<OcrSettingsData> {
+  return request<OcrSettingsData>("/api/admin/settings/ocr", { isAdmin: true });
+}
+
+export async function updateAdminOcrSettings(payload: { ocr_url?: string; ocr_api_key?: string }): Promise<OcrSettingsData> {
+  return request<OcrSettingsData>("/api/admin/settings/ocr", {
+    method: "PUT",
+    json: payload,
+    isAdmin: true,
+  });
+}
+
+export async function testAdminOcrConnection(payload?: { ocr_url?: string; ocr_api_key?: string }): Promise<{ connected: boolean; status_code: number; message: string }> {
+  return request<{ connected: boolean; status_code: number; message: string }>("/api/admin/settings/ocr/test", {
+    method: "POST",
+    json: payload || {},
+    isAdmin: true,
+  });
+}
+

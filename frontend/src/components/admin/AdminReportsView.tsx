@@ -587,11 +587,11 @@ export const AdminReportsView: React.FC<AdminReportsViewProps> = ({
             {/* Legend */}
             <div style={{ display: "flex", alignItems: "center", gap: 14, fontSize: 12 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ width: 12, height: 3, background: "#3b82f6", borderRadius: 2 }} />
+                <span style={{ width: 12, height: 3, background: "var(--adm-primary, #075E5B)", borderRadius: 2 }} />
                 <span style={{ color: "var(--adm-text-secondary, #94a3b8)" }}>Case Intake</span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                <span style={{ width: 12, height: 3, background: "#10b981", borderRadius: 2 }} />
+                <span style={{ width: 12, height: 3, background: "#15966F", borderRadius: 2 }} />
                 <span style={{ color: "var(--adm-text-secondary, #94a3b8)" }}>Verified Documents</span>
               </div>
             </div>
@@ -609,12 +609,12 @@ export const AdminReportsView: React.FC<AdminReportsViewProps> = ({
             >
               <defs>
                 <linearGradient id="p9-gradient-blue" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.3" />
-                  <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.0" />
+                  <stop offset="0%" stopColor="var(--adm-primary, #075E5B)" stopOpacity="0.3" />
+                  <stop offset="100%" stopColor="var(--adm-primary, #075E5B)" stopOpacity="0.0" />
                 </linearGradient>
                 <linearGradient id="p9-gradient-green" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#10b981" stopOpacity="0.3" />
-                  <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
+                  <stop offset="0%" stopColor="#15966F" stopOpacity="0.3" />
+                  <stop offset="100%" stopColor="#15966F" stopOpacity="0.0" />
                 </linearGradient>
               </defs>
 
@@ -628,7 +628,7 @@ export const AdminReportsView: React.FC<AdminReportsViewProps> = ({
                     y1={y}
                     x2="620"
                     y2={y}
-                    stroke="var(--adm-border, rgba(59, 130, 246, 0.1))"
+                    stroke="var(--adm-border)"
                     strokeWidth="1"
                     strokeDasharray="4 4"
                   />
@@ -660,10 +660,10 @@ export const AdminReportsView: React.FC<AdminReportsViewProps> = ({
                 return (
                   <>
                     <path d={blueArea} fill="url(#p9-gradient-blue)" />
-                    <path d={bluePath} fill="none" stroke="#3b82f6" strokeWidth="2.5" />
+                    <path d={bluePath} fill="none" stroke="var(--adm-primary, #075E5B)" strokeWidth="2.5" />
 
                     <path d={greenArea} fill="url(#p9-gradient-green)" />
-                    <path d={greenPath} fill="none" stroke="#10b981" strokeWidth="2.5" />
+                    <path d={greenPath} fill="none" stroke="#15966F" strokeWidth="2.5" />
 
                     {/* Invisible hover capture zones */}
                     {dailyTrend.map((pt, i) => {
@@ -716,10 +716,10 @@ export const AdminReportsView: React.FC<AdminReportsViewProps> = ({
                   </span>
                 </div>
                 <div style={{ display: "flex", gap: 12 }}>
-                  <span style={{ color: "#3b82f6", fontWeight: 600 }}>
+                  <span style={{ color: "var(--adm-primary, #075E5B)", fontWeight: 600 }}>
                     Intake: {hoveredTrendPoint.newCases}
                   </span>
-                  <span style={{ color: "#10b981", fontWeight: 600 }}>
+                  <span style={{ color: "#15966F", fontWeight: 600 }}>
                     Verified: {hoveredTrendPoint.verifiedDocs}
                   </span>
                   {hoveredTrendPoint.ocrFailures > 0 && (
