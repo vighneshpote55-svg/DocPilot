@@ -138,6 +138,24 @@ Company OCR service integration (workflow STEP 6):
   - Permanent 4xx errors mark `ocr_status="failed"` and route to human review without infinite loops.
   - When all 3 attempts are exhausted, `on_exhausted_process_document` routes the document to `ManualReview` (`ocr_service_unavailable`), preserving the document without data loss.
 
+Step 7: PII Privacy Gateway / Deterministic Masking:
+- **Boundary & Placement**:
+  - Sits strictly between raw OCR output ingestion (Step 6) and downstream rules/AI evaluation (Step 8+).
+  - Normalizes extracted OCR fields/evidence into a privacy-safe representation.
+  - Raw unmasked OCR text (`raw_text`, `full_text`, `extracted_text`) is stripped from the privacy-safe evidence bundle.
+- **Deterministic Masking**:
+  - Full redaction (`[MASKED]` / `[REDACTED]` / `[MASKED-EMAIL]`): Aadhaar full numbers, date of birth, phone/mobile numbers, email addresses, passwords, CVVs, pins.
+  - Partial / Structural preservation (`XXXX<last4>`): PAN numbers (`XXXX123F`), bank account numbers (`XXXX9012`), passport, voter ID, driving licence, UAN.
+  - Non-sensitive fields preserved intact: customer names, holder names, employer/business names, document types, IFSC codes, dates/validity, OCR confidence scores, field confidences, and diagnostics.
+  - Supports multi-page documents (`pages` array elements sanitized and stripped of raw text).
+- **Storage & Isolation**:
+  - Plaintext document bytes never touch disk.
+  - Encrypted documents remain AES-256-GCM encrypted in private storage and are never mutated.
+  - Redacted evidence is persisted into `ocr_results` and represents the only evidence made available to future AI, human review, and API routes.
+- **Fail-Safe Operation**:
+  - In case of unexpected malformed OCR payloads or masking failures, the pipeline catches exceptions, sets `doc.ocr_status = "failed"`, audits `privacy_gateway_failed` without PII, and routes the document safely to manual review (`privacy_gateway_error`) rather than falling back to unmasked raw OCR.
+  - Zero PII emitted in audit logs (`privacy_gateway_completed` records counts and detected category names only).
+
 
 
 Security & abuse protection (Phase B4 built):

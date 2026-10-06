@@ -59,7 +59,20 @@ def handle_process_document(db, payload: dict) -> None:
     except TypeError:
         res = get_ocr_client().extract(data, doc.filename, doc.mime, doc.doc_type, expected)  # may raise -> retry
 
-    masked = create_redacted_evidence(res)  # raw values live in memory only
+    # Privacy Gateway: deterministically mask PII before storing evidence or running rules
+    try:
+        masked = create_redacted_evidence(res)  # raw values live in memory only
+        audit(db, "system", "privacy_gateway_completed", "document", doc.id, {
+            "pii_detected_count": len(masked.get("pii_detected", [])),
+            "pii_categories": masked.get("pii_detected", []),
+        })
+    except Exception as e:
+        log.exception("Privacy gateway masking failed for document %s: %s", doc.id, e)
+        doc.ocr_status = "failed"
+        audit(db, "system", "privacy_gateway_failed", "document", doc.id, {"reason": "masking_failure"})
+        apply_decision(db, doc, customer, rules.Decision("manual_review", ["privacy_gateway_error"], "privacy_masking_failed"))
+        return
+
     ocr_rec = db.scalar(select(OcrResult).where(OcrResult.document_id == doc.id))
     if ocr_rec:
         ocr_rec.payload = masked

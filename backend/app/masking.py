@@ -9,12 +9,25 @@ PHONE = re.compile(r"(?<!\d)(?:\+?91[\s-]?)?[6-9]\d{9}(?!\d)")
 ACCOUNT = re.compile(r"((?:ACCOUNT|A/C|ACCT)(?:\s+(?:NO|NUMBER))?\s*[:\-]?\s*)([0-9X* -]{6,24})", re.I)
 DOB = re.compile(r"((?:DATE OF BIRTH|DOB)\s*[:\-]?\s*)(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})", re.I)
 
-FULL_MASK_TOKENS = {"dob", "birth", "address", "phone", "mobile", "email", "contact"}
-PARTIAL_MASK_TOKENS = {"pan", "aadhaar", "aadhar", "account", "acc", "passport", "voter", "epic", "licence", "license", "dl", "uan"}
-NOT_SENSITIVE_TOKENS = {"name", "holder", "type", "status", "confidence", "confidences"}
+FULL_MASK_TOKENS = {
+    "dob", "birth", "address", "phone", "mobile", "cell", "contact",
+    "email", "mail", "pin", "password", "secret", "cvv"
+}
+PARTIAL_MASK_TOKENS = {
+    "pan", "aadhaar", "aadhar", "uidai", "account", "acc", "acct",
+    "passport", "voter", "epic", "licence", "license", "dl", "uan",
+    "cheque", "serial", "cin", "din"
+}
+NOT_SENSITIVE_TOKENS = {
+    "name", "holder", "type", "status", "confidence", "confidences",
+    "reason", "employer", "enterprise", "business", "bank", "ifsc",
+    "amount", "rent", "date", "valid", "expiry"
+}
 
 
 def mask_text(text: str) -> str:
+    if not isinstance(text, str):
+        return text
     text = ACCOUNT.sub(lambda m: m.group(1) + _last4(m.group(2)), text)
     text = AADHAAR.sub(lambda m: f"XXXX XXXX {m.group(3)}", text)
     text = PAN.sub(lambda m: f"{m.group(1)[:3]}****{m.group(3)}", text)
@@ -37,12 +50,15 @@ def _key_class(key: str | None) -> str | None:
     if not key:
         return None
     t = _tokens(key)
-    if t & NOT_SENSITIVE_TOKENS:
+    # If the key explicitly designates a holder or person/entity name, it is NOT sensitive identifiers
+    if "holder" in t or "name" in t:
         return None
     if t & FULL_MASK_TOKENS:
         return "full"
     if t & PARTIAL_MASK_TOKENS:
         return "partial"
+    if t & NOT_SENSITIVE_TOKENS:
+        return None
     return None
 
 
@@ -64,7 +80,6 @@ def mask_fields(obj: Any, key: str | None = None) -> Any:
     return obj
 
 
-
 def detect_pii(data: Any) -> list[str]:
     """Detect presence of PII categories in text or structured dictionaries/lists."""
     detected = set()
@@ -72,7 +87,7 @@ def detect_pii(data: Any) -> list[str]:
     if isinstance(data, dict):
         for k, v in data.items():
             kl = str(k).lower()
-            if any(t in kl for t in ("aadhaar", "aadhar")):
+            if any(t in kl for t in ("aadhaar", "aadhar", "uidai")):
                 detected.add("aadhaar")
             if "pan" in kl and "company" not in kl:
                 detected.add("pan")
@@ -80,9 +95,9 @@ def detect_pii(data: Any) -> list[str]:
                 detected.add("account_number")
             if any(t in kl for t in ("dob", "birth")):
                 detected.add("dob")
-            if any(t in kl for t in ("phone", "mobile")):
+            if any(t in kl for t in ("phone", "mobile", "cell", "contact")):
                 detected.add("phone")
-            if "email" in kl:
+            if any(t in kl for t in ("email", "mail")):
                 detected.add("email")
             if isinstance(v, (dict, list)):
                 detected.update(detect_pii(v))
@@ -114,31 +129,67 @@ def detect_pii(data: Any) -> list[str]:
 def create_redacted_evidence(res: Any) -> dict[str, Any]:
     """Generate a clean, standardized redacted evidence bundle from an OCRResult or dict.
 
-    Preserves non-sensitive operational metadata (names, document types, confidences)
+    Preserves non-sensitive operational metadata (names, document types, confidences, dates)
     while strictly masking all sensitive identifiers (PAN, Aadhaar, Account numbers, DOB, Contact).
+    Raw OCR text is explicitly stripped from the returned evidence bundle.
     """
+    if res is None:
+        return {
+            "status": "error",
+            "confidence": 0.0,
+            "field_confidences": {},
+            "extracted_fields": {},
+            "pii_detected": [],
+            "reason": "empty_ocr_result",
+        }
+
     raw_dict = res.model_dump() if hasattr(res, "model_dump") else (dict(res) if isinstance(res, dict) else {})
 
     extracted = raw_dict.get("extracted_fields") or {}
     detected_pii_types = detect_pii(extracted)
 
+    # Clean raw unmasked text fields before masking
+    sanitized_source = {k: v for k, v in raw_dict.items() if k not in ("raw_text", "full_text", "extracted_text")}
+
     # Mask the entire dictionary recursively
-    masked_payload = mask_fields(raw_dict)
+    masked_payload = mask_fields(sanitized_source)
+
+    # Preserve pages structure if present (e.g. multi-page documents) but ensure content is masked
+    masked_pages = masked_payload.get("pages")
+    if isinstance(masked_pages, list):
+        clean_pages = []
+        for p in masked_pages:
+            if isinstance(p, dict):
+                clean_pages.append({k: v for k, v in p.items() if k not in ("full_text", "raw_text")})
+            else:
+                clean_pages.append(p)
+    else:
+        clean_pages = None
+
+    # Safely convert confidence to float
+    raw_conf = raw_dict.get("confidence", 0.0)
+    try:
+        conf_val = float(raw_conf) if raw_conf is not None else 0.0
+    except (ValueError, TypeError):
+        conf_val = 0.0
 
     # Bundle into standardized Redacted Evidence schema
     evidence = {
         "status": raw_dict.get("status", "error"),
         "doc_type": raw_dict.get("doc_type"),
         "detected_type": raw_dict.get("detected_type"),
-        "confidence": raw_dict.get("confidence", 0.0),
-        "field_confidences": raw_dict.get("field_confidences", {}),
-        "extracted_fields": masked_payload.get("extracted_fields", {}),
+        "confidence": conf_val,
+        "field_confidences": raw_dict.get("field_confidences", {}) if isinstance(raw_dict.get("field_confidences"), dict) else {},
+        "extracted_fields": masked_payload.get("extracted_fields", {}) if isinstance(masked_payload.get("extracted_fields"), dict) else {},
         "pii_detected": detected_pii_types,
         "reason": raw_dict.get("reason"),
         "cross_check": masked_payload.get("cross_check"),
-        "qr_disagreements": masked_payload.get("qr_disagreements", []),
+        "qr_disagreements": masked_payload.get("qr_disagreements", []) if isinstance(masked_payload.get("qr_disagreements"), list) else [],
         "risk_flags": raw_dict.get("risk_flags"),
         "risk_score": raw_dict.get("risk_score"),
         "verification_status": raw_dict.get("verification_status"),
     }
+    if clean_pages is not None:
+        evidence["pages"] = clean_pages
+
     return evidence
