@@ -597,6 +597,7 @@ def confirm_privacy_request(db, raw: str) -> str | None:
         c.consent_status, c.case_status = "withdrawn", "consent_withdrawn"
         c.workflow_state = "CONSENT_WITHDRAWN"
         c.delete_after = utcnow() + timedelta(days=get_settings().retention_days)
+        db.execute(update(AccessToken).where(AccessToken.customer_id == c.id).values(revoked=True))
         emailer.withdrawal_confirmation(c.email, c.name)
     pr.status, pr.completed_at = "completed", utcnow()
     audit(db, "customer", "privacy_" + pr.action, "customer", c.id)

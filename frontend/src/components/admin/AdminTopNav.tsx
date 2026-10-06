@@ -2,7 +2,6 @@ import React, { useState, useRef, useEffect } from "react";
 import {
   IconMenu,
   IconPlus,
-  IconLogOut,
   IconCheck,
   IconBell,
   IconChevronDown,

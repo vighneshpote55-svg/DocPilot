@@ -237,6 +237,13 @@ Step 11: Reminders + Completion + 7-Day Retention + Permanent Deletion (built):
 - Access Restriction: Deleted files return 410 Gone; cannot be downloaded or viewed.
 - Fail-Safe Isolation: Operates on one customer per transaction; failures log safely without raw PII and retry safely.
 
+Step 12: Final Privacy Requests + End-to-End Workflow Verification (built):
+- Right to be Forgotten (Privacy Deletion): Double opt-in via silent request (`POST /api/public/privacy/request`) + single-use verification token confirmation (`POST /api/public/privacy/confirm/{token}`). Anonymizes personal records (`name='[deleted]'`, `email='deleted-{id}@invalid.local'`), purges encrypted files in Storage, temporary OCR records, manual review records, and customer tokens. Preserves audit identifiers and `ConsentLedger(event='deleted')`. Sends deletion confirmation email.
+- Consent Withdrawal: Double opt-in confirmation transitions case to `consent_withdrawn`, `workflow_state='CONSENT_WITHDRAWN'`, revokes active upload tokens, blocks future uploads (404/403), schedules 7-day retention, records `ConsentLedger(event='withdrawn')`, and dispatches withdrawal confirmation email.
+- Job Queue Blocking: Worker pipeline automatically intercepts and terminates processing (`ocr_status='failed'`, `reason='processing_stopped'`) if customer consent is withdrawn or case is closed before job dispatch.
+- Full E2E Workflow Verification: Validates customer creation -> consent -> upload -> encrypted storage -> OCR -> masking gateway -> rules engine -> redacted AI -> manual review -> pending recalculation -> reminders -> completion -> retention -> permanent deletion.
+- Zero PII Leakage: Verified across all workflows that raw PAN, Aadhaar, account numbers, and mobile numbers never appear in logs, audit records, or HTTP error responses.
+
 ## 7. Frontend (React + TypeScript + Vite)
 
 Routes: `/consent/:token`, `/portal/:token`, `/privacy`, `/privacy/confirm/:token`, `/admin` (sign in), `/admin/customers`, `/admin/customers/:id` (Documents tab), `/admin/reviews`, `/admin/audit`.
