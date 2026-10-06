@@ -4,6 +4,8 @@ import {
   IconPlus,
   IconLogOut,
   IconCheck,
+  IconBell,
+  IconChevronDown,
 } from "./AdminIcons";
 import { ThemeToggle } from "../ThemeToggle";
 import type { AdminNavTab } from "./AdminSidebar";
@@ -141,7 +143,13 @@ export const AdminTopNav: React.FC<AdminTopNavProps> = ({
             type="button"
             className="system-status-pill"
             onClick={() => setShowHealthPopover((prev) => !prev)}
-            style={{ cursor: "pointer", border: "1px solid var(--adm-border)" }}
+            style={{
+              cursor: "pointer",
+              border: isSystemLive ? "1px solid rgba(16, 185, 129, 0.3)" : "1px solid rgba(239, 68, 68, 0.3)",
+              background: isSystemLive ? "rgba(16, 185, 129, 0.12)" : "rgba(239, 68, 68, 0.12)",
+              color: isSystemLive ? "var(--adm-success)" : "var(--adm-danger)",
+              fontWeight: 600,
+            }}
             title="Click to view real-time system health diagnostics"
             aria-expanded={showHealthPopover}
           >
@@ -214,17 +222,38 @@ export const AdminTopNav: React.FC<AdminTopNavProps> = ({
           )}
         </div>
 
-        {/* Quick Action Button: New Customer */}
-        <button
-          type="button"
-          className="topnav-add-btn"
-          onClick={onAddCustomer}
-          id="btn-add-customer-topnav"
-          title="Create a new customer verification case"
-        >
-          <IconPlus size={16} />
-          <span>New Customer</span>
-        </button>
+        {/* Notification Bell */}
+        <div style={{ position: "relative", marginLeft: 4 }}>
+          <button
+            type="button"
+            className="topnav-icon-btn"
+            style={{ borderRadius: "50%", width: 36, height: 36, padding: 0, border: "1px solid var(--adm-border)" }}
+            title="Notifications"
+          >
+            <IconBell size={18} color="var(--adm-text-secondary)" />
+          </button>
+          <span
+            style={{
+              position: "absolute",
+              top: -4,
+              right: -4,
+              background: "#ef4444",
+              color: "#fff",
+              fontSize: 10,
+              fontWeight: 800,
+              borderRadius: "50%",
+              minWidth: 16,
+              height: 16,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              border: "2px solid var(--adm-surface)",
+              lineHeight: 1,
+            }}
+          >
+            3
+          </span>
+        </div>
 
         {/* Theme Toggle */}
         <ThemeToggle
@@ -234,25 +263,48 @@ export const AdminTopNav: React.FC<AdminTopNavProps> = ({
           onToggle={onToggleTheme}
         />
 
-        {/* Admin Profile & Sign Out */}
-        <div className="admin-profile-menu">
-          <div className="admin-avatar" title={adminEmail}>
+        {/* Quick Action Button: New Customer */}
+        <button
+          type="button"
+          className="topnav-add-btn"
+          onClick={onAddCustomer}
+          id="btn-add-customer-topnav"
+          title="Create a new customer verification case"
+          style={{ background: "var(--c-primary)", borderColor: "var(--c-primary)", borderRadius: 8, boxShadow: "none" }}
+        >
+          <IconPlus size={16} />
+          <span>New Customer</span>
+        </button>
+
+        {/* Vertical Divider */}
+        <div style={{ width: 1, height: 28, background: "var(--adm-border)", margin: "0 4px" }} />
+
+        {/* Admin Profile & Sign Out Dropdown */}
+        <div className="admin-profile-menu" style={{ borderLeft: "none", paddingLeft: 0, cursor: "pointer" }}>
+          <div className="admin-avatar" title={adminEmail} style={{ background: "var(--c-primary)", borderColor: "transparent" }}>
             {getInitials(adminEmail)}
           </div>
           <div className="admin-info">
             <span className="admin-name">{adminName || "Staff Admin"}</span>
-            <span className="admin-email">{adminEmail}</span>
+            <span className="admin-email" style={{ fontSize: 11, color: "var(--adm-text-muted)" }}>Administrator</span>
           </div>
           <button
             type="button"
-            className="topnav-signout-btn"
+            style={{
+              background: "transparent",
+              border: "none",
+              color: "var(--adm-text-secondary)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 0,
+              cursor: "pointer",
+              marginLeft: 4,
+            }}
             onClick={onSignOut}
-            title="Sign out of Admin Dashboard"
-            aria-label="Sign out of Admin Dashboard"
-            id="staff-sign-out"
+            title="Sign out"
           >
-            <IconLogOut size={16} />
-            <span className="signout-text">Sign out</span>
+            <IconChevronDown size={16} />
           </button>
         </div>
       </div>

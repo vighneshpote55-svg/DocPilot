@@ -502,10 +502,10 @@ export const IconKey: React.FC<IconProps> = ({ size = 20, className = "", style,
     <path d="m21 2-9.6 9.6" />
     <path d="m15.5 7.5 3 3L22 7l-3-3" />
   </svg>
+);export const IconChevronDown: React.FC<IconProps> = ({ size = 20, className = "", style, color = "currentColor" }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className} style={style}>
+    <path d="m6 9 6 6 6-6" />
+  </svg>
 );
-
-
-
-
 
 
