@@ -53,11 +53,14 @@ def consent_submit(token: str, body: ConsentBody, db: Session = Depends(get_db))
         raise HTTPException(404, "invalid_or_expired_link")
     c = db.get(Customer, t.customer_id)
     try:
-        services.record_consent(db, c, body.granted)
+        upload_tok = services.record_consent(db, c, body.granted)
     except ValueError:
         raise HTTPException(409, "consent_already_recorded")
     db.commit()
-    return {"consent": "granted" if body.granted else "declined"}
+    res = {"consent": "granted" if body.granted else "declined"}
+    if upload_tok:
+        res["upload_token"] = upload_tok
+    return res
 
 
 @router.post("/privacy/request", status_code=202, dependencies=[Depends(rate_limit_privacy)])

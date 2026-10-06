@@ -90,6 +90,21 @@ def label(key: str) -> str:
     return CANONICAL.get(key, key)
 
 
+def _squash(v) -> str:
+    return re.sub(r"[^a-z0-9]+", "", str(v or "").lower())
+
+
+_STRICT: dict[str, str] = {}
+for _k, _l in CANONICAL.items():
+    _STRICT[_squash(_k)] = _k
+    _STRICT[_squash(_l)] = _k
+
+
+def strict_key(v) -> str | None:
+    """Exact canonical key or exact label (case/punctuation ignored). No fuzzy matching."""
+    return _STRICT.get(_squash(v))
+
+
 # If your OCR service names a type differently from our canonical key, map it here.
 OCR_TYPE_NAMES: dict[str, str] = {k: k for k in CANONICAL}
 OCR_TYPE_NAMES["voter"] = "voter_id"

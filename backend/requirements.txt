@@ -10,3 +10,4 @@ PyJWT>=2.8
 python-multipart>=0.0.9
 pytest>=8
 alembic>=1.13
+openpyxl>=3.1

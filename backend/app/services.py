@@ -4,7 +4,7 @@ import re
 import secrets
 from datetime import timedelta
 
-from sqlalchemy import delete, select, update
+from sqlalchemy import delete, func, select, update
 
 from . import emailer
 from .config import get_settings
@@ -17,6 +17,7 @@ from .models import (
 )
 from .security import hash_token, new_token
 from .storage import delete_file, put_file
+from .validation import normalize_email, normalize_mobile, normalize_name
 
 SINGLE_USE = {"consent", "privacy"}
 ALLOWED_EXT = {".pdf": "application/pdf", ".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg"}
@@ -35,17 +36,52 @@ def audit(db, actor: str, action: str, entity_type: str | None = None, entity_id
 
 
 # ------------------------------------------------------------------ customers
-def create_customer(db, name: str, email: str, mobile: str | None, required: list[str], actor: str) -> Customer:
+OPEN_CASE_STATUSES = ("awaiting_consent", "in_progress")
+
+
+class CustomerError(ValueError):
+    def __init__(self, code: str, message: str, status: int = 422):
+        super().__init__(message)
+        self.code, self.message, self.status = code, message, status
+
+
+def validate_customer_input(db, name: str, email: str, mobile: str | None,
+                            required: list[str]) -> tuple[str, str, str | None, list[str]]:
+    """STEP 2 rules (normalization, doc types, duplicate). Read-only; raises CustomerError."""
+    try:
+        name = normalize_name(name)
+    except ValueError:
+        raise CustomerError("invalid_name", "Name is required.")
+    try:
+        email = normalize_email(email)
+    except ValueError:
+        raise CustomerError("invalid_email", "Enter a valid email address.")
+    try:
+        mobile = normalize_mobile(mobile)
+    except ValueError:
+        raise CustomerError("invalid_mobile", "Enter a valid 10-digit mobile number.")
     keys: list[str] = []
-    for r in required:
+    for r in required or []:
         k = canonical_key(r)
         if k is None:
-            raise ValueError(f"Unsupported document type: {r}")
+            raise CustomerError("unsupported_document_type", f"Unsupported document type: {r}")
         if k not in keys:
             keys.append(k)
     if not keys:
-        raise ValueError("At least one required document is needed")
-    c = Customer(name=name.strip(), email=email.strip().lower(), mobile=mobile)
+        raise CustomerError("required_documents_empty", "At least one required document is needed")
+    dup = db.scalar(select(Customer.id).where(
+        func.lower(Customer.email) == email,
+        Customer.case_status.in_(OPEN_CASE_STATUSES),
+        Customer.data_deleted_at.is_(None),
+    ).limit(1))
+    if dup is not None:
+        raise CustomerError("duplicate_customer", "A customer with this email already has an open case.", 409)
+    return name, email, mobile, keys
+
+
+def insert_customer(db, name: str, email: str, mobile: str | None, keys: list[str], actor: str) -> Customer:
+    """Adds already-validated customer + checklist + audit to the caller's transaction (flush only)."""
+    c = Customer(name=name, email=email, mobile=mobile)
     db.add(c)
     db.flush()
     for k in keys:
@@ -53,6 +89,11 @@ def create_customer(db, name: str, email: str, mobile: str | None, required: lis
     audit(db, actor, "customer_created", "customer", c.id)
     db.flush()
     return c
+
+
+def create_customer(db, name: str, email: str, mobile: str | None, required: list[str], actor: str) -> Customer:
+    """Adds customer + checklist to the caller's transaction (flush only; caller commits or rolls back)."""
+    return insert_customer(db, *validate_customer_input(db, name, email, mobile, required), actor)
 
 
 def required_rows(db, customer_id: int) -> list[RequiredDocument]:
@@ -198,6 +239,10 @@ def recalc_case(db, customer: Customer) -> dict:
             customer.completed_at = None
             customer.delete_after = None
             audit(db, "system", "case_reopened", "customer", customer.id, {"pending_count": len(pending)})
+        elif customer.case_status == "in_progress":
+            has_docs = db.scalar(select(Document.id).where(Document.customer_id == customer.id).limit(1)) is not None
+            if has_docs:
+                customer.workflow_state = "IN_PROGRESS"
 
     db.flush()
     return {
@@ -240,29 +285,32 @@ def send_consent_email(db, customer: Customer) -> None:
     emailer.consent_request(customer.email, customer.name, labels, f"{s.public_base_url}/consent/{raw}")
 
 
-def send_upload_link(db, customer: Customer, reminder: bool = False) -> None:
+def send_upload_link(db, customer: Customer, reminder: bool = False) -> str:
     s = get_settings()
     raw = issue_token(db, customer.id, "upload", timedelta(hours=s.upload_token_hours))
     labels = [label(k) for k in pending_keys(db, customer.id)]
     emailer.pending_documents(customer.email, customer.name, labels, f"{s.public_base_url}/portal/{raw}", reminder)
+    return raw
 
 
-def record_consent(db, customer: Customer, granted: bool) -> None:
+def record_consent(db, customer: Customer, granted: bool) -> str | None:
     s = get_settings()
     if customer.consent_status != "pending":
         raise ValueError("consent already recorded")
     db.add(ConsentLedger(customer_id=customer.id, event="granted" if granted else "declined"))
+    upload_tok = None
     if granted:
         now = utcnow()
         customer.consent_status, customer.case_status = "granted", "in_progress"
-        customer.workflow_state = "IN_PROGRESS"
+        customer.workflow_state = "CONSENT_GRANTED"
         customer.consent_at = now
         customer.case_expires_at = now + timedelta(days=s.case_expiry_days)
-        send_upload_link(db, customer)
+        upload_tok = send_upload_link(db, customer)
     else:
         customer.consent_status, customer.case_status = "declined", "consent_declined"
         customer.workflow_state = "CONSENT_WITHDRAWN"
     audit(db, "customer", "consent_" + ("granted" if granted else "declined"), "customer", customer.id)
+    return upload_tok
 
 
 # ------------------------------------------------------------------ uploads & otp

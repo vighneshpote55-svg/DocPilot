@@ -6,19 +6,23 @@ from typing import Literal
 
 
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
 
 from fastapi.responses import Response
 
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel
 
 from sqlalchemy import func, select
+
+from sqlalchemy.exc import SQLAlchemyError
+
+import logging
 
 from sqlalchemy.orm import Session
 
 
 
-from . import services
+from . import excel_import, services
 
 from .config import get_settings
 
@@ -36,13 +40,11 @@ from .storage import get_file
 
 router = APIRouter(prefix="/api/admin", tags=["admin"])
 
-EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
-
-
-
+log = logging.getLogger("docpilot.admin")
 
 
 class CustomerIn(BaseModel):
+    """Shape only; normalization and business validation live in services.create_customer."""
 
     name: str
 
@@ -53,20 +55,6 @@ class CustomerIn(BaseModel):
     required_documents: list[str]
 
     send_consent: bool = True
-
-
-
-    @field_validator("email")
-
-    @classmethod
-
-    def _email(cls, v: str) -> str:
-
-        if not EMAIL_RE.match(v.strip()):
-
-            raise ValueError("invalid email")
-
-        return v.strip().lower()
 
 
 
@@ -121,7 +109,8 @@ def customer_out(db: Session, c: Customer, with_docs: bool = False) -> dict:
         req = services.required_status(db, c.id, customer=c)
     out = {
         "id": c.id, "code": c.code, "name": c.name, "email": c.email, "mobile": c.mobile,
-        "consent_status": c.consent_status, "case_status": c.case_status, "created_at": c.created_at,
+        "consent_status": c.consent_status, "case_status": c.case_status, "workflow_state": c.workflow_state,
+        "created_at": c.created_at,
         "completed_at": c.completed_at, "delete_after": c.delete_after, "data_deleted_at": c.data_deleted_at,
         "required": req, "required_count": len(req),
         "received_count": sum(1 for r in req if r["state"] == "verified"),
@@ -295,20 +284,93 @@ def list_documents(response: Response, q: str | None = None, doc_type: str | Non
 def create_customer(body: CustomerIn, db: Session = Depends(get_db), admin: str = Depends(require_admin)):
 
     try:
-
         c = services.create_customer(db, body.name, body.email, body.mobile, body.required_documents, admin)
-
-    except ValueError as e:
-
-        raise HTTPException(422, str(e))
-
+        db.commit()  # customer + checklist + audit commit atomically
+    except services.CustomerError as e:
+        db.rollback()
+        raise HTTPException(e.status, {"code": e.code, "message": e.message})
+    except SQLAlchemyError:
+        db.rollback()
+        log.error("customer_create_failed")
+        raise HTTPException(500, {"code": "create_failed", "message": "Could not create customer."})
     if body.send_consent:
-
-        services.send_consent_email(db, c)
-
-    db.commit()
-
+        try:
+            services.send_consent_email(db, c)
+            db.commit()
+        except Exception:
+            db.rollback()
+            log.warning("consent_email_failed customer_id=%s", c.id)
     return customer_out(db, c)
+
+
+def _read_import(file: UploadFile, db: Session) -> list[excel_import.RowResult]:
+    data = file.file.read(excel_import.MAX_BYTES + 1)  # bounded read, kept in memory only
+    try:
+        rows = excel_import.parse_workbook(file.filename, data)
+    except excel_import.ImportFileError as e:
+        raise HTTPException(e.status, {"code": e.code, "message": e.message})
+    finally:
+        del data
+    return excel_import.evaluate(db, rows)
+
+
+@router.post("/customers/import/preview")
+def import_preview(file: UploadFile = File(...), db: Session = Depends(get_db), admin: str = Depends(require_admin)):
+    """Validate an .xlsx without writing anything or sending any email."""
+    results = _read_import(file, db)
+    db.rollback()
+    detected = sorted({k for r in results if r.status == "valid" for k in r.required_documents})
+    return {**excel_import.summary(results), "document_types_detected": detected,
+            "rows": [r.out() for r in results]}
+
+
+@router.post("/customers/import")
+def import_customers(file: UploadFile = File(...), db: Session = Depends(get_db), admin: str = Depends(require_admin)):
+    """Re-validate, then create all valid rows in one transaction; consent emails only after commit."""
+    results = _read_import(file, db)
+    s = excel_import.summary(results)
+    valid = [r for r in results if r.status == "valid"]
+    created: list[tuple[excel_import.RowResult, Customer]] = []
+    try:
+        for r in valid:
+            created.append((r, services.insert_customer(db, r.name, r.email, r.mobile, r.required_documents, admin)))
+        services.audit(db, admin, "customers_imported", "import", None, {
+            "total": s["total_rows"], "imported": len(created), "rejected": s["invalid_rows"],
+            "duplicates": s["duplicate_rows"], "failed": 0})
+        db.commit()
+    except SQLAlchemyError:
+        db.rollback()
+        log.error("customer_import_failed rows=%s", len(valid))
+        try:
+            services.audit(db, admin, "customers_import_failed", "import", None, {
+                "total": s["total_rows"], "imported": 0, "rejected": s["invalid_rows"],
+                "duplicates": s["duplicate_rows"], "failed": len(valid)})
+            db.commit()
+        except SQLAlchemyError:
+            db.rollback()
+        raise HTTPException(500, {"code": "import_failed", "message": "Import failed. No customers were created."})
+    log.info("customer_import_committed imported=%s total=%s", len(created), s["total_rows"])
+
+    email_failures: list[dict] = []
+    sent = 0
+    for r, c in created:
+        if not r.send_consent:
+            continue
+        try:
+            services.send_consent_email(db, c)
+            db.commit()
+            sent += 1
+        except Exception:
+            db.rollback()
+            log.warning("consent_email_failed customer_id=%s", c.id)
+            email_failures.append({"row": r.row, "customer_id": c.id, "code": "email_failed"})
+    return {
+        "total_rows": s["total_rows"], "imported": len(created), "rejected": s["invalid_rows"],
+        "duplicates": s["duplicate_rows"], "failed": 0,
+        "email_sent": sent, "email_failed": len(email_failures), "email_failures": email_failures,
+        "created": [{"row": r.row, "id": c.id, "code": c.code} for r, c in created],
+        "rows": [r.out() for r in results],
+    }
 
 
 
