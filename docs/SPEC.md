@@ -91,6 +91,30 @@ Consent & secure token service (workflow STEP 4):
   - If `granted=False`: `consent_status="declined"`, `case_status="consent_declined"`, `workflow_state="CONSENT_WITHDRAWN"`. Appends `ConsentLedger(event="declined")`. Case stops.
 - Consent withdrawal: customer requests withdrawal via `POST /api/public/privacy/request` (`action="withdraw"`) and confirms via single-use email token `POST /api/public/privacy/confirm/{token}`. Sets `consent_status="withdrawn"`, `case_status="consent_withdrawn"`, `workflow_state="CONSENT_WITHDRAWN"`, schedules retention purge `delete_after` (7 days), appends `ConsentLedger(event="withdrawn")`, immediately revokes all active customer access tokens, and blocks document uploads and scheduled reminders.
 
+Secure document upload & encrypted storage (workflow STEP 5):
+- Access & Token Isolation:
+  - Token purpose must be `upload`, non-expired, non-revoked.
+  - Customer workflow state must not be `CONSENT_WITHDRAWN`, `DELETED`, or `COMPLETED`. Customer `consent_status` must be `granted`.
+  - Document slot must belong to customer checklist in `required_documents`. If already verified, re-upload is rejected (409 Conflict).
+  - Anti-enumeration: invalid/expired/revoked tokens, non-existent customer cases, or cross-customer slot access return 404 `invalid_or_expired_link` with zero PII or case detail leakage.
+- File validation (`validation.validate_file`):
+  - Supported extensions & MIME types: `.pdf` (`application/pdf`), `.png` (`image/png`), `.jpg`/`.jpeg` (`image/jpeg`).
+  - Size limits: 100 bytes minimum to reject empty/dummy files, 15 MB maximum (`MAX_UPLOAD_BYTES = 15 * 1024 * 1024`). Excess triggers 413 `file_too_large`.
+  - Magic-byte inspection: enforces header byte signatures for PDF (`%PDF-`), PNG (`\x89PNG\r\n\x1a\n`), and JPEG (`\xff\xd8\xff`). Disallows executables, ZIP archives, shell scripts, and active PDF code (`/JavaScript`, `/Launch`).
+  - Filename normalization: strips directory paths, null bytes, and non-printable characters (`re.sub(r'[^A-Za-z0-9._-]', '_', clean_name)`), preventing path traversal. Storage keys are strictly server-generated UUIDs (`{customer_id}/{doc_id}.enc`).
+- AES-256-GCM Encryption before Storage:
+  - Plaintext bytes never touch disk or remote object storage.
+  - Symmetrically encrypted with server master `ENCRYPTION_KEY` using AES-256-GCM with a fresh 12-byte cryptographically secure random IV/nonce per file and authentication tag.
+  - Storage keys are never stored with encryption keys. Ciphertext disk payload cannot be deciphered or recognized without the master key.
+- Storage & Atomic Failure Cleanup:
+  - Supports `LocalStorage` and `SupabaseStorage` private bucket backends.
+  - Storage keys remain hidden from clients.
+  - If database metadata persistence fails after ciphertext is written, the newly stored object is immediately cleaned up (`storage.delete_file`), preventing storage orphans.
+- Document State & Resubmissions:
+  - On upload: `workflow_state="UPLOADED"`, `verification_status="not_started"`, `ocr_status="waiting"`, `file_state="stored"`. The document is never marked verified in STEP 5.
+  - Resubmission/superseding: re-uploading an unverified slot supersedes prior upload rows (`superseded=True`, `file_state="deleted"`) and purges their physical encrypted storage objects while updating customer workflow state to `IN_PROGRESS`.
+
+
 Security & abuse protection (Phase B4 built):
 - Rate limiting: sliding window limiter on portal (`GET`, `/otp/*`), upload (`POST /upload`), consent (`GET|POST /consent/*`), and privacy (`POST /privacy/*`) endpoints. Returns 429 `rate_limited`.
 - Magic-byte file validation: inspects headers for PDF (`%PDF-`), PNG (`\x89PNG\r\n\x1a\n`), and JPEG (`\xff\xd8\xff`). Disguised executables (`MZ`, `\x7fELF`, `\xca\xfe\xba\xbe`), archives (`PK\x03\x04`), shell scripts (`#!/`), HTML/script tags (`<script`, `<?php`), and unsafe active PDFs (`/JavaScript`, `/Launch`, `/Encrypt`) are rejected.

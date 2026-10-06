@@ -457,7 +457,9 @@ def accept_upload(db, customer: Customer, doc_type_raw: str, filename: str, data
         raise UploadError("not_required", "That document is not on your required list.", 400)
     if required[slot].verified_document_id:
         raise UploadError("already_verified", "That document is already verified.", 409)
-    safe_name = re.sub(r"[^\w.\- ]", "_", filename.rsplit("/", 1)[-1])[:200] or "upload"
+    # Sanitize filename against directory traversal and control characters
+    base_name = filename.replace("\\", "/").rsplit("/", 1)[-1]
+    safe_name = re.sub(r"[^\w.\- ]", "_", base_name).strip()[:200] or "upload"
     mime = _validate_file(safe_name, data)
     sha = hashlib.sha256(data).hexdigest()
 
@@ -468,26 +470,31 @@ def accept_upload(db, customer: Customer, doc_type_raw: str, filename: str, data
         return same
 
     doc = Document(customer_id=customer.id, doc_type=slot, filename=safe_name, mime=mime, size=len(data),
-                   sha256=sha, storage_key="")
+                   sha256=sha, storage_key="", workflow_state="UPLOADED", verification_status="not_started",
+                   ocr_status="waiting", file_state="stored")
     db.add(doc)
     db.flush()
     doc.storage_key = f"{customer.id}/{doc.id}.enc"
     put_file(doc.storage_key, data)
 
-    # a new upload for the slot replaces any earlier unverified one (and removes its file)
-    for old in db.scalars(select(Document).where(Document.customer_id == customer.id, Document.doc_type == slot,
-                                                 Document.id != doc.id, Document.superseded.is_(False))):
-        old.superseded = True
-        if old.file_state == "stored":
-            delete_file(old.storage_key)
-            old.file_state = "deleted"
-        db.execute(delete(ManualReview).where(ManualReview.document_id == old.id))
-        db.execute(delete(OcrResult).where(OcrResult.document_id == old.id))
+    try:
+        # a new upload for the slot replaces any earlier unverified one (and removes its file)
+        for old in db.scalars(select(Document).where(Document.customer_id == customer.id, Document.doc_type == slot,
+                                                     Document.id != doc.id, Document.superseded.is_(False))):
+            old.superseded = True
+            if old.file_state == "stored":
+                delete_file(old.storage_key)
+                old.file_state = "deleted"
+            db.execute(delete(ManualReview).where(ManualReview.document_id == old.id))
+            db.execute(delete(OcrResult).where(OcrResult.document_id == old.id))
 
-    audit(db, "customer", "document_uploaded", "document", doc.id, {"doc_type": slot})
-    enqueue(db, "process_document", {"document_id": doc.id}, max_attempts=get_settings().ocr_max_attempts)
-    recalc_case(db, customer)
-    db.flush()
+        audit(db, "customer", "document_uploaded", "document", doc.id, {"doc_type": slot})
+        enqueue(db, "process_document", {"document_id": doc.id}, max_attempts=get_settings().ocr_max_attempts)
+        recalc_case(db, customer)
+        db.flush()
+    except Exception:
+        delete_file(doc.storage_key)
+        raise
     return doc
 
 

@@ -26,9 +26,9 @@ def _customer_and_token(db: Session, token: str, *, require_open: bool = False) 
     c = db.get(Customer, t.customer_id)
     if not c:
         raise HTTPException(404, "invalid_or_expired_link")
-    if c.consent_status != "granted":
+    if c.consent_status != "granted" or c.workflow_state == "CONSENT_WITHDRAWN":
         raise HTTPException(403, "consent_required")
-    if require_open and c.case_status != "in_progress":
+    if require_open and (c.case_status != "in_progress" or c.workflow_state in ("COMPLETED", "DELETED", "CONSENT_WITHDRAWN")):
         raise HTTPException(409, "case_not_open")
     return c, t
 
@@ -101,6 +101,9 @@ def upload(token: str, doc_type: str = Form(...), file: UploadFile = File(...), 
     except services.UploadError as e:
         db.rollback()
         raise HTTPException(e.status, {"code": e.code, "message": e.message})
+    except Exception:
+        db.rollback()
+        raise HTTPException(500, {"code": "upload_failed", "message": "Failed to process document upload."})
     db.commit()
     return {"document_id": doc.id, "doc_type": doc.doc_type, "label": label(doc.doc_type),
             "state": services.customer_state_for_doc(doc)}
