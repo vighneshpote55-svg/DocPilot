@@ -20,10 +20,12 @@ class Customer(Base):
     mobile: Mapped[str | None] = mapped_column(String(32), nullable=True)
 
     # consent_status: pending | granted | declined | withdrawn
-    consent_status: Mapped[str] = mapped_column(String(20), default="pending")
+    consent_status: Mapped[str] = mapped_column(String(20), default="pending", index=True)
     # case_status: awaiting_consent | in_progress | completed | expired |
     #              consent_declined | consent_withdrawn | deleted
     case_status: Mapped[str] = mapped_column(String(24), default="awaiting_consent", index=True)
+
+    workflow_state: Mapped[str] = mapped_column(String(30), default="NOT_STARTED", index=True)
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     consent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
@@ -96,6 +98,8 @@ class Document(Base):
     # not_started | verified | rejected | manual_review
     file_state: Mapped[str] = mapped_column(String(10), default="stored")  # stored | deleted
     superseded: Mapped[bool] = mapped_column(Boolean, default=False)
+    
+    workflow_state: Mapped[str] = mapped_column(String(30), default="UPLOADED", index=True)
 
     flags: Mapped[list] = mapped_column(JSON, default=list)
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)

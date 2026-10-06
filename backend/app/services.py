@@ -185,6 +185,7 @@ def recalc_case(db, customer: Customer) -> dict:
         if customer.case_status == "in_progress":
             now = utcnow()
             customer.case_status = "completed"
+            customer.workflow_state = "COMPLETED"
             customer.completed_at = now
             customer.delete_after = now + timedelta(days=get_settings().retention_days)
             audit(db, "system", "case_completed", "customer", customer.id)
@@ -193,6 +194,7 @@ def recalc_case(db, customer: Customer) -> dict:
         # Some required documents are still pending / not verified
         if customer.case_status == "completed":
             customer.case_status = "in_progress"
+            customer.workflow_state = "IN_PROGRESS"
             customer.completed_at = None
             customer.delete_after = None
             audit(db, "system", "case_reopened", "customer", customer.id, {"pending_count": len(pending)})
@@ -253,11 +255,13 @@ def record_consent(db, customer: Customer, granted: bool) -> None:
     if granted:
         now = utcnow()
         customer.consent_status, customer.case_status = "granted", "in_progress"
+        customer.workflow_state = "IN_PROGRESS"
         customer.consent_at = now
         customer.case_expires_at = now + timedelta(days=s.case_expiry_days)
         send_upload_link(db, customer)
     else:
         customer.consent_status, customer.case_status = "declined", "consent_declined"
+        customer.workflow_state = "CONSENT_WITHDRAWN"
     audit(db, "customer", "consent_" + ("granted" if granted else "declined"), "customer", customer.id)
 
 
@@ -515,10 +519,12 @@ def confirm_privacy_request(db, raw: str) -> str | None:
         db.add(ConsentLedger(customer_id=c.id, event="deleted"))
         c.name, c.email, c.mobile = "[deleted]", f"deleted-{c.id}@invalid.local", None
         c.case_status, c.consent_status = "deleted", "withdrawn"
+        c.workflow_state = "DELETED"
         db.execute(update(AccessToken).where(AccessToken.customer_id == c.id).values(revoked=True))
     else:
         db.add(ConsentLedger(customer_id=c.id, event="withdrawn"))
         c.consent_status, c.case_status = "withdrawn", "consent_withdrawn"
+        c.workflow_state = "CONSENT_WITHDRAWN"
         c.delete_after = utcnow() + timedelta(days=get_settings().retention_days)
         emailer.withdrawal_confirmation(c.email, c.name)
     pr.status, pr.completed_at = "completed", utcnow()
@@ -531,6 +537,7 @@ def close_case_by_admin(db, customer: Customer, admin: str, reason: str | None =
         raise ValueError("case_already_closed")
     now = utcnow()
     customer.case_status = "completed"
+    customer.workflow_state = "COMPLETED"
     customer.completed_at = now
     customer.delete_after = now + timedelta(days=get_settings().retention_days)
     db.execute(update(AccessToken).where(AccessToken.customer_id == customer.id, AccessToken.purpose == "upload").values(revoked=True))
@@ -544,6 +551,7 @@ def delete_customer_data_by_admin(db, customer: Customer, admin: str) -> None:
     db.add(ConsentLedger(customer_id=customer.id, event="deleted"))
     customer.name, customer.email, customer.mobile = "[deleted]", f"deleted-{customer.id}@invalid.local", None
     customer.case_status, customer.consent_status = "deleted", "withdrawn"
+    customer.workflow_state = "DELETED"
     db.execute(update(AccessToken).where(AccessToken.customer_id == customer.id).values(revoked=True))
     audit(db, admin, "customer_data_deleted", "customer", customer.id)
 
