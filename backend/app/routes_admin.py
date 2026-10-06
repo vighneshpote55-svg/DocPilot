@@ -541,125 +541,104 @@ def resend_upload_link(customer_id: int, db: Session = Depends(get_db), admin: s
 
 
 @router.get("/reviews")
-
 def list_reviews(status: Literal["open", "approved", "rejected"] = "open", db: Session = Depends(get_db),
-
                  admin: str = Depends(require_admin)):
-
     reviews = list(db.scalars(select(ManualReview).where(ManualReview.status == status).order_by(ManualReview.created_at)))
-
+    services.audit(db, admin, "manual_review_opened", "system", "review_queue", {"status": status})
+    db.commit()
     if not reviews:
-
         return []
 
-
-
     doc_ids = [r.document_id for r in reviews]
-
     cust_ids = [r.customer_id for r in reviews]
 
-
-
     docs_map = {d.id: d for d in db.scalars(select(Document).where(Document.id.in_(doc_ids)))}
-
     custs_map = {c.id: c for c in db.scalars(select(Customer).where(Customer.id.in_(cust_ids)))}
-
     ocr_map = {o.document_id: o for o in db.scalars(select(OcrResult).where(OcrResult.document_id.in_(doc_ids)))}
 
-
-
     out = []
-
     for r in reviews:
-
         d = docs_map.get(r.document_id)
-
         c = custs_map.get(r.customer_id)
-
         if not d or not c:
-
             continue
-
         ocr_row = ocr_map.get(d.id)
-
         ocr_evidence = ocr_row.payload if ocr_row else None
-
         resub_status = "eligible_for_resubmission" if d.verification_status in ("rejected", "manual_review") else "none"
-
         out.append({
-
             "id": r.id,
-
             "status": r.status,
-
             "reason": r.reason,
-
             "flags": r.flags,
-
             "created_at": r.created_at,
-
             "customer_id": c.id,
-
             "customer_code": c.code,
-
             "customer_name": c.name,
-
             "document": doc_out(d, c),
-
             "ocr_evidence": ocr_evidence,
-
             "resubmission_status": resub_status,
-
         })
-
     return out
 
 
+@router.get("/reviews/{review_id}")
+def get_review(review_id: str, db: Session = Depends(get_db), admin: str = Depends(require_admin)):
+    r = db.get(ManualReview, review_id)
+    if not r:
+        raise HTTPException(404, "not_found")
+    d = db.get(Document, r.document_id)
+    c = db.get(Customer, r.customer_id)
+    if not d or not c:
+        raise HTTPException(404, "not_found")
+    ocr_row = db.scalar(select(OcrResult).where(OcrResult.document_id == d.id))
+    ocr_evidence = ocr_row.payload if ocr_row else None
+    resub_status = "eligible_for_resubmission" if d.verification_status in ("rejected", "manual_review") else "none"
 
+    services.audit(db, admin, "manual_review_opened", "manual_review", r.id, {"document_id": d.id})
+    db.commit()
+    return {
+        "id": r.id,
+        "status": r.status,
+        "reason": r.reason,
+        "flags": r.flags,
+        "created_at": r.created_at,
+        "customer_id": c.id,
+        "customer_code": c.code,
+        "customer_name": c.name,
+        "document": doc_out(d, c),
+        "ocr_evidence": ocr_evidence,
+        "resubmission_status": resub_status,
+    }
 
 
 def _decide(review_id: str, approve: bool, note: str | None, db: Session, admin: str):
-
     r = db.get(ManualReview, review_id)
-
     if not r:
-
         raise HTTPException(404, "not_found")
-
     if r.status != "open":
-
         raise HTTPException(409, "already_decided")
-
     try:
-
         services.decide_review(db, r, approve, admin, note)
-
-    except ValueError:
-
+    except ValueError as e:
+        err_msg = str(e)
+        if err_msg in ("already_decided", "document_superseded"):
+            raise HTTPException(409, err_msg)
+        elif err_msg in ("document_not_available", "customer_deleted"):
+            raise HTTPException(410, err_msg)
+        elif err_msg == "consent_withdrawn":
+            raise HTTPException(400, err_msg)
         raise HTTPException(409, "already_decided")
-
     db.commit()
-
     return {"status": r.status}
 
 
-
-
-
 @router.post("/reviews/{review_id}/approve")
-
 def approve(review_id: str, body: ReviewIn, db: Session = Depends(get_db), admin: str = Depends(require_admin)):
-
     return _decide(review_id, True, body.note, db, admin)
 
 
-
-
-
 @router.post("/reviews/{review_id}/reject")
-
 def reject(review_id: str, body: ReviewIn, db: Session = Depends(get_db), admin: str = Depends(require_admin)):
-
     return _decide(review_id, False, body.note, db, admin)
 
 

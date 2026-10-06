@@ -9,9 +9,9 @@ from app.ocr_client import OCRResult
 from tests.conftest import PDF, PNG, admin_headers, token_from_outbox
 
 
-def onboard(client, docs=("PAN",), name="Rajesh Kumar Sharma"):
+def onboard(client, docs=("PAN",), name="Rajesh Kumar Sharma", email="rajesh@example.com"):
     r = client.post("/api/admin/customers", headers=admin_headers(),
-                    json={"name": name, "email": "rajesh@example.com", "required_documents": list(docs)})
+                    json={"name": name, "email": email, "required_documents": list(docs)})
     assert r.status_code == 201
     c = r.json()
     consent = token_from_outbox("consent")
@@ -353,3 +353,115 @@ def test_manual_review_triggers(client, env, trigger_type, ocr_kwargs, expected_
     assert r["document"]["needs_manual_review"] is True
     matched = any(expected_match in f for f in r["flags"]) or (r.get("reason") and expected_match in r["reason"])
     assert matched, f"Expected {expected_match} in flags {r['flags']} or reason {r.get('reason')}"
+
+
+# Step 10: Rules RISK and AI manual_review / failure unified into Manual Review
+def test_rules_risk_and_audit_lifecycle(client, env):
+    c, portal = onboard(client, docs=("PAN",))
+    env.responses["pan"] = OCRResult(
+        status="success",
+        doc_type="pan",
+        confidence=0.95,
+        extracted_fields={"name": "Rajesh Kumar Sharma", "pan_number": "ABCPE1234F"},
+        risk_flags=["suspected_alteration"]
+    )
+    upload(client, portal, "PAN")
+    jobs.run_all()
+
+    # Verify review created and audit logged
+    with dbmod.session_scope() as db:
+        rev = db.scalar(select(ManualReview).where(ManualReview.customer_id == c["id"]))
+        assert rev is not None
+        assert rev.status == "open"
+        assert any("suspected_alteration" in f for f in rev.flags)
+
+        logs = list(db.scalars(select(AuditLog).where(AuditLog.entity_id == rev.id)))
+        created_audit = next((l for l in logs if l.action == "manual_review_created"), None)
+        assert created_audit is not None
+        assert created_audit.details.get("reason") is not None
+
+    # Verify listing and single review endpoint emit manual_review_opened
+    list_res = client.get("/api/admin/reviews", headers=admin_headers())
+    assert list_res.status_code == 200
+    rev_id = list_res.json()[0]["id"]
+
+    detail_res = client.get(f"/api/admin/reviews/{rev_id}", headers=admin_headers())
+    assert detail_res.status_code == 200
+    assert detail_res.json()["id"] == rev_id
+
+    with dbmod.session_scope() as db:
+        logs = list(db.scalars(select(AuditLog).where(AuditLog.action == "manual_review_opened")))
+        assert len(logs) >= 2
+
+
+def test_ai_manual_review_and_ai_failure_route_to_review(client, env, monkeypatch):
+    from app import ai_service
+    # 1. AI manual_review outcome
+    c, portal = onboard(client, docs=("PAN",))
+    env.responses["pan"] = OCRResult(
+        status="success",
+        doc_type="pan",
+        confidence=0.72,  # inconclusive, triggers AI
+        extracted_fields={"pan_number": "ABCPE1234F", "name": "Rajesh Kumar Sharma"}
+    )
+    monkeypatch.setattr(ai_service, "assess", lambda *args, **kwargs: {
+        "verdict": "manual_review",
+        "confidence": 0.65,
+        "reason_codes": ["ai_uncertain_layout"],
+        "risk_flags": ["layout_anomaly"],
+    })
+    upload(client, portal, "PAN")
+    jobs.run_all()
+
+    revs = client.get("/api/admin/reviews", headers=admin_headers()).json()
+    assert len(revs) == 1
+    assert any("layout_anomaly" in f or "ai_uncertain_layout" in f for f in revs[0]["flags"])
+
+    # 2. AI failure outcome
+    monkeypatch.setattr(ai_service, "assess", lambda *args, **kwargs: (_ for _ in ()).throw(RuntimeError("AI Timeout")))
+    c2, portal2 = onboard(client, docs=("driving_licence",), name="Sunil Sharma", email="sunil@example.com")
+    env.responses["driving_licence"] = OCRResult(
+        status="success",
+        doc_type="driving_licence",
+        confidence=0.72,
+        extracted_fields={"licence_number": "DL1234567890123", "name": "Sunil Sharma", "valid_till": "2030-01-01"}
+    )
+    upload(client, portal2, "driving_licence")
+    jobs.run_all()
+
+    detail = client.get(f"/api/admin/customers/{c2['id']}", headers=admin_headers()).json()
+    assert detail["documents"][0]["verification_status"] == "manual_review"
+
+
+def test_prevent_approving_superseded_or_withdrawn_document(client, env):
+    c, portal = onboard(client, docs=("PAN",))
+    env.responses["pan"] = OCRResult(status="low_confidence", doc_type="pan", confidence=0.45)
+    upload(client, portal, "PAN")
+    jobs.run_all()
+
+    reviews = client.get("/api/admin/reviews", headers=admin_headers()).json()
+    rid = reviews[0]["id"]
+    doc_id = reviews[0]["document"]["id"]
+
+    # Mark document superseded directly in db to test guardrail
+    with dbmod.session_scope() as db:
+        doc = db.get(Document, doc_id)
+        doc.superseded = True
+
+    # Attempt to approve superseded document should fail with 409
+    res = client.post(f"/api/admin/reviews/{rid}/approve", headers=admin_headers(), json={})
+    assert res.status_code == 409
+    assert "document_superseded" in res.json()["detail"]
+
+    # Reset superseded and withdraw customer consent
+    with dbmod.session_scope() as db:
+        doc = db.get(Document, doc_id)
+        doc.superseded = False
+        cust = db.get(Customer, c["id"])
+        cust.consent_status = "withdrawn"
+
+    # Attempt to approve document when consent is withdrawn should fail with 400
+    res2 = client.post(f"/api/admin/reviews/{rid}/approve", headers=admin_headers(), json={})
+    assert res2.status_code == 400
+    assert "consent_withdrawn" in res2.json()["detail"]
+

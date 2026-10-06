@@ -152,9 +152,51 @@ Step 7: PII Privacy Gateway / Deterministic Masking:
   - Plaintext document bytes never touch disk.
   - Encrypted documents remain AES-256-GCM encrypted in private storage and are never mutated.
   - Redacted evidence is persisted into `ocr_results` and represents the only evidence made available to future AI, human review, and API routes.
-- **Fail-Safe Operation**:
-  - In case of unexpected malformed OCR payloads or masking failures, the pipeline catches exceptions, sets `doc.ocr_status = "failed"`, audits `privacy_gateway_failed` without PII, and routes the document safely to manual review (`privacy_gateway_error`) rather than falling back to unmasked raw OCR.
-  - Zero PII emitted in audit logs (`privacy_gateway_completed` records counts and detected category names only).
+Step 8: Deterministic Rules Verification:
+- **Boundary & Inputs**:
+  - Consumes exclusively the privacy-safe, redacted OCR evidence produced by Step 7 (`create_redacted_evidence`).
+  - Raw OCR text and unmasked PII are strictly barred from rules evidence.
+  - Original AES-256-GCM encrypted document remains safely stored in private storage.
+- **Deterministic Rules Matrix & Checks**:
+  - Document-type validation: ensures extracted document family matches customer slot; slot mismatches (e.g. PAN uploaded into Aadhaar slot) immediately trigger `REJECTED` and prompt customer resubmission.
+  - Required fields presence: strictly checks all required structural fields per document type (defined in `REQUIRED_FIELDS`).
+  - Name matching: deterministic token-based comparison (`match_name`) classifies exact matches, acceptable fuzzy/title variants, or mismatches without leaking customer names.
+  - Structural identifier validity: validates format invariants for PAN, Aadhaar, and IFSC even on masked tokens (e.g. `XXXX<last4>`).
+  - Expiry checking: parses multiple date formats and flags expired documents.
+  - Integrity & Risk signals: checks QR disagreements (`qr_disagreements`), cross-check verification failures, high risk scores ($\ge 30$), and demo/synthetic markers.
+  - Confidence thresholds: checks overall confidence against `min_overall` ($0.90$) and individual field confidences against `min_field` ($0.80$). Low confidence ($< 0.60$) triggers immediate review.
+- **Outcome Classification & Mapping**:
+  - **CLEAR**: All rules pass, sufficient confidence, zero risk flags $\rightarrow$ `doc.verification_status = "verified"` (case pending count decremented, triggers completion if checklist finished).
+  - **INCONCLUSIVE**: Clean document with borderline confidence ($0.60 \le \text{conf} < 0.90$) or missing non-critical context $\rightarrow$ `verification_status` remains pending/`needs_ai` (queued for downstream AI evaluation in Step 9; never marked verified in Step 8).
+  - **RISK**: Structural identifier invalidity, name mismatch, expired document, low confidence, missing required fields, or OCR risk flags $\rightarrow$ `verification_status = "manual_review"` (or `"rejected"` for slot mismatches).
+- **Idempotency & Fail-Closed Safety**:
+  - Automatically skips already verified documents, superseded documents, or customers with withdrawn consent.
+  - Rules engine evaluation is wrapped in a fail-closed try/catch: on any unexpected exception, logs sanitized error, audits `rules_failed`, routes document to `manual_review` (`rules_engine_error`), and never marks verified.
+Step 9: AI Verification / Redacted AI Escalation:
+- **Boundary & Invocation**:
+  - Invoked **ONLY** when Step 8 returns `INCONCLUSIVE` (`needs_ai` / `AI_REQUIRED`).
+  - Documents with Step 8 `CLEAR` or `RISK` bypass AI entirely.
+  - Consumes exclusively the privacy-safe, redacted OCR evidence produced by Step 7 (`create_redacted_evidence`).
+  - Raw OCR text, document bytes, and raw PII are strictly barred from outbound AI prompts.
+- **Pre-Dispatch PII Safety Gate**:
+  - Runs automated pre-dispatch inspection (`verify_ai_payload_safety`) on the payload before dispatching to any AI provider.
+  - Inspects against regex patterns for PAN, Aadhaar, email, phone, and unmasked bank account numbers.
+  - If unsafe data is detected: aborts dispatch, emits audit event `ai_failed` (`{"reason": "pii_leak_prevented"}`), and routes document directly to `manual_review`.
+- **Structured AI Output Schema**:
+  - `decision` / `verdict`: `verified` | `inconclusive` | `manual_review`
+  - `confidence`: float between `0.0` and `1.0` (or `0` – `100%`)
+  - `reason_codes`: list of standardized reason code strings
+  - `risk_flags`: list of identified risk flags
+  - `evidence_summary`: factual explanation
+- **Outcome Resolution Rules & Invariants**:
+  - `verified` + `confidence >= 0.90` (and zero AI risk flags) $\rightarrow$ `doc.verification_status = "verified"`.
+  - `inconclusive` or confidence $< 0.90$ $\rightarrow$ `doc.verification_status = "manual_review"`.
+  - `manual_review` $\rightarrow$ `doc.verification_status = "manual_review"`.
+  - Timeout, network exception, or invalid/malformed response $\rightarrow$ `doc.verification_status = "manual_review"`.
+  - **AI can NEVER override a Step 8 RISK or REJECTED outcome** into `verified` (hard flags permanently block upgrade).
+- **Audit Logging**:
+  - Emits ID-based audit events: `ai_verification_started`, `ai_verified`, `ai_inconclusive`, `ai_manual_review`, `ai_failed`.
+  - Prompts, raw responses, document bytes, and PII are never logged.
 
 
 
@@ -178,6 +220,14 @@ Lifecycle proof (Phase B6 built):
   - Case expiry after 30 days if uncompleted, queuing files for deletion.
   - Case completion when all required documents verify, triggering 7-day retention schedule.
   - Complete purge at retention expiry: encrypted Storage files deleted, OCR data wiped, document hashes cleared, review records removed, customer tokens deleted, and deletion confirmation emails dispatched.
+
+Step 10: Manual Review & Exception Handling (built):
+- Unified Ingestion: Deterministic rules `RISK`, AI `manual_review` verdicts, and unhandled AI/OCR failures route automatically into `ManualReview`.
+- Secure Record: Contains `document_id`, `customer_id`, reason codes, risk flags, masked OCR evidence (`OcrResult`), and review status (`open`, `approved`, `rejected`).
+- Reviewer Authorization & Access: `GET /api/admin/reviews` and `GET /api/admin/reviews/{id}` restricted to authorized staff (`require_admin`). Audits `manual_review_opened`. Returns zero unmasked PII; staff stream decrypted document through audited Secure View (`GET /api/admin/documents/{id}/file`) without public URLs.
+- Approval Decision (`POST /api/admin/reviews/{id}/approve`): Marks document `verified`, closes manual review, recalculates case checklist (completing case if all docs verified), and emits sanitized audit events `manual_review_approved` and `review_approved`. Fails closed if document is superseded (409), deleted (410), or consent withdrawn (400).
+- Rejection / Resubmission Decision (`POST /api/admin/reviews/{id}/reject`): Marks document `rejected`, issues a secure customer upload token, dispatches resubmission email, keeps checklist slot pending, closes manual review as `rejected`, and emits `manual_review_rejected` and `review_rejected`.
+- Security & Concurrency: Duplicate decisions blocked (409 `already_decided`). Prevents approving superseded/withdrawn documents. Zero raw PII in review payloads, logs, or audit records.
 
 ## 7. Frontend (React + TypeScript + Vite)
 

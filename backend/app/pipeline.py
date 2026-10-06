@@ -16,7 +16,10 @@ log = logging.getLogger(__name__)
 
 
 def _open_review(db, doc: Document, reason: str, flags: list[str]) -> None:
-    db.add(ManualReview(document_id=doc.id, customer_id=doc.customer_id, reason=reason, flags=flags))
+    rev = ManualReview(document_id=doc.id, customer_id=doc.customer_id, reason=reason, flags=flags)
+    db.add(rev)
+    db.flush()
+    audit(db, "system", "manual_review_created", "manual_review", rev.id, {"document_id": doc.id, "reason": reason, "flags": flags})
 
 
 def apply_decision(db, doc: Document, customer: Customer, d: rules.Decision) -> None:
@@ -94,15 +97,70 @@ def handle_process_document(db, payload: dict) -> None:
 
     doc.ocr_status = "completed"
     audit(db, "system", "ocr_completed", "document", doc.id, {"status": "completed", "doc_type": doc.doc_type, "confidence": res.confidence})
-    decision = rules.evaluate(masked, doc.doc_type, customer.name,
-                              min_overall=s.min_overall_confidence, min_field=s.min_field_confidence)
+
+    # Step 8: Deterministic Rules Verification
+    audit(db, "system", "rules_verification_started", "document", doc.id, {"doc_type": doc.doc_type})
+    try:
+        decision = rules.evaluate(
+            masked,
+            doc.doc_type,
+            customer.name,
+            min_overall=s.min_overall_confidence,
+            min_field=s.min_field_confidence,
+        )
+    except Exception as e:
+        log.exception("Rules verification failed for document %s: %s", doc.id, e)
+        audit(db, "system", "rules_failed", "document", doc.id, {"reason": "rules_evaluation_exception"})
+        apply_decision(db, doc, customer, rules.Decision("manual_review", ["rules_engine_error"], "rules_evaluation_failed"))
+        return
+
+    # Audit outcome of deterministic rules
+    if decision.outcome == "verified":
+        audit(db, "system", "rules_verified", "document", doc.id, {"reason": decision.reason})
+    elif decision.outcome in ("needs_ai", "AI_REQUIRED"):
+        audit(db, "system", "rules_inconclusive", "document", doc.id, {"flags": decision.flags, "confidence": decision.confidence})
+    else:
+        audit(db, "system", "rules_risk_detected", "document", doc.id, {"flags": decision.flags, "reason": decision.reason})
+
     if decision.outcome in ("needs_ai", "AI_REQUIRED"):
-        ai = ai_service.assess(doc.doc_type, masked, decision.flags)
+        # Step 9: AI Verification / Redacted AI Escalation
+        audit(db, "system", "ai_verification_started", "document", doc.id, {"doc_type": doc.doc_type})
+        
+        # Pre-dispatch safety check
+        is_safe, pii_err = ai_service.verify_ai_payload_safety(masked)
+        if not is_safe:
+            log.error("Aborting AI dispatch for document %s: %s detected", doc.id, pii_err)
+            audit(db, "system", "ai_failed", "document", doc.id, {"reason": "pii_leak_prevented", "error": pii_err})
+            ai = None
+        else:
+            try:
+                ai = ai_service.assess(doc.doc_type, masked, decision.flags)
+            except Exception as e:
+                log.exception("AI provider exception for document %s: %s", doc.id, e)
+                audit(db, "system", "ai_failed", "document", doc.id, {"reason": "provider_error"})
+                ai = None
+
         if ai:
-            v = getattr(ai, "verdict", None) or (ai.get("verdict") if isinstance(ai, dict) else None)
+            v = str(getattr(ai, "verdict", None) or (ai.get("verdict") if isinstance(ai, dict) else "")).lower()
             c = getattr(ai, "confidence", None) or (ai.get("confidence") if isinstance(ai, dict) else None)
+            c_val = float(c) if c is not None else 0.0
+            if c_val <= 1.0 and c_val > 0.0:
+                c_val = c_val * 100.0
+
+            # Backward-compatible audit event
             audit(db, "system", "ai_assessment_completed", "document", doc.id,
-                  {"verdict": v, "confidence": c})
+                  {"verdict": v, "confidence": c_val})
+
+            # Step 9 explicit audit events
+            if v == "verified" and c_val >= 90.0:
+                audit(db, "system", "ai_verified", "document", doc.id, {"confidence": c_val, "verdict": v})
+            elif v in ("inconclusive", "uncertain"):
+                audit(db, "system", "ai_inconclusive", "document", doc.id, {"confidence": c_val, "verdict": v})
+            else:
+                audit(db, "system", "ai_manual_review", "document", doc.id, {"confidence": c_val, "verdict": v})
+        elif is_safe:
+            audit(db, "system", "ai_failed", "document", doc.id, {"reason": "no_ai_response"})
+
         decision = rules.apply_ai(decision, ai)
     apply_decision(db, doc, customer, decision)
 

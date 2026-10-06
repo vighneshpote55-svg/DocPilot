@@ -367,3 +367,231 @@ def test_duplicate_processing_no_duplicate_ai_decisions(client, env):
             )
         ).all()
         assert len(ai_audits) == 1
+
+
+# -----------------------------------------------------------------------------
+# 11. Step 9 Explicit Audit Events Sequence
+# -----------------------------------------------------------------------------
+def test_step9_ai_audit_events_sequence(client, env):
+    mock_ai = MockAIProvider()
+    mock_ai.next_response = {
+        "decision": "verified",
+        "confidence": 0.96,
+        "reason": "AI verified with genuine layout",
+        "reason_codes": ["layout_authentic"],
+        "risk_flags": [],
+        "evidence_summary": "Authentic structure",
+    }
+    set_ai_provider(mock_ai)
+
+    env.responses["pan"] = OCRResult(
+        status="success",
+        doc_type="pan",
+        confidence=0.80,
+        field_confidences={"pan_number": 0.85, "name": 0.85},
+        extracted_fields={"pan_number": "ABCPE1234F", "name": "VIKRAM SHARMA"},
+    )
+
+    with dbmod.session_scope() as db:
+        cust, doc_id = setup_customer_and_doc(db, "pan")
+
+    assert jobs.run_one() is True
+
+    with dbmod.session_scope() as db:
+        audits = list(db.scalars(select(AuditLog).where(AuditLog.entity_id == str(doc_id))).all())
+        actions = [a.action for a in audits]
+
+        assert "ai_verification_started" in actions
+        assert "ai_verified" in actions
+
+        # Verify zero PII in audit payloads
+        for a in audits:
+            det = str(a.details or "")
+            assert "ABCPE1234F" not in det
+            assert "VIKRAM SHARMA" not in det
+
+
+# -----------------------------------------------------------------------------
+# 12. Pre-Dispatch PII Leak Prevention Blocks AI Dispatch
+# -----------------------------------------------------------------------------
+def test_pre_dispatch_pii_leak_prevention_blocks_ai(client, env):
+    mock_ai = MockAIProvider()
+    set_ai_provider(mock_ai)
+
+    from app.ai_service import verify_ai_payload_safety
+
+    # Safe payload passes
+    safe_payload = {"pan_number": "XXXX234F", "name": "VIKRAM SHARMA"}
+    is_safe, err = verify_ai_payload_safety(safe_payload)
+    assert is_safe is True
+    assert err is None
+
+    # Unsafe raw PAN payload is blocked
+    unsafe_pan_payload = {"pan_number": "ABCPE1234F", "name": "VIKRAM SHARMA"}
+    is_safe_pan, err_pan = verify_ai_payload_safety(unsafe_pan_payload)
+    assert is_safe_pan is False
+    assert err_pan == "unmasked_pan_detected"
+
+    # Unsafe raw phone payload is blocked
+    unsafe_phone_payload = {"phone": "9876543210"}
+    is_safe_ph, err_ph = verify_ai_payload_safety(unsafe_phone_payload)
+    assert is_safe_ph is False
+    assert err_ph == "unmasked_phone_detected"
+
+    # Unsafe raw email payload is blocked
+    unsafe_email_payload = {"email": "user@example.com"}
+    is_safe_em, err_em = verify_ai_payload_safety(unsafe_email_payload)
+    assert is_safe_em is False
+    assert err_em == "unmasked_email_detected"
+
+    # In pipeline, if pre-dispatch safety fails, AI is NOT called and routes to manual_review
+    from unittest.mock import patch
+    with patch("app.ai_service.verify_ai_payload_safety", return_value=(False, "test_pii_detected")):
+        env.responses["pan"] = OCRResult(
+            status="success",
+            doc_type="pan",
+            confidence=0.80,
+            field_confidences={"pan_number": 0.85, "name": 0.85},
+            extracted_fields={"pan_number": "ABCPE1234F", "name": "VIKRAM SHARMA"},
+        )
+        with dbmod.session_scope() as db:
+            cust, doc_id = setup_customer_and_doc(db, "pan")
+
+        assert jobs.run_one() is True
+
+        # AI provider must NOT have been called
+        assert len(mock_ai.calls) == 0
+
+        with dbmod.session_scope() as db:
+            doc = db.get(Document, doc_id)
+            assert doc.verification_status == "manual_review"
+
+            audits = list(db.scalars(select(AuditLog).where(AuditLog.entity_id == str(doc_id))).all())
+            actions = [a.action for a in audits]
+            assert "ai_failed" in actions
+
+
+# -----------------------------------------------------------------------------
+# 13. Structured AI Output Validation
+# -----------------------------------------------------------------------------
+def test_structured_ai_output_validation():
+    # 13a. Valid structured schema with 0-1 confidence float
+    resp = AIResponse.from_raw({
+        "decision": "verified",
+        "confidence": 0.95,
+        "reason": "Typography consistent",
+        "reason_codes": ["font_consistent"],
+        "risk_flags": [],
+        "evidence_summary": "Genuine typography",
+    })
+    assert resp.decision == "verified"
+    assert resp.confidence == 95.0
+    assert resp.reason_codes == ["font_consistent"]
+    assert resp.evidence_summary == "Genuine typography"
+
+    # 13b. Inconclusive AI decision
+    resp_inconclusive = AIResponse.from_raw({
+        "decision": "inconclusive",
+        "confidence": 0.70,
+        "reason": "Stamp partially blurred",
+    })
+    assert resp_inconclusive.decision == "inconclusive"
+    assert resp_inconclusive.verdict == "inconclusive"
+
+    # 13c. Manual review AI decision
+    resp_review = AIResponse.from_raw({
+        "decision": "manual_review",
+        "confidence": 0.40,
+        "reason": "High likelihood of forgery",
+        "risk_flags": ["forgery_suspected"],
+    })
+    assert resp_review.decision == "manual_review"
+    assert "forgery_suspected" in resp_review.risk_flags
+
+
+# -----------------------------------------------------------------------------
+# 14. AI Inconclusive or Risk Flags Routes to Manual Review
+# -----------------------------------------------------------------------------
+def test_ai_inconclusive_or_risk_routes_to_manual_review(client, env):
+    # 14a. AI returns inconclusive decision
+    mock_ai = MockAIProvider()
+    mock_ai.next_response = {
+        "decision": "inconclusive",
+        "confidence": 0.85,
+        "reason": "Not enough evidence to confirm authenticity",
+    }
+    set_ai_provider(mock_ai)
+
+    env.responses["pan"] = OCRResult(
+        status="success",
+        doc_type="pan",
+        confidence=0.80,
+        field_confidences={"pan_number": 0.85, "name": 0.85},
+        extracted_fields={"pan_number": "ABCPE1234F", "name": "VIKRAM SHARMA"},
+    )
+
+    with dbmod.session_scope() as db:
+        cust, doc_id = setup_customer_and_doc(db, "pan")
+
+    assert jobs.run_one() is True
+
+    with dbmod.session_scope() as db:
+        doc = db.get(Document, doc_id)
+        assert doc.verification_status == "manual_review"
+        assert doc.verification_status != "verified"
+
+        audits = list(db.scalars(select(AuditLog).where(AuditLog.entity_id == str(doc_id))).all())
+        actions = [a.action for a in audits]
+        assert "ai_inconclusive" in actions
+
+
+# -----------------------------------------------------------------------------
+# 15. Pipeline Idempotency: Verified / Superseded / Withdrawn Bypasses AI
+# -----------------------------------------------------------------------------
+def test_pipeline_idempotency_bypasses_ai(client, env):
+    mock_ai = MockAIProvider()
+    set_ai_provider(mock_ai)
+
+    from app.pipeline import handle_process_document
+
+    env.responses["pan"] = OCRResult(
+        status="success",
+        doc_type="pan",
+        confidence=0.80,
+        field_confidences={"pan_number": 0.85, "name": 0.85},
+        extracted_fields={"pan_number": "ABCPE1234F", "name": "VIKRAM SHARMA"},
+    )
+
+    with dbmod.session_scope() as db:
+        c = services.create_customer(
+            db,
+            name="VIKRAM SHARMA",
+            email="vikram_skip@example.com",
+            mobile="+919876543210",
+            required=["pan"],
+            actor="test",
+        )
+        services.record_consent(db, c, granted=True)
+        doc = services.accept_upload(db, c, "pan", "pan.png", PNG_BYTES)
+        doc_id = doc.id
+
+        # Document already verified -> must not invoke AI
+        doc.verification_status = "verified"
+        db.flush()
+        handle_process_document(db, {"document_id": doc_id})
+        assert len(mock_ai.calls) == 0
+
+        # Superseded document -> must not invoke AI
+        doc.verification_status = "not_started"
+        doc.superseded = True
+        db.flush()
+        handle_process_document(db, {"document_id": doc_id})
+        assert len(mock_ai.calls) == 0
+
+        # Consent withdrawn -> must not invoke AI
+        doc.superseded = False
+        c.consent_status = "withdrawn"
+        db.flush()
+        handle_process_document(db, {"document_id": doc_id})
+        assert len(mock_ai.calls) == 0
+

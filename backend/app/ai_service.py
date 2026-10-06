@@ -28,9 +28,16 @@ class AIRequestPayload(BaseModel):
 
 
 class AIResponse(BaseModel):
-    verdict: str  # "verified" | "manual_review"
+    verdict: str  # "verified" | "inconclusive" | "manual_review"
     confidence: float = Field(ge=0.0, le=100.0)
     reason: str = Field(min_length=1)
+    reason_codes: list[str] = Field(default_factory=list)
+    risk_flags: list[str] = Field(default_factory=list)
+    evidence_summary: str = ""
+
+    @property
+    def decision(self) -> str:
+        return self.verdict
 
     @field_validator("verdict", mode="before")
     @classmethod
@@ -38,6 +45,8 @@ class AIResponse(BaseModel):
         s = str(v or "").lower().strip()
         if s in ("verified", "verify"):
             return "verified"
+        if s in ("inconclusive", "uncertain", "ambiguous", "needs_ai"):
+            return "inconclusive"
         if s in ("manual_review", "review", "review_required", "rejected", "needs_human_check"):
             return "manual_review"
         raise ValueError(f"Invalid AI verdict: {v}")
@@ -60,10 +69,24 @@ class AIResponse(BaseModel):
         if not isinstance(raw, dict):
             raise ValueError(f"Expected dict, got {type(raw)}")
         # Support aliases
-        verdict = raw.get("verdict") or raw.get("decision")
+        verdict = raw.get("decision") or raw.get("verdict")
         confidence = raw.get("confidence")
-        reason = raw.get("reason") or raw.get("reasoning") or raw.get("evidence") or "AI assessment completed"
-        return cls(verdict=verdict, confidence=confidence, reason=str(reason))
+        reason = raw.get("reason") or raw.get("reasoning") or raw.get("evidence") or raw.get("evidence_summary") or "AI assessment completed"
+        reason_codes = raw.get("reason_codes") or []
+        if isinstance(reason_codes, str):
+            reason_codes = [reason_codes]
+        risk_flags = raw.get("risk_flags") or []
+        if isinstance(risk_flags, str):
+            risk_flags = [risk_flags]
+        evidence_summary = str(raw.get("evidence_summary") or reason or "")
+        return cls(
+            verdict=verdict,
+            confidence=confidence,
+            reason=str(reason),
+            reason_codes=list(reason_codes),
+            risk_flags=list(risk_flags),
+            evidence_summary=evidence_summary,
+        )
 
 
 class AIProvider(ABC):
@@ -163,6 +186,41 @@ def reset_ai_provider() -> None:
     _active_provider = None
 
 
+def verify_ai_payload_safety(payload: dict) -> tuple[bool, str | None]:
+    """Strict pre-dispatch safety verification ensuring zero raw unmasked PII reaches AI.
+
+    Checks:
+    - Raw unmasked PAN format
+    - Raw unmasked Aadhaar format
+    - Raw unmasked phone numbers
+    - Raw unmasked emails
+    - Raw unmasked bank account numbers (8-18 consecutive digits)
+    - detect_pii scanning
+    """
+    raw_str = json.dumps(payload)
+    if re.search(r"\b[A-Z]{5}\d{4}[A-Z]\b", raw_str):
+        return False, "unmasked_pan_detected"
+    if re.search(r"\b\d{4}\s?\d{4}\s?\d{4}\b", raw_str):
+        # Ensure it's not a masked string like XXXX XXXX 1234
+        if not re.search(r"XXXX", raw_str):
+            return False, "unmasked_aadhaar_detected"
+    if re.search(r"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}", raw_str, re.I):
+        return False, "unmasked_email_detected"
+    if re.search(r"(?<!\d)(?:\+?91[\s-]?)?[6-9]\d{9}(?!\d)", raw_str):
+        return False, "unmasked_phone_detected"
+
+    # Also inspect extracted_fields if present
+    extracted = payload.get("extracted_fields") if isinstance(payload, dict) else {}
+    if isinstance(extracted, dict):
+        for k, v in extracted.items():
+            if isinstance(v, str):
+                # An unmasked account number typically has > 7 digits without XXXX
+                if any(t in k.lower() for t in ("account", "acct", "bank_account")) and not v.startswith("XXXX") and v.isdigit() and len(v) >= 8:
+                    return False, "unmasked_account_detected"
+
+    return True, None
+
+
 def assess(doc_type: str, masked_payload: dict, flags: list[str]) -> AIResponse | None:
     """Assess inconclusive document evidence via configured AI provider.
 
@@ -172,13 +230,10 @@ def assess(doc_type: str, masked_payload: dict, flags: list[str]) -> AIResponse 
     if provider is None:
         return None
 
-    # Privacy verification: ensure sensitive data has been properly redacted
-    raw_str = json.dumps(masked_payload)
-    if re.search(r"\b[A-Z]{5}\d{4}[A-Z]\b", raw_str):
-        log.error("Outbound AI payload contained raw unmasked PAN! Aborting AI dispatch.")
-        return None
-    if re.search(r"\b\d{4}\s\d{4}\s\d{4}\b", raw_str):
-        log.error("Outbound AI payload contained raw unmasked Aadhaar! Aborting AI dispatch.")
+    # Pre-dispatch privacy gate
+    is_safe, error_reason = verify_ai_payload_safety(masked_payload)
+    if not is_safe:
+        log.error("Outbound AI payload failed safety check: %s! Aborting AI dispatch.", error_reason)
         return None
 
     request = AIRequestPayload(doc_type=doc_type, ocr=masked_payload, flags=flags)

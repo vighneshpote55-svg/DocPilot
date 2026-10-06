@@ -156,10 +156,61 @@ def _demo(fields: dict) -> bool:
     return any(m in blob for m in DEMO_MARKERS)
 
 
+def match_name(customer_name: str, doc_name: str) -> dict[str, Any]:
+    """Compare document holder name against customer registered name deterministically."""
+    c_tokens = _tokens(customer_name)
+    d_tokens = _tokens(doc_name)
+    if not c_tokens or not d_tokens:
+        return {"match": True, "type": "empty_tokens"}
+    if c_tokens == d_tokens:
+        return {"match": True, "type": "exact"}
+    common = len(set(c_tokens) & set(d_tokens))
+    smallest = min(len(c_tokens), len(d_tokens))
+    compatible = (common == 1 if smallest == 1 else common >= min(2, smallest))
+    return {
+        "match": compatible,
+        "type": "acceptable_fuzzy" if compatible else "mismatch",
+    }
+
+
+def _check_structural_identifier(slot: str, fields: dict) -> list[str]:
+    """Deterministic structural validation of identifiers (handles both raw and masked values)."""
+    flags = []
+    # PAN structural format: e.g. ABCPE1234F or masked XXXX234F / ABC****F
+    pan_val = str(fields.get("pan_number") or "").strip()
+    if pan_val and slot in ("pan", "form_16"):
+        # If masked with XXXX, check length and suffix
+        if pan_val.startswith("XXXX"):
+            digits_suffix = pan_val[4:]
+            if len(digits_suffix) < 4:
+                flags.append("invalid_structural_identifier:pan")
+        elif not re.match(r"^[A-Z]{5}[0-9]{4}[A-Z]$", pan_val) and not re.match(r"^[A-Z]{3}\*{4}[A-Z]$", pan_val):
+            flags.append("invalid_structural_identifier:pan")
+
+    # Aadhaar structural format: 12 digits or masked XXXX...
+    aadhaar_val = str(fields.get("aadhaar_number") or "").replace(" ", "").strip()
+    if aadhaar_val and slot == "aadhaar":
+        if aadhaar_val.startswith("XXXX"):
+            digits_suffix = aadhaar_val[4:]
+            if len(digits_suffix) < 4:
+                flags.append("invalid_structural_identifier:aadhaar")
+        elif not (aadhaar_val.isdigit() and len(aadhaar_val) == 12):
+            flags.append("invalid_structural_identifier:aadhaar")
+
+    # IFSC structural format: 11 chars (e.g. HDFC0001234)
+    ifsc_val = str(fields.get("ifsc") or "").strip()
+    if ifsc_val and slot in ("cancelled_cheque", "bank_passbook"):
+        if not re.match(r"^[A-Z]{4}0[A-Z0-9]{6}$", ifsc_val, re.I):
+            flags.append("invalid_structural_identifier:ifsc")
+
+    return flags
+
+
 def _name_mismatch(fields: dict, customer_name: str) -> bool:
     for k, v in fields.items():
         if k.lower() in NAME_KEYS and isinstance(v, str) and v.strip():
-            if not names_compatible(customer_name, v):
+            m = match_name(customer_name, v)
+            if not m["match"]:
                 return True
     return False
 
@@ -251,6 +302,10 @@ class RulesEngine:
         if _name_mismatch(fields, customer_name):
             flags.append("holder_name_mismatch")
 
+        # 8b. Structural identifier validity
+        structural_flags = _check_structural_identifier(slot, fields)
+        flags.extend(structural_flags)
+
         # 9. Risk flags & authenticity results from company-ocr-service
         risk_flags = _val("risk_flags")
         if isinstance(risk_flags, list):
@@ -300,6 +355,7 @@ class RulesEngine:
             or f.startswith("missing_fields:")
             or f.startswith("risk:")
             or f.startswith("risk_")
+            or f.startswith("invalid_structural_identifier:")
         ]
         if hard:
             return Decision(DecisionState.MANUAL_REVIEW, flags, ", ".join(hard), conf)
@@ -346,6 +402,7 @@ def apply_ai(decision: Decision, ai: Any) -> Decision:
         or f.startswith("missing_fields:")
         or f.startswith("risk:")
         or f.startswith("risk_")
+        or f.startswith("invalid_structural_identifier:")
     ]
     if hard or decision.outcome in (DecisionState.REJECTED, "rejected"):
         return Decision(
@@ -363,18 +420,23 @@ def apply_ai(decision: Decision, ai: Any) -> Decision:
             decision.confidence,
         )
 
-    verdict = getattr(ai, "verdict", None) if hasattr(ai, "verdict") else (ai.get("verdict") if isinstance(ai, dict) else None)
+    verdict = getattr(ai, "verdict", None) if hasattr(ai, "verdict") else (ai.get("decision") or ai.get("verdict") if isinstance(ai, dict) else None)
     confidence = getattr(ai, "confidence", None) if hasattr(ai, "confidence") else (ai.get("confidence") if isinstance(ai, dict) else None)
-    reason = getattr(ai, "reason", None) if hasattr(ai, "reason") else (ai.get("reason") if isinstance(ai, dict) else "")
+    reason = getattr(ai, "reason", None) if hasattr(ai, "reason") else (ai.get("reason") or ai.get("evidence_summary") if isinstance(ai, dict) else "")
+    risk_flags = getattr(ai, "risk_flags", []) if hasattr(ai, "risk_flags") else (ai.get("risk_flags") or [] if isinstance(ai, dict) else [])
 
     conf_num = _num(confidence)
     if 0.0 <= conf_num <= 1.0:
         conf_num = conf_num * 100.0
 
-    if str(verdict or "").lower() == "verified" and conf_num >= 90.0:
+    accumulated_flags = list(decision.flags)
+    if risk_flags:
+        accumulated_flags.extend([f"ai_risk:{rf}" for rf in risk_flags])
+
+    if str(verdict or "").lower() == "verified" and conf_num >= 90.0 and not risk_flags:
         return Decision(
             DecisionState.VERIFIED,
-            decision.flags + ["ai_verified"],
+            accumulated_flags + ["ai_verified"],
             str(reason or "AI verified")[:300],
             decision.confidence,
         )
@@ -382,7 +444,7 @@ def apply_ai(decision: Decision, ai: Any) -> Decision:
     flag = "ai_uncertain" if verdict else "rules_inconclusive"
     return Decision(
         DecisionState.MANUAL_REVIEW,
-        decision.flags + [flag],
+        accumulated_flags + [flag],
         str(reason or "needs_human_check")[:300],
         decision.confidence,
     )

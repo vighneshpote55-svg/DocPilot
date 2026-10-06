@@ -515,9 +515,18 @@ def request_resubmission(db, customer: Customer, doc: Document) -> None:
 
 def decide_review(db, review: ManualReview, approve: bool, admin: str, note: str | None) -> None:
     if review.status != "open":
-        raise ValueError("review already decided")
+        raise ValueError("already_decided")
     doc = db.get(Document, review.document_id)
+    if not doc or doc.file_state != "stored":
+        raise ValueError("document_not_available")
+    if doc.superseded:
+        raise ValueError("document_superseded")
     customer = db.get(Customer, review.customer_id)
+    if not customer or customer.case_status == "deleted":
+        raise ValueError("customer_deleted")
+    if approve and customer.consent_status != "granted":
+        raise ValueError("consent_withdrawn")
+
     review.status = "approved" if approve else "rejected"
     review.decided_by, review.decided_at, review.note = admin, utcnow(), note
     if approve:
@@ -525,6 +534,9 @@ def decide_review(db, review: ManualReview, approve: bool, admin: str, note: str
     else:
         doc.verification_status = "rejected"
         request_resubmission(db, customer, doc)
+
+    audit_action = "manual_review_approved" if approve else "manual_review_rejected"
+    audit(db, admin, audit_action, "manual_review", review.id, details={"document_id": doc.id, "note": note} if note else {"document_id": doc.id})
     audit(db, admin, "review_approved" if approve else "review_rejected", "document", doc.id, details={"note": note} if note else None)
     db.flush()
     recalc_case(db, customer)
