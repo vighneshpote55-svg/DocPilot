@@ -6777,9 +6777,38 @@
   border-color: #e2e8f0;
 }
 
-.admin-theme-light .reviews-status-tabs {
+.admin-theme-light .reviews-status-tabs,
+[data-theme="light"] .reviews-status-tabs {
   background: #f8fafc;
   border-color: #e2e8f0;
+}
+
+.admin-theme-light .reviews-search-box,
+[data-theme="light"] .reviews-search-box {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  border: 1px solid #cbd5e1 !important;
+}
+
+.admin-theme-light .reviews-search-input,
+[data-theme="light"] .reviews-search-input {
+  background: transparent !important;
+  background-color: transparent !important;
+  color: #0f172a !important;
+}
+
+.admin-theme-light .reviews-search-input::placeholder,
+[data-theme="light"] .reviews-search-input::placeholder {
+  color: #64748b !important;
+  opacity: 1 !important;
+}
+
+.admin-theme-light .reviews-select-filter,
+[data-theme="light"] .reviews-select-filter {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #cbd5e1 !important;
 }
 
 /* Responsive Split Layout */
@@ -8647,6 +8676,78 @@
 [data-theme="light"] .settings-nav-pill.active {
   background: #2563eb;
   color: #ffffff;
+}
+
+/* ==========================================================================
+   Global Light Mode & [data-theme="light"] Form Controls & Search Bars
+   Prevents OS dark-mode (@media prefers-color-scheme: dark) variables leak
+   ========================================================================== */
+.admin-theme-light,
+[data-theme="light"],
+.admin-dashboard-root.admin-theme-light,
+[data-theme="light"] .admin-dashboard-root {
+  --adm-surface: #ffffff;
+  --adm-card: #ffffff;
+  --adm-card-elevated: #f8fafc;
+  --adm-border: #e2e8f0;
+  --adm-border-hover: #cbd5e1;
+  --adm-text: #0f172a;
+  --adm-text-secondary: #334155;
+  --adm-text-muted: #64748b;
+}
+
+.admin-theme-light input:not([type="checkbox"]):not([type="radio"]),
+.admin-theme-light select,
+.admin-theme-light textarea,
+[data-theme="light"] input:not([type="checkbox"]):not([type="radio"]),
+[data-theme="light"] select,
+[data-theme="light"] textarea,
+.admin-dashboard-root.admin-theme-light input:not([type="checkbox"]):not([type="radio"]),
+.admin-dashboard-root.admin-theme-light select,
+.admin-dashboard-root.admin-theme-light textarea {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+.admin-theme-light input:not([type="checkbox"]):not([type="radio"])::placeholder,
+[data-theme="light"] input:not([type="checkbox"]):not([type="radio"])::placeholder,
+.admin-dashboard-root.admin-theme-light input:not([type="checkbox"]):not([type="radio"])::placeholder {
+  color: #64748b !important;
+  opacity: 1 !important;
+}
+
+.admin-theme-light .search-input-wrap input,
+[data-theme="light"] .search-input-wrap input,
+.admin-theme-light .customers-search-input,
+[data-theme="light"] .customers-search-input,
+.admin-theme-light .reviews-search-box,
+[data-theme="light"] .reviews-search-box,
+.admin-theme-light .reminders-search-input,
+[data-theme="light"] .reminders-search-input,
+.admin-theme-light .retention-search-input,
+[data-theme="light"] .retention-search-input,
+.admin-theme-light .filter-select,
+[data-theme="light"] .filter-select,
+.admin-theme-light .reviews-select-filter,
+[data-theme="light"] .reviews-select-filter {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+.admin-theme-light .reviews-search-box .reviews-search-input,
+[data-theme="light"] .reviews-search-box .reviews-search-input {
+  background-color: transparent !important;
+  background: transparent !important;
+  color: #0f172a !important;
+}
+
+.admin-theme-light .customers-filter-card,
+[data-theme="light"] .customers-filter-card {
+  background: #ffffff !important;
+  background-color: #ffffff !important;
+  border-color: #e2e8f0 !important;
 }
 
 
