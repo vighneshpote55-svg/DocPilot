@@ -270,6 +270,14 @@ button.sec:hover,
   transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
+/* Ensure search inputs with icons have left padding */
+.search-input-wrap input,
+#customer-search-input,
+#doc-search-input,
+#reviews-search-input {
+  padding-left: 36px !important;
+}
+
 .admin-filter-bar input:focus,
 .admin-filter-bar select:focus,
 .filter-select:focus,
