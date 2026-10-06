@@ -1,0 +1,356 @@
+/* ==========================================================================
+   DocPilot Enterprise Visual Refinement Layer
+   "Vanilla Latte + Teal Forest" Enterprise SaaS Styling
+   ========================================================================== */
+
+/* Typography & Layout Fundamentals */
+body, html {
+  background-color: var(--c-bg) !important;
+  color: var(--c-text);
+}
+
+h1, h2, h3, h4, .heading-enterprise {
+  color: var(--c-heading);
+  letter-spacing: -0.015em;
+}
+
+/* ==========================================
+   BUTTON SYSTEM (Primary / Secondary / Tertiary)
+   ========================================== */
+
+/* Primary Button: Solid Teal Forest */
+button.ok,
+.btn-primary,
+.topnav-add-btn,
+#btn-add-customer,
+#btn-submit-review {
+  background: var(--c-primary) !important;
+  color: var(--c-on-primary) !important;
+  border: 1px solid var(--c-primary) !important;
+  border-radius: var(--r-sm) !important;
+  font-weight: 600 !important;
+  font-size: 13.5px !important;
+  padding: 8px 16px !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+  transition: all 0.18s ease !important;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+button.ok:hover,
+.btn-primary:hover,
+.topnav-add-btn:hover,
+#btn-add-customer:hover,
+#btn-submit-review:hover {
+  background: var(--c-primary-hover) !important;
+  border-color: var(--c-primary-hover) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 3px 8px rgba(7, 94, 91, 0.25) !important;
+}
+
+/* Secondary Button: Soft Neutral / Teal Surface */
+button.sec,
+.btn-secondary,
+.search-btn,
+#btn-open-bulk-import,
+#btn-refresh-reviews {
+  background: var(--c-surface) !important;
+  color: var(--c-heading) !important;
+  border: 1px solid var(--c-border) !important;
+  border-radius: var(--r-sm) !important;
+  font-weight: 500 !important;
+  font-size: 13.5px !important;
+  padding: 8px 14px !important;
+  box-shadow: var(--shadow-1) !important;
+  transition: all 0.18s ease !important;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+button.sec:hover,
+.btn-secondary:hover,
+.search-btn:hover,
+#btn-open-bulk-import:hover,
+#btn-refresh-reviews:hover {
+  background: var(--c-hover) !important;
+  border-color: var(--c-border-hover) !important;
+  color: var(--c-heading) !important;
+}
+
+/* Tertiary Button: Link Action */
+.btn-tertiary,
+.btn-link-action {
+  background: transparent !important;
+  border: none !important;
+  color: var(--c-primary) !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
+  padding: 4px 6px !important;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: color 0.18s ease, transform 0.18s ease;
+}
+
+.btn-tertiary:hover,
+.btn-link-action:hover {
+  color: var(--c-primary-hover) !important;
+  text-decoration: underline;
+  transform: translateX(2px);
+}
+
+/* ==========================================
+   ENTERPRISE DATA TABLE SYSTEM
+   ========================================== */
+.admin-data-table,
+.reviews-table,
+.customers-data-table,
+#admin-reminders-table,
+#retention-queue-table,
+#all-documents-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--c-surface) !important;
+  border-radius: var(--r-md);
+  border: 1px solid var(--c-border) !important;
+  overflow: hidden;
+}
+
+.admin-data-table thead th,
+.reviews-table thead th,
+.customers-data-table thead th,
+#admin-reminders-table thead th,
+#retention-queue-table thead th,
+#all-documents-table thead th {
+  background: var(--c-elevated) !important;
+  color: var(--c-muted) !important;
+  font-size: var(--fs-meta) !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.05em !important;
+  padding: 12px 16px !important;
+  border-bottom: 1px solid var(--c-border) !important;
+  text-align: left;
+}
+
+.admin-data-table tbody tr,
+.reviews-table tbody tr,
+.customers-data-table tbody tr,
+#admin-reminders-table tbody tr,
+#retention-queue-table tbody tr,
+#all-documents-table tbody tr {
+  border-bottom: 1px solid var(--c-border) !important;
+  transition: background 0.15s ease;
+}
+
+.admin-data-table tbody tr:last-child,
+.reviews-table tbody tr:last-child,
+.customers-data-table tbody tr:last-child {
+  border-bottom: none !important;
+}
+
+.admin-data-table tbody tr:hover,
+.reviews-table tbody tr:hover,
+.customers-data-table tbody tr:hover,
+#admin-reminders-table tbody tr:hover,
+#retention-queue-table tbody tr:hover,
+#all-documents-table tbody tr:hover {
+  background: var(--c-hover) !important;
+}
+
+.admin-data-table td,
+.reviews-table td,
+.customers-data-table td,
+#admin-reminders-table td,
+#retention-queue-table td,
+#all-documents-table td {
+  padding: 12px 16px !important;
+  font-size: var(--fs-body) !important;
+  color: var(--c-text);
+  vertical-align: middle;
+}
+
+/* ==========================================
+   STATUS BADGES & TAGS
+   ========================================== */
+.tag,
+.status-pill,
+.sidebar-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
+.tag.verified,
+.tag.success,
+.status-pill.verified {
+  background: var(--c-success-bg) !important;
+  color: var(--c-success) !important;
+  border: 1px solid var(--c-success-border) !important;
+}
+
+.tag.pending,
+.tag.warn,
+.tag.waiting_otp,
+.status-pill.pending {
+  background: var(--c-warn-bg) !important;
+  color: var(--c-warn) !important;
+  border: 1px solid var(--c-warn-border) !important;
+}
+
+.tag.rejected,
+.tag.danger,
+.tag.failed,
+.status-pill.rejected {
+  background: var(--c-danger-bg) !important;
+  color: var(--c-danger) !important;
+  border: 1px solid var(--c-danger-border) !important;
+}
+
+.tag.review,
+.tag.manual_review,
+.status-pill.review {
+  background: var(--c-review-bg) !important;
+  color: var(--c-review) !important;
+  border: 1px solid var(--c-review-border) !important;
+}
+
+.tag.processing,
+.tag.info,
+.status-pill.processing {
+  background: var(--c-info-bg) !important;
+  color: var(--c-info) !important;
+  border: 1px solid var(--c-info-border) !important;
+}
+
+/* ==========================================
+   FILTER BARS & INPUTS
+   ========================================== */
+.admin-filter-bar,
+.customers-filter-bar,
+.documents-filter-bar,
+.reviews-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 14px 16px;
+  background: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  margin-bottom: 16px;
+}
+
+.admin-filter-bar input,
+.admin-filter-bar select,
+.filter-select,
+.search-input-wrap input,
+#customer-search-input,
+#doc-search-input,
+#reviews-search-input {
+  background: var(--c-input) !important;
+  border: 1px solid var(--c-border) !important;
+  color: var(--c-heading) !important;
+  border-radius: var(--r-sm) !important;
+  padding: 8px 12px !important;
+  font-size: 13.5px !important;
+  outline: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.admin-filter-bar input:focus,
+.admin-filter-bar select:focus,
+.filter-select:focus,
+#customer-search-input:focus,
+#doc-search-input:focus,
+#reviews-search-input:focus {
+  border-color: var(--c-primary) !important;
+  box-shadow: 0 0 0 2px var(--c-primary-subtle) !important;
+}
+
+/* ==========================================
+   SKELETON LOADERS
+   ========================================== */
+.skeleton-box {
+  background: linear-gradient(
+    90deg,
+    var(--c-surface) 25%,
+    var(--c-hover) 37%,
+    var(--c-surface) 63%
+  );
+  background-size: 400% 100%;
+  animation: skeletonPulse 1.4s ease infinite;
+  border-radius: var(--r-sm);
+}
+
+@keyframes skeletonPulse {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-box {
+    animation: none;
+    opacity: 0.7;
+  }
+}
+
+/* ==========================================
+   RETENTION LIFECYCLE STRIP
+   ========================================== */
+.retention-lifecycle-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  background: var(--c-elevated);
+  border: 1px solid var(--c-border);
+  border-radius: var(--r-md);
+  margin-top: 14px;
+  overflow-x: auto;
+}
+
+.lifecycle-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--c-muted);
+}
+
+.lifecycle-step.active {
+  color: var(--c-primary);
+}
+
+.lifecycle-step-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--c-border);
+}
+
+.lifecycle-step.active .lifecycle-step-dot {
+  background: var(--c-primary);
+  box-shadow: 0 0 0 3px var(--c-primary-subtle);
+}
+
+.lifecycle-connector {
+  flex: 1;
+  height: 2px;
+  background: var(--c-border);
+  margin: 0 10px;
+  min-width: 24px;
+}

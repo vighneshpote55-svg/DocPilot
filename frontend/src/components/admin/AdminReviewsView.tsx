@@ -11,6 +11,7 @@ import {
   IconArrowRight,
   IconCheck,
 } from "./AdminIcons";
+import { Skeleton } from "./Skeleton";
 
 interface AdminReviewsViewProps {
   reviews: AdminReviewItem[];
@@ -232,10 +233,9 @@ export const AdminReviewsView: React.FC<AdminReviewsViewProps> = ({
 
       {/* Review Queue Table */}
       {loading ? (
-        <div className="reviews-empty-card" id="reviews-loading-state">
-          <div className="processing-spinner" style={{ margin: "0 auto 16px", width: 32, height: 32 }} />
-          <h3 className="reviews-empty-title">Loading Manual Review Queue…</h3>
-          <p className="reviews-empty-sub">Connecting to secure enclave and retrieving pending document items…</p>
+        <div className="reviews-empty-card" id="reviews-loading-state" style={{ padding: 24, textAlign: "left" }}>
+          <Skeleton variant="row" count={5} />
+          <p className="mut" style={{ textAlign: "center", marginTop: 12 }}>Loading Manual Review Queue…</p>
         </div>
       ) : filteredReviews.length === 0 ? (
         /* Empty Queue State */

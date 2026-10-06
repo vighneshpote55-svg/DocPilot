@@ -551,17 +551,45 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
                   <div className="dashboard-retention-grid">
                     <div className="dashboard-retention-stat-box">
                       <span className="mut" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>In 7-Day Retention</span>
-                      <span style={{ fontSize: 20, fontWeight: 800, color: "var(--adm-primary)" }}>{retentionMetrics.activeRetentionCount} cases</span>
+                      <span style={{ fontSize: 20, fontWeight: 800, color: "var(--c-primary)" }}>{retentionMetrics.activeRetentionCount} cases</span>
                     </div>
                     <div className="dashboard-retention-stat-box">
                       <span className="mut" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>Due for Purge Today</span>
-                      <span style={{ fontSize: 20, fontWeight: 800, color: retentionMetrics.duePurgeCount > 0 ? "var(--adm-warning)" : "var(--adm-text)" }}>
+                      <span style={{ fontSize: 20, fontWeight: 800, color: retentionMetrics.duePurgeCount > 0 ? "var(--c-warn)" : "var(--c-heading)" }}>
                         {retentionMetrics.duePurgeCount} cases
                       </span>
                     </div>
                     <div className="dashboard-retention-stat-box">
                       <span className="mut" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>Permanently Purged</span>
-                      <span style={{ fontSize: 20, fontWeight: 800, color: "var(--adm-danger)" }}>{retentionMetrics.permanentlyPurgedCount} cases</span>
+                      <span style={{ fontSize: 20, fontWeight: 800, color: "var(--c-danger)" }}>{retentionMetrics.permanentlyPurgedCount} cases</span>
+                    </div>
+                  </div>
+
+                  {/* Visual Lifecycle Strip */}
+                  <div className="retention-lifecycle-strip" aria-label="Customer Data Retention Lifecycle" role="region">
+                    <div className="lifecycle-step active">
+                      <div className="lifecycle-step-dot" />
+                      <span>Upload</span>
+                    </div>
+                    <div className="lifecycle-connector" />
+                    <div className="lifecycle-step active">
+                      <div className="lifecycle-step-dot" />
+                      <span>Verification</span>
+                    </div>
+                    <div className="lifecycle-connector" />
+                    <div className="lifecycle-step active">
+                      <div className="lifecycle-step-dot" />
+                      <span>Completed</span>
+                    </div>
+                    <div className="lifecycle-connector" />
+                    <div className="lifecycle-step active">
+                      <div className="lifecycle-step-dot" />
+                      <span>7-Day Retention</span>
+                    </div>
+                    <div className="lifecycle-connector" />
+                    <div className="lifecycle-step">
+                      <div className="lifecycle-step-dot" />
+                      <span>Purged</span>
                     </div>
                   </div>
                 </div>

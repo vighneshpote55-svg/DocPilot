@@ -1,0 +1,111 @@
+/* ==========================================================================
+   DocPilot Semantic Theme Tokens - "Vanilla Latte + Teal Forest"
+   ========================================================================== */
+
+:root,
+.admin-theme-dark-scope {
+  /* DARK MODE (Deep Teal Forest + Warm Cream) */
+  --c-bg: #071F20;
+  --c-surface: #0D3030;
+  --c-elevated: #123939;
+  --c-input: #0A2829;
+
+  --c-primary: #2BA99A;
+  --c-primary-hover: #55C5B6;
+  --c-primary-subtle: rgba(43, 169, 154, 0.14);
+  --c-primary-border: rgba(43, 169, 154, 0.32);
+  --c-on-primary: #04201F;
+
+  --c-heading: #F5F1E8;
+  --c-text: #A9C3BF;
+  --c-muted: #86A6A2;
+
+  --c-border: #244A49;
+  --c-border-hover: #335F5E;
+  --c-hover: #153F3E;
+
+  /* Semantic Status Colors */
+  --c-success: #43C59E;
+  --c-success-bg: rgba(67, 197, 158, 0.14);
+  --c-success-border: rgba(67, 197, 158, 0.32);
+
+  --c-warn: #D5A64A;
+  --c-warn-bg: rgba(213, 166, 74, 0.14);
+  --c-warn-border: rgba(213, 166, 74, 0.32);
+
+  --c-danger: #F07878;
+  --c-danger-bg: rgba(240, 120, 120, 0.14);
+  --c-danger-border: rgba(240, 120, 120, 0.32);
+
+  --c-review: #B39DF0;
+  --c-review-bg: rgba(179, 157, 240, 0.14);
+  --c-review-border: rgba(179, 157, 240, 0.32);
+
+  --c-info: #55B8D0;
+  --c-info-bg: rgba(85, 184, 208, 0.14);
+  --c-info-border: rgba(85, 184, 208, 0.32);
+
+  /* Elevation & Borders */
+  --r-sm: 8px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.30);
+  --shadow-2: 0 6px 18px -6px rgba(0, 0, 0, 0.45);
+  --shadow-3: 0 12px 28px -6px rgba(0, 0, 0, 0.55);
+
+  /* Typography Scale */
+  --fs-page: 24px;
+  --fs-section: 17px;
+  --fs-card: 13.5px;
+  --fs-body: 13.5px;
+  --fs-meta: 11.5px;
+  --fs-kpi: 32px;
+}
+
+.admin-theme-light,
+[data-theme="light"] {
+  /* LIGHT MODE (Vanilla Latte + Teal Forest) */
+  --c-bg: #F6F1E7;
+  --c-surface: #FFFDF8;
+  --c-elevated: #FFFFFF;
+  --c-input: #FAF7F0;
+
+  --c-primary: #075E5B;
+  --c-primary-hover: #0F766E;
+  --c-primary-subtle: #EEF5F2;
+  --c-primary-border: #BCD1C8;
+  --c-on-primary: #FFFFFF;
+
+  --c-heading: #123B3A;
+  --c-text: #526866;
+  --c-muted: #687F7D;
+
+  --c-border: #DDE5DE;
+  --c-border-hover: #CAD4CB;
+  --c-hover: #EEF5F2;
+
+  /* Semantic Status Colors (WCAG AA Compliant) */
+  --c-success: #15966F;
+  --c-success-bg: #EEF8F4;
+  --c-success-border: #BCDED3;
+
+  --c-warn: #B07A1F;
+  --c-warn-bg: #FEF8EC;
+  --c-warn-border: #F3DCB1;
+
+  --c-danger: #C94848;
+  --c-danger-bg: #FCF0F0;
+  --c-danger-border: #F7CBCB;
+
+  --c-review: #6D4FB0;
+  --c-review-bg: #F5F0FF;
+  --c-review-border: #D8CCF5;
+
+  --c-info: #2786A8;
+  --c-info-bg: #EEF8FC;
+  --c-info-border: #BCE3F1;
+
+  --shadow-1: 0 1px 2px rgba(18, 59, 58, 0.05);
+  --shadow-2: 0 4px 12px -2px rgba(18, 59, 58, 0.08);
+  --shadow-3: 0 12px 24px -4px rgba(18, 59, 58, 0.12);
+}

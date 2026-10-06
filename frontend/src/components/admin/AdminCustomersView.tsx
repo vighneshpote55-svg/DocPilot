@@ -10,6 +10,7 @@ import {
   IconCheck,
   IconUsers,
 } from "./AdminIcons";
+import { Skeleton } from "./Skeleton";
 
 interface AdminCustomersViewProps {
   customers: AdminCustomerListItem[];
@@ -170,9 +171,9 @@ export const AdminCustomersView: React.FC<AdminCustomersViewProps> = ({
       {/* Customers Data Table Card */}
       <div className="card customers-table-card">
         {loading ? (
-          <div className="table-loading-state">
-            <span className="spinner-lg" />
-            <p className="mut" style={{ marginTop: 12 }}>
+          <div className="table-loading-state" style={{ padding: 24 }}>
+            <Skeleton variant="row" count={6} />
+            <p className="mut" style={{ marginTop: 12, textAlign: "center" }}>
               Loading customer verification cases…
             </p>
           </div>

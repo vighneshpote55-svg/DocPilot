@@ -18,29 +18,39 @@ import {
 } from "./AdminIcons";
 import { SecureDocViewerModal } from "./SecureDocViewerModal";
 import { DocumentDetailsDrawer } from "./DocumentDetailsDrawer";
+import { Skeleton } from "./Skeleton";
 
-const ALL_DOC_TYPES = [
+const IDENTITY_DOCS = [
   { key: "aadhaar", label: "Aadhaar Card" },
   { key: "pan", label: "PAN Card" },
   { key: "passport", label: "Passport" },
   { key: "voter", label: "Voter ID" },
   { key: "driving_licence", label: "Driving Licence" },
+];
+
+const FINANCIAL_DOCS = [
   { key: "bank_statement", label: "Bank Statement" },
   { key: "salary_slip", label: "Salary Slip" },
   { key: "cancelled_cheque", label: "Cancelled Cheque" },
   { key: "itr", label: "ITR Ack" },
-  { key: "udyam", label: "Udyam Registration" },
-  { key: "shop_establishment", label: "Shop & Establishment" },
-  { key: "fssai", label: "FSSAI License" },
-  { key: "utility_bill", label: "Utility Bill" },
-  { key: "gst_certificate", label: "GST Certificate" },
-  { key: "certificate_of_incorporation", label: "Certificate of Incorporation" },
-  { key: "partnership_deed", label: "Partnership Deed" },
-  { key: "rent_agreement", label: "Rent Agreement" },
   { key: "form_16", label: "Form 16" },
   { key: "bank_passbook", label: "Bank Passbook" },
-  { key: "property_tax_receipt", label: "Property Tax Receipt" },
+];
+
+const BUSINESS_DOCS = [
+  { key: "udyam", label: "Udyam Registration" },
+  { key: "gst_certificate", label: "GST Certificate" },
+  { key: "certificate_of_incorporation", label: "Certificate of Incorporation" },
+  { key: "fssai", label: "FSSAI License" },
+  { key: "shop_establishment", label: "Shop & Establishment" },
+  { key: "partnership_deed", label: "Partnership Deed" },
   { key: "iec_certificate", label: "IEC Certificate" },
+];
+
+const ADDRESS_OTHER_DOCS = [
+  { key: "utility_bill", label: "Utility Bill" },
+  { key: "rent_agreement", label: "Rent Agreement" },
+  { key: "property_tax_receipt", label: "Property Tax Receipt" },
   { key: "income_certificate", label: "Income Certificate" },
 ];
 
@@ -238,11 +248,34 @@ export const AdminDocumentsView: React.FC = () => {
             id="doc-type-filter"
           >
             <option value="">All Document Types</option>
-            {ALL_DOC_TYPES.map((dt) => (
-              <option key={dt.key} value={dt.key}>
-                {dt.label}
-              </option>
-            ))}
+            <optgroup label="IDENTITY">
+              {IDENTITY_DOCS.map((dt) => (
+                <option key={dt.key} value={dt.key}>
+                  {dt.label}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="FINANCIAL">
+              {FINANCIAL_DOCS.map((dt) => (
+                <option key={dt.key} value={dt.key}>
+                  {dt.label}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="BUSINESS">
+              {BUSINESS_DOCS.map((dt) => (
+                <option key={dt.key} value={dt.key}>
+                  {dt.label}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="ADDRESS & OTHER">
+              {ADDRESS_OTHER_DOCS.map((dt) => (
+                <option key={dt.key} value={dt.key}>
+                  {dt.label}
+                </option>
+              ))}
+            </optgroup>
           </select>
 
           <select
@@ -291,9 +324,9 @@ export const AdminDocumentsView: React.FC = () => {
       {/* Main Table Card */}
       <div className="admin-table-card">
         {loading ? (
-          <div className="table-loading-state">
-            <div className="spinner" />
-            <p>Loading document records...</p>
+          <div className="table-loading-state" style={{ padding: 24 }}>
+            <Skeleton variant="row" count={6} />
+            <p className="mut" style={{ marginTop: 12, textAlign: "center" }}>Loading document records...</p>
           </div>
         ) : error ? (
           <div className="table-error-state">
