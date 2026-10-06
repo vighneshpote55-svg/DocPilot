@@ -229,6 +229,14 @@ Step 10: Manual Review & Exception Handling (built):
 - Rejection / Resubmission Decision (`POST /api/admin/reviews/{id}/reject`): Marks document `rejected`, issues a secure customer upload token, dispatches resubmission email, keeps checklist slot pending, closes manual review as `rejected`, and emits `manual_review_rejected` and `review_rejected`.
 - Security & Concurrency: Duplicate decisions blocked (409 `already_decided`). Prevents approving superseded/withdrawn documents. Zero raw PII in review payloads, logs, or audit records.
 
+Step 11: Reminders + Completion + 7-Day Retention + Permanent Deletion (built):
+- Recalculate Pending: Evaluates checklist after every upload, verification, rejection, and resubmission. Pending count = required documents without a verified document.
+- Completion & Retention Schedule: When pending drops to 0, transitions customer `workflow_state` to `COMPLETED`, `case_status` to `completed`, sets `completed_at`, schedules 7-day retention (`delete_after = completed_at + retention_days`), sends completion email, and records audit events `customer_completed`, `retention_started`, and `case_completed`.
+- Idempotent Reminders (Day 3, 7, 14): Dispatches upload reminders at Day 3, 7, 14 while documents remain pending, only if consent is active and case is not completed, expired, withdrawn, or deleted. Enforces idempotency via `last_reminder_stage`; repeated runs never send duplicates. Emits `reminder_sent`.
+- 7-Day Permanent Deletion Purge: When `delete_after <= utcnow()`, permanently wipes encrypted files in Storage, OCR results, manual review rows, access tokens, and wipes document hashes (`sha256 = ""`), flipping document file state to `deleted` and setting `data_deleted_at`. Emits `data_permanently_deleted` and `retention_deleted`. Sends deletion confirmation email.
+- Access Restriction: Deleted files return 410 Gone; cannot be downloaded or viewed.
+- Fail-Safe Isolation: Operates on one customer per transaction; failures log safely without raw PII and retry safely.
+
 ## 7. Frontend (React + TypeScript + Vite)
 
 Routes: `/consent/:token`, `/portal/:token`, `/privacy`, `/privacy/confirm/:token`, `/admin` (sign in), `/admin/customers`, `/admin/customers/:id` (Documents tab), `/admin/reviews`, `/admin/audit`.

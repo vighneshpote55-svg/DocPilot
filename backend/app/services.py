@@ -229,6 +229,10 @@ def recalc_case(db, customer: Customer) -> dict:
             customer.workflow_state = "COMPLETED"
             customer.completed_at = now
             customer.delete_after = now + timedelta(days=get_settings().retention_days)
+            # Step 11 specific audit events
+            audit(db, "system", "customer_completed", "customer", customer.id, {"completed_at": now.isoformat()})
+            audit(db, "system", "retention_started", "customer", customer.id, {"delete_after": customer.delete_after.isoformat()})
+            # Backward compatibility audit event
             audit(db, "system", "case_completed", "customer", customer.id)
             emailer.completed(customer.email, customer.name)
     else:

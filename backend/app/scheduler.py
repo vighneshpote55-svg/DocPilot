@@ -60,6 +60,9 @@ def delete_due(db_factory=session_scope) -> int:
             with db_factory() as db:
                 c = db.get(Customer, cid)
                 delete_customer_files(db, c)
+                # Step 11 specific audit event
+                audit(db, "system", "data_permanently_deleted", "customer", c.id)
+                # Backward compatibility audit event
                 audit(db, "system", "retention_deleted", "customer", c.id)
                 emailer.deletion_confirmation(c.email, c.name)
             done += 1
