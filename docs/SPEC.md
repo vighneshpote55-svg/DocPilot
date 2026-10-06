@@ -114,6 +114,31 @@ Secure document upload & encrypted storage (workflow STEP 5):
   - On upload: `workflow_state="UPLOADED"`, `verification_status="not_started"`, `ocr_status="waiting"`, `file_state="stored"`. The document is never marked verified in STEP 5.
   - Resubmission/superseding: re-uploading an unverified slot supersedes prior upload rows (`superseded=True`, `file_state="deleted"`) and purges their physical encrypted storage objects while updating customer workflow state to `IN_PROGRESS`.
 
+Company OCR service integration (workflow STEP 6):
+- Asynchronous PostgreSQL Job System:
+  - Upload endpoint enqueues a background job `process_document` (`attempts=0`, `max_attempts=3`).
+  - Document initial state: `workflow_state="UPLOADED"`, `ocr_status="waiting"`, `verification_status="not_started"`.
+  - Worker claims job via `FOR UPDATE SKIP LOCKED`.
+  - Verifies document is not superseded or deleted. If superseded, processing is safely aborted.
+- Controlled Decryption & Plaintext Boundaries:
+  - Retrieves AES-256-GCM ciphertext from storage, decrypts strictly in memory.
+  - Plaintext bytes never touch disk, temporary storage, logs, or API responses.
+- Upstream Microservice Integration (`company-ocr-service`):
+  - Calls `POST {OCR_URL}/ocr/{doc_type}?sync=true` with multipart file and optional expected metadata (`{"name": customer.name}`).
+  - Dual authentication: passes `Authorization: Bearer <OCR_API_KEY>` and `X-API-Key: <OCR_API_KEY>`.
+  - For heavy multi-page documents (>5 pages or multi-page bank statements/ITRs), automatically switches to async queue mode and polls `/ocr/jobs/{job_id}` until completed.
+- Result Storage & Audit Logging:
+  - Received structured output (`status`, `confidence`, `field_confidences`, `extracted_fields`, `reason`, `qr_disagreements`) is mapped to `OCRResult`.
+  - Persists masked/redacted evidence into `ocr_results` table.
+  - Updates document `ocr_status="completed"` (or `"failed"`).
+  - Emits structured audit events: `ocr_processing_started`, `ocr_completed`, `ocr_failed` (strictly ID-based, zero PII, zero tokens, zero raw text).
+  - **The document is not marked verified in STEP 6** (verification awaits subsequent deterministic rules & AI evaluation stages).
+- Resilience & Retries:
+  - Transient network timeouts and HTTP 5xx/429 errors raise `OCRUnavailable` and trigger exponential backoff retry ($30 \times 2^{\text{attempts}}$ seconds).
+  - Permanent 4xx errors mark `ocr_status="failed"` and route to human review without infinite loops.
+  - When all 3 attempts are exhausted, `on_exhausted_process_document` routes the document to `ManualReview` (`ocr_service_unavailable`), preserving the document without data loss.
+
+
 
 Security & abuse protection (Phase B4 built):
 - Rate limiting: sliding window limiter on portal (`GET`, `/otp/*`), upload (`POST /upload`), consent (`GET|POST /consent/*`), and privacy (`POST /privacy/*`) endpoints. Returns 429 `rate_limited`.

@@ -47,6 +47,7 @@ def handle_process_document(db, payload: dict) -> None:
         return
 
     doc.ocr_status = "processing"
+    audit(db, "system", "ocr_processing_started", "document", doc.id, {"doc_type": doc.doc_type})
     db.commit()
 
     data = get_file(doc.storage_key)
@@ -68,15 +69,18 @@ def handle_process_document(db, payload: dict) -> None:
     if res.status == "error":
         if res.reason in ("doc_type_mismatch", "wrong_document_type", "type_mismatch"):
             doc.ocr_status = "completed"
+            audit(db, "system", "ocr_completed", "document", doc.id, {"status": "completed", "doc_type": doc.doc_type, "detected_type": res.detected_type})
             flags = ["wrong_document_type"] + ([f"ocr_reason:{res.reason}"] if res.reason else [])
             apply_decision(db, doc, customer, rules.Decision("rejected", flags, "wrong_document_type"))
             return
         doc.ocr_status = "failed"
+        audit(db, "system", "ocr_failed", "document", doc.id, {"reason": res.reason or "ocr_error"})
         flags = ["ocr_error"] + ([f"ocr_reason:{res.reason}"] if res.reason else [])
         apply_decision(db, doc, customer, rules.Decision("manual_review", flags, "ocr_could_not_read_document"))
         return
 
     doc.ocr_status = "completed"
+    audit(db, "system", "ocr_completed", "document", doc.id, {"status": "completed", "doc_type": doc.doc_type, "confidence": res.confidence})
     decision = rules.evaluate(masked, doc.doc_type, customer.name,
                               min_overall=s.min_overall_confidence, min_field=s.min_field_confidence)
     if decision.outcome in ("needs_ai", "AI_REQUIRED"):

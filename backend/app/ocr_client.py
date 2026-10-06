@@ -80,7 +80,10 @@ class HTTPOCRClient:
             form["expected"] = json.dumps(expected)
         if customer_id is not None:
             form["customer_id"] = str(customer_id)
-        headers = {"Authorization": f"Bearer {s.ocr_api_key}"}
+        headers = {}
+        if s.ocr_api_key:
+            headers["Authorization"] = f"Bearer {s.ocr_api_key}"
+            headers["X-API-Key"] = s.ocr_api_key
 
         # Detect heavy multi-page documents (e.g. PDFs with > 5 pages or bank statements / ITRs > 3 pages)
         is_pdf = data[:5] == b"%PDF-" or filename.lower().endswith(".pdf")
