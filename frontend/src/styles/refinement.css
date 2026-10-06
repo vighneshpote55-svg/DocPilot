@@ -258,8 +258,7 @@ button.sec:hover,
 .filter-select,
 .search-input-wrap input,
 #customer-search-input,
-#doc-search-input,
-#reviews-search-input {
+#doc-search-input {
   background: var(--c-input) !important;
   border: 1px solid var(--c-border) !important;
   color: var(--c-heading) !important;
@@ -273,8 +272,7 @@ button.sec:hover,
 /* Ensure search inputs with icons have left padding */
 .search-input-wrap input,
 #customer-search-input,
-#doc-search-input,
-#reviews-search-input {
+#doc-search-input {
   padding-left: 36px !important;
 }
 
@@ -283,7 +281,7 @@ button.sec:hover,
 .filter-select:focus,
 #customer-search-input:focus,
 #doc-search-input:focus,
-#reviews-search-input:focus {
+.reviews-search-box:focus-within {
   border-color: var(--c-primary) !important;
   box-shadow: 0 0 0 2px var(--c-primary-subtle) !important;
 }
