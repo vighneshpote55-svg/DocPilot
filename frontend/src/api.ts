@@ -165,8 +165,8 @@ export async function getConsent(token: string): Promise<ConsentInfo> {
 export async function submitConsent(
   token: string,
   granted: boolean
-): Promise<{ consent: string }> {
-  return request<{ consent: string }>(`/api/public/consent/${encodeURIComponent(token)}`, {
+): Promise<{ consent: string; upload_token?: string }> {
+  return request<{ consent: string; upload_token?: string }>(`/api/public/consent/${encodeURIComponent(token)}`, {
     method: "POST",
     json: { granted },
   });

@@ -8,6 +8,7 @@ import {
   verifyPortalOtp,
 } from "../api";
 import type { CustomerDocState, PortalDocument, PortalState } from "../types";
+import { UploadModal } from "../components/UploadModal";
 import {
   IconShieldCheck,
   IconLock,
@@ -16,17 +17,18 @@ import {
   IconCheckCircle2,
   IconAlertCircle,
   IconAlertTriangle,
-  IconArrowRight,
+  IconUploadCloud,
 } from "../components/admin/AdminIcons";
 
-const STATE_CONFIG: Record<
+// Customer-friendly state configuration
+const CUSTOMER_STATE_CONFIG: Record<
   string,
   { label: string; badgeClass: string; desc: string }
 > = {
   pending_upload: {
-    label: "Pending Upload",
+    label: "Upload required",
     badgeClass: "pending_upload",
-    desc: "Waiting for your upload",
+    desc: "Please upload your document to continue verification",
   },
   uploading: {
     label: "Uploading…",
@@ -34,39 +36,39 @@ const STATE_CONFIG: Record<
     desc: "Securing and uploading document…",
   },
   processing: {
-    label: "Processing & OCR",
+    label: "Processing",
     badgeClass: "processing",
-    desc: "Checking document validity and readability…",
+    desc: "We're securely processing your document.",
   },
   verified: {
-    label: "Verified",
+    label: "Document verified",
     badgeClass: "verified",
-    desc: "Received and verified successfully",
+    desc: "Document successfully verified and accepted",
   },
   under_review: {
-    label: "Manual Review",
+    label: "Under Review",
     badgeClass: "under_review",
-    desc: "Under review by our compliance team",
+    desc: "Your document is being reviewed. Our compliance team is completing a standard quality check.",
   },
   manual_review: {
-    label: "Manual Review",
+    label: "Under Review",
     badgeClass: "manual_review",
-    desc: "Under review by our compliance team",
+    desc: "Your document is being reviewed. Our compliance team is completing a standard quality check.",
   },
   resubmit: {
-    label: "Resubmit Required",
+    label: "Action Required",
     badgeClass: "resubmit",
-    desc: "Please upload a clear, valid copy again",
+    desc: "Please upload a replacement document.",
   },
   rejected: {
-    label: "Rejected",
+    label: "Action Required",
     badgeClass: "rejected",
-    desc: "Please upload a clear, valid copy again",
+    desc: "Please upload a replacement document.",
   },
   failed: {
-    label: "Failed",
+    label: "Action Required",
     badgeClass: "failed",
-    desc: "Processing error. Please retry upload.",
+    desc: "Unable to process the file. Please upload a clear replacement document.",
   },
 };
 
@@ -82,14 +84,17 @@ export const PortalPage: React.FC = () => {
   const [otpError, setOtpError] = useState<string | null>(null);
   const [otpLoading, setOtpLoading] = useState<boolean>(false);
 
-  // Upload & polling state per document type
+  // Modal upload state
+  const [activeUploadDoc, setActiveUploadDoc] = useState<PortalDocument | null>(null);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState<boolean>(false);
+  const [modalUploading, setModalUploading] = useState<boolean>(false);
+  const [modalError, setModalError] = useState<string | null>(null);
+  const [isModalResubmission, setIsModalResubmission] = useState<boolean>(false);
+
+  // Upload & status messages per slot
   const [uploadingDoc, setUploadingDoc] = useState<string | null>(null);
-  const [dragOverDoc, setDragOverDoc] = useState<string | null>(null);
   const [docMessages, setDocMessages] = useState<
     Record<string, { text: string; ok: boolean }>
-  >({});
-  const [resubmittingSlots, setResubmittingSlots] = useState<
-    Record<string, boolean>
   >({});
   const pollTimers = useRef<Record<string, number>>({});
 
@@ -208,14 +213,14 @@ export const PortalPage: React.FC = () => {
           setDocMessages((prev) => ({
             ...prev,
             [docType]: {
-              text: res.message || "Please upload a clear, valid copy.",
+              text: res.message || "Please upload a replacement document.",
               ok: false,
             },
           }));
         } else {
           setDocMessages((prev) => ({
             ...prev,
-            [docType]: { text: "Under review by our team.", ok: true },
+            [docType]: { text: "Your document is being reviewed.", ok: true },
           }));
         }
       } catch {
@@ -227,77 +232,58 @@ export const PortalPage: React.FC = () => {
     pollTimers.current[docType] = interval;
   };
 
-  const handleUpload = async (doc: PortalDocument, file: File | null) => {
-    if (!token || !file) {
-      setDocMessages((prev) => ({
-        ...prev,
-        [doc.doc_type]: { text: "Please select a file first.", ok: false },
-      }));
-      return;
-    }
+  // Open upload modal for a specific document
+  const openUploadModal = (doc: PortalDocument, isResubmit = false) => {
+    setActiveUploadDoc(doc);
+    setIsModalResubmission(isResubmit);
+    setModalError(null);
+    setIsUploadModalOpen(true);
+  };
 
-    if (file.size === 0) {
-      setDocMessages((prev) => ({
-        ...prev,
-        [doc.doc_type]: {
-          text: "The selected file is empty. Please select a valid document.",
-          ok: false,
-        },
-      }));
-      return;
-    }
-
-    const ext = file.name.split(".").pop()?.toLowerCase();
-    const allowed = ["pdf", "png", "jpg", "jpeg"];
-    if (ext && !allowed.includes(ext)) {
-      setDocMessages((prev) => ({
-        ...prev,
-        [doc.doc_type]: {
-          text: "Only PDF, PNG, and JPG files are accepted.",
-          ok: false,
-        },
-      }));
-      return;
-    }
-
-    if (portal && file.size > portal.max_upload_mb * 1024 * 1024) {
-      setDocMessages((prev) => ({
-        ...prev,
-        [doc.doc_type]: {
-          text: `File exceeds maximum allowed size of ${portal.max_upload_mb} MB.`,
-          ok: false,
-        },
-      }));
-      return;
-    }
-
-    setUploadingDoc(doc.doc_type);
-    setDocMessages((prev) => ({
-      ...prev,
-      [doc.doc_type]: { text: "Encrypting and uploading document…", ok: true },
-    }));
+  // Upload handler called from UploadModal
+  const handleModalUpload = async (file: File) => {
+    if (!token || !activeUploadDoc) return;
+    setModalUploading(true);
+    setModalError(null);
+    setUploadingDoc(activeUploadDoc.doc_type);
 
     try {
-      const res = await uploadDocument(token, doc.doc_type, file);
+      const res = await uploadDocument(token, activeUploadDoc.doc_type, file);
+      setModalUploading(false);
+      setIsUploadModalOpen(false);
       setUploadingDoc(null);
-      // Reset resubmitting state for this slot
-      setResubmittingSlots((prev) => ({ ...prev, [doc.doc_type]: false }));
+
+      // Immediately reflect processing state in local UI
+      setPortal((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          documents: prev.documents.map((d) =>
+            d.doc_type === activeUploadDoc.doc_type
+              ? { ...d, state: "processing", document_id: res.document_id }
+              : d
+          ),
+        };
+      });
+
       setDocMessages((prev) => ({
         ...prev,
-        [doc.doc_type]: {
-          text: "Uploaded. Checking document validity…",
+        [activeUploadDoc.doc_type]: {
+          text: "We're securely processing your document.",
           ok: true,
         },
       }));
-      pollStatus(doc.doc_type, res.document_id);
+
+      // Initiate status polling
+      pollStatus(activeUploadDoc.doc_type, res.document_id);
     } catch (err: unknown) {
+      setModalUploading(false);
       setUploadingDoc(null);
+      const msg = err instanceof Error ? err.message : "Upload failed.";
+      setModalError(msg);
       setDocMessages((prev) => ({
         ...prev,
-        [doc.doc_type]: {
-          text: err instanceof Error ? err.message : "Upload failed.",
-          ok: false,
-        },
+        [activeUploadDoc.doc_type]: { text: msg, ok: false },
       }));
     }
   };
@@ -309,17 +295,17 @@ export const PortalPage: React.FC = () => {
           <div
             className="consent-panel-card"
             id="portal-loading"
-            style={{ textAlign: "center", padding: "48px 24px" }}
+            style={{ textAlign: "center", padding: "56px 24px" }}
           >
             <div
               className="processing-spinner"
               style={{ margin: "0 auto 16px", width: 32, height: 32 }}
             />
-            <h2 style={{ fontSize: 18, margin: "0 0 8px" }}>
+            <h2 style={{ fontSize: 18, margin: "0 0 8px", fontWeight: 700 }}>
               Accessing Secure Portal…
             </h2>
-            <p className="customer-hero-desc" style={{ fontSize: 14 }}>
-              Loading your encrypted document manifest and session tokens…
+            <p className="customer-hero-desc" style={{ fontSize: 14, margin: "0 auto" }}>
+              Verifying encrypted session and retrieving document checklist…
             </p>
           </div>
         </div>
@@ -336,26 +322,39 @@ export const PortalPage: React.FC = () => {
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 10,
-                color: "var(--adm-danger, #ef4444)",
-                marginBottom: 12,
+                gap: 12,
+                color: "var(--bad, #D95757)",
+                marginBottom: 14,
               }}
             >
-              <IconAlertCircle size={24} />
-              <h2 style={{ fontSize: 18, margin: 0, fontWeight: 700 }}>
+              <div
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: "50%",
+                  background: "var(--bad-bg, rgba(217, 87, 87, 0.12))",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <IconAlertCircle size={24} />
+              </div>
+              <h2 style={{ fontSize: 20, margin: 0, fontWeight: 700 }}>
                 Unable to Access Portal
               </h2>
             </div>
             <p
               style={{
-                color: "var(--adm-text-secondary, #94a3b8)",
+                color: "var(--ink-secondary, #526866)",
                 fontSize: 14,
                 lineHeight: 1.6,
-                margin: "0 0 20px",
+                margin: "0 0 24px",
               }}
             >
               {error ||
-                "Unable to access the verification portal. Please verify your token link or contact support."}
+                "Unable to access the verification portal. Your link may have expired or been completed."}
             </p>
             <Link
               to="/"
@@ -378,11 +377,11 @@ export const PortalPage: React.FC = () => {
           <div className="otp-panel-card" id="portal-otp-screen">
             <div
               style={{
-                width: 56,
-                height: 56,
+                width: 60,
+                height: 60,
                 borderRadius: "50%",
-                background: "var(--adm-primary-bg, rgba(59, 130, 246, 0.12))",
-                color: "var(--adm-primary, #3b82f6)",
+                background: "var(--acc-bg, rgba(7, 94, 91, 0.12))",
+                color: "var(--acc, #075E5B)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
@@ -395,7 +394,7 @@ export const PortalPage: React.FC = () => {
               style={{
                 fontSize: 22,
                 fontWeight: 800,
-                color: "var(--adm-text, #f8fafc)",
+                color: "var(--ink, #123B3A)",
                 margin: "0 0 8px",
               }}
             >
@@ -403,26 +402,25 @@ export const PortalPage: React.FC = () => {
             </h1>
             <p
               style={{
-                color: "var(--adm-text-secondary, #94a3b8)",
+                color: "var(--ink-secondary, #526866)",
                 fontSize: 14,
                 lineHeight: 1.6,
                 margin: "0 0 20px",
               }}
             >
-              For your privacy and security, please enter the one-time passcode
-              sent to your registered email before uploading documents.
+              For your privacy and security, please enter the one-time passcode sent to your registered email before uploading documents.
             </p>
 
             {portal.masked_email && (
               <div
                 style={{
-                  background: "var(--adm-card-elevated, #14203a)",
-                  border: "1px solid var(--adm-border, rgba(59, 130, 246, 0.2))",
-                  padding: "10px 14px",
+                  background: "var(--card-subtle, #FAF7F0)",
+                  border: "1px solid var(--line, #DDE5DE)",
+                  padding: "10px 16px",
                   borderRadius: 8,
                   fontSize: 13,
-                  color: "var(--adm-text, #ffffff)",
-                  marginBottom: 16,
+                  color: "var(--ink, #123B3A)",
+                  marginBottom: 18,
                   display: "inline-block",
                 }}
               >
@@ -437,9 +435,6 @@ export const PortalPage: React.FC = () => {
                 style={{
                   marginBottom: 16,
                   padding: "10px 14px",
-                  background: "rgba(239, 68, 68, 0.1)",
-                  border: "1px solid rgba(239, 68, 68, 0.3)",
-                  color: "var(--adm-danger, #ef4444)",
                   borderRadius: 8,
                   fontSize: 13,
                 }}
@@ -475,7 +470,7 @@ export const PortalPage: React.FC = () => {
                   style={{
                     display: "block",
                     fontSize: 13,
-                    color: "var(--adm-text-muted, #94a3b8)",
+                    color: "var(--mut, #687F7D)",
                     textAlign: "left",
                     marginBottom: 6,
                   }}
@@ -496,7 +491,7 @@ export const PortalPage: React.FC = () => {
                   required
                   autoFocus
                 />
-                <div style={{ display: "flex", gap: 12, marginTop: 14 }}>
+                <div style={{ display: "flex", gap: 12, marginTop: 16 }}>
                   <button
                     type="submit"
                     className="customer-access-btn"
@@ -537,7 +532,7 @@ export const PortalPage: React.FC = () => {
   return (
     <div className="customer-app-root" id="main-content">
       <main className="customer-content-wrap" id="portal-container">
-        {/* Verification Completed Screen (Screen 5) */}
+        {/* Verification Completed Screen */}
         {isCompleted ? (
           <div
             className="verification-complete-card"
@@ -550,9 +545,7 @@ export const PortalPage: React.FC = () => {
               Verification Completed Successfully!
             </h1>
             <p className="complete-hero-desc">
-              Thank you, <strong>{portal.first_name}</strong>. All requested
-              identity and business documents have been thoroughly verified and
-              confirmed. No further action is required from you.
+              Thank you, <strong>{portal.first_name}</strong>. All requested identity and business documents have been verified and confirmed. No further action is required from you.
             </p>
 
             {/* Checklist Summary */}
@@ -563,7 +556,7 @@ export const PortalPage: React.FC = () => {
                   fontWeight: 700,
                   textTransform: "uppercase",
                   letterSpacing: "0.05em",
-                  color: "var(--adm-text-muted, #94a3b8)",
+                  color: "var(--mut, #687F7D)",
                   marginBottom: 12,
                 }}
               >
@@ -578,10 +571,10 @@ export const PortalPage: React.FC = () => {
                       gap: 8,
                       fontSize: 14,
                       fontWeight: 600,
-                      color: "var(--adm-text, #f1f5f9)",
+                      color: "var(--ink, #123B3A)",
                     }}
                   >
-                    <IconCheckCircle2 size={16} color="var(--adm-success, #10b981)" />
+                    <IconCheckCircle2 size={16} color="var(--acc, #075E5B)" />
                     <span>{doc.label}</span>
                   </div>
                   <span
@@ -598,7 +591,7 @@ export const PortalPage: React.FC = () => {
             <div className="complete-retention-box">
               <IconLock
                 size={22}
-                color="var(--adm-primary, #3b82f6)"
+                color="var(--acc, #075E5B)"
                 style={{ flexShrink: 0, marginTop: 2 }}
               />
               <div>
@@ -606,7 +599,7 @@ export const PortalPage: React.FC = () => {
                   style={{
                     fontSize: 13,
                     fontWeight: 700,
-                    color: "var(--adm-text, #ffffff)",
+                    color: "var(--ink, #123B3A)",
                     marginBottom: 4,
                   }}
                 >
@@ -615,13 +608,11 @@ export const PortalPage: React.FC = () => {
                 <div
                   style={{
                     fontSize: 12,
-                    color: "var(--adm-text-secondary, #94a3b8)",
+                    color: "var(--ink-secondary, #526866)",
                     lineHeight: 1.5,
                   }}
                 >
-                  All uploaded document files, OCR data extracts, and session
-                  keys are cryptographically isolated in private storage and
-                  scheduled for automated, permanent deletion within 7 days.
+                  All uploaded document files and OCR data extracts are cryptographically isolated and scheduled for permanent deletion within 7 days.
                 </div>
               </div>
             </div>
@@ -635,14 +626,12 @@ export const PortalPage: React.FC = () => {
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 8,
-                marginTop: 10,
+                marginTop: 14,
                 fontSize: 13,
               }}
             >
               <IconCheck size={16} />
-              <span>
-                Case verified. Secure customer session finalized.
-              </span>
+              <span>Case verified. Secure customer session finalized.</span>
             </div>
 
             <div
@@ -671,32 +660,24 @@ export const PortalPage: React.FC = () => {
             </div>
           </div>
         ) : (
-          /* Active Case Overview Hero */
-          <div className="portal-hero-card">
-            <div className="portal-hero-top">
-              <div>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    fontSize: 12,
-                    color: "var(--adm-primary, #60a5fa)",
-                    fontWeight: 700,
-                    marginBottom: 4,
-                    textTransform: "uppercase",
-                    letterSpacing: "0.05em",
-                  }}
-                >
-                  <IconShieldCheck size={14} />
-                  <span>Secure Document Verification Portal</span>
-                </div>
-                <h1 className="portal-customer-name">
-                  Hello, {portal.first_name}
+          /* Active Case Workspace */
+          <>
+            {/* PART 2 WELCOME SECTION */}
+            <div className="portal-welcome-section">
+              <div className="portal-welcome-meta">
+                <span className="portal-welcome-badge">
+                  <IconShieldCheck size={13} />
+                  <span>Secure Document Workspace</span>
+                </span>
+                <h1 className="portal-welcome-title">
+                  Welcome, {portal.first_name}
                 </h1>
+                <p className="portal-welcome-desc">
+                  Complete your document submission below. Your documents are securely transmitted, verified, and protected under the DPDP Act 2023.
+                </p>
               </div>
 
-              <div className="portal-status-pills-wrap">
+              <div className="portal-welcome-status-pill">
                 <span
                   className={`portal-case-badge ${portal.case_status}`}
                   id="portal-case-status-badge"
@@ -705,49 +686,32 @@ export const PortalPage: React.FC = () => {
                     ? "Case In Progress"
                     : portal.case_status}
                 </span>
-                <span className="customer-security-pill">
-                  <IconLock size={12} />
-                  <span>256-Bit SSL Enclave</span>
-                </span>
               </div>
             </div>
 
-            {/* Progress Bar Card */}
-            <div className="portal-progress-card">
+            {/* PART 2 PROGRESS SECTION */}
+            <div className="portal-progress-card" id="portal-progress-section">
               <div className="portal-progress-meta-row">
-                <span
-                  style={{
-                    color: "var(--adm-text, #f1f5f9)",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                  }}
-                >
-                  <span>Verification Progress</span>
-                  <span
-                    style={{
-                      background: "var(--adm-primary-bg, rgba(59, 130, 246, 0.15))",
-                      color: "var(--adm-primary, #60a5fa)",
-                      padding: "2px 8px",
-                      borderRadius: 12,
-                      fontSize: 11,
-                      fontWeight: 700,
-                    }}
-                  >
+                <div className="portal-progress-count-headline">
+                  <strong>{verifiedCount} of {total} documents completed</strong>
+                  <span className="portal-progress-percent-chip">
                     {progressPercent}% Complete
                   </span>
-                </span>
-                <span
-                  style={{
-                    fontSize: 12,
-                    color: "var(--adm-text-muted, #94a3b8)",
-                  }}
-                >
-                  <strong>{verifiedCount}</strong> of <strong>{total}</strong>{" "}
-                  documents verified
-                </span>
+                </div>
+                <div className="portal-progress-remaining-text">
+                  {portal.pending_count === 0 ? (
+                    <span style={{ color: "var(--acc, #075E5B)", fontWeight: 700 }}>
+                      All documents verified
+                    </span>
+                  ) : (
+                    <span>
+                      <strong>{portal.pending_count}</strong> {portal.pending_count === 1 ? "document" : "documents"} remaining
+                    </span>
+                  )}
+                </div>
               </div>
 
+              {/* Visual Progress Bar */}
               <div
                 className="portal-progress-bar-track"
                 role="progressbar"
@@ -762,516 +726,339 @@ export const PortalPage: React.FC = () => {
                 />
               </div>
 
-              <div
-                style={{
-                  display: "flex",
-                  gap: 16,
-                  marginTop: 12,
-                  fontSize: 12,
-                  color: "var(--adm-text-secondary, #94a3b8)",
-                  flexWrap: "wrap",
-                }}
-              >
-                <span>
-                  Required:{" "}
-                  <strong style={{ color: "var(--adm-text, #ffffff)" }}>
-                    {total}
-                  </strong>
-                </span>
-                <span>
-                  Verified:{" "}
-                  <strong style={{ color: "var(--adm-success, #10b981)" }}>
-                    {verifiedCount}
-                  </strong>
-                </span>
-                <span>
-                  Pending:{" "}
-                  <strong
-                    style={{
-                      color:
-                        portal.pending_count > 0
-                          ? "var(--adm-warning, #f59e0b)"
-                          : "inherit",
-                    }}
-                  >
-                    {portal.pending_count}
-                  </strong>
-                </span>
+              {/* Progress Detail Badges */}
+              <div className="portal-progress-breakdown">
+                <div className="progress-stat-item">
+                  <span className="stat-label">Total Required</span>
+                  <span className="stat-val">{total}</span>
+                </div>
+                <div className="progress-stat-item verified-stat">
+                  <span className="stat-label">Verified</span>
+                  <span className="stat-val">{verifiedCount}</span>
+                </div>
+                <div className="progress-stat-item pending-stat">
+                  <span className="stat-label">Pending</span>
+                  <span className="stat-val">{portal.pending_count}</span>
+                </div>
               </div>
+
+              {!isOpen && (
+                <div
+                  className="msg err"
+                  role="alert"
+                  style={{
+                    marginTop: 16,
+                    padding: "12px 16px",
+                    borderRadius: 8,
+                  }}
+                >
+                  This verification case has expired or closed. Further uploads are no longer permitted.
+                </div>
+              )}
             </div>
 
-            {!isOpen && (
-              <div
-                className="msg err"
-                role="alert"
-                style={{
-                  marginTop: 16,
-                  padding: "12px 16px",
-                  background: "rgba(239, 68, 68, 0.1)",
-                  border: "1px solid rgba(239, 68, 68, 0.3)",
-                  color: "var(--adm-danger, #ef4444)",
-                  borderRadius: 8,
-                }}
-              >
-                This verification case has expired or closed. Further uploads
-                are no longer permitted.
+            {/* PART 2 DOCUMENT CHECKLIST */}
+            <div id="document-cards-list" className="customer-docs-list">
+              <div className="customer-docs-header-row">
+                <h2 className="customer-docs-section-title">
+                  Required Documents
+                </h2>
+                <span className="customer-docs-section-hint">
+                  PDF, PNG, JPG (up to {portal.max_upload_mb} MB)
+                </span>
               </div>
-            )}
-          </div>
-        )}
 
-        {/* Document Cards List */}
-        <div id="document-cards-list" className="customer-docs-list">
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginBottom: 4,
-            }}
-          >
-            <h2
-              style={{
-                fontSize: 17,
-                fontWeight: 700,
-                color: "var(--adm-text, #f1f5f9)",
-                margin: 0,
-              }}
-            >
-              Required Documents
-            </h2>
-            <span
-              style={{
-                fontSize: 12,
-                color: "var(--adm-text-muted, #94a3b8)",
-              }}
-            >
-              Max {portal.max_upload_mb} MB per file • PDF, PNG, JPG
-            </span>
-          </div>
+              {portal.documents.map((doc) => {
+                const isUploading = uploadingDoc === doc.doc_type;
+                const isProcessing = doc.state === "processing";
+                const isVerified = doc.state === "verified";
+                const isUnderReview =
+                  doc.state === "under_review" ||
+                  (doc.state as string) === "manual_review";
+                const isRejection =
+                  doc.state === "resubmit" ||
+                  (doc.state as string) === "rejected";
+                const isFailed = (doc.state as string) === "failed";
+                const isPending = doc.state === "pending_upload";
 
-          {portal.documents.map((doc) => {
-            const isUploading = uploadingDoc === doc.doc_type;
-            const isProcessing = doc.state === "processing";
-            const isVerified = doc.state === "verified";
-            const isUnderReview =
-              doc.state === "under_review" ||
-              (doc.state as string) === "manual_review";
-            const isRejection =
-              doc.state === "resubmit" ||
-              (doc.state as string) === "rejected";
-            const isFailed = (doc.state as string) === "failed";
-            const statusConfig =
-              STATE_CONFIG[doc.state] || {
-                label: doc.state,
-                badgeClass: doc.state,
-                desc: "",
-              };
+                const statusConfig =
+                  CUSTOMER_STATE_CONFIG[doc.state] || {
+                    label: doc.state,
+                    badgeClass: doc.state,
+                    desc: "",
+                  };
 
-            // Can upload if case is open, not verified, not processing, and not currently under review
-            const isSlotResubmitting = !!resubmittingSlots[doc.doc_type];
-            const canUpload =
-              isOpen &&
-              !isVerified &&
-              !isProcessing &&
-              !isUnderReview &&
-              (!isRejection || isSlotResubmitting);
+                const statusMessage = docMessages[doc.doc_type];
 
-            const statusMessage = docMessages[doc.doc_type];
-
-            return (
-              <div
-                key={doc.doc_type}
-                id={`doc-card-${doc.doc_type}`}
-                className={`doc-upload-card ${
-                  isVerified
-                    ? "state-verified"
-                    : isUnderReview
-                    ? "state-review"
-                    : isRejection
-                    ? "state-resubmit"
-                    : ""
-                }`}
-              >
-                <div className="doc-card-header">
-                  <div className="doc-card-title-group">
-                    <IconFileText
-                      size={20}
-                      color={
-                        isVerified
-                          ? "var(--adm-success, #10b981)"
-                          : isRejection
-                          ? "var(--adm-danger, #ef4444)"
-                          : isUnderReview
-                          ? "var(--adm-warning, #f59e0b)"
-                          : "var(--adm-primary, #3b82f6)"
-                      }
-                    />
-                    <div>
-                      <h3 className="doc-card-title">{doc.label}</h3>
-                      <div
-                        style={{
-                          fontSize: 11,
-                          color: "var(--adm-text-muted, #94a3b8)",
-                          marginTop: 2,
-                        }}
-                      >
-                        Slot:{" "}
-                        <span className="doc-card-slot-chip">
-                          {doc.doc_type}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <span
-                    className={`doc-state-tag ${
-                      isUploading ? "uploading" : statusConfig.badgeClass
+                return (
+                  <div
+                    key={doc.doc_type}
+                    id={`doc-card-${doc.doc_type}`}
+                    className={`doc-upload-card ${
+                      isVerified
+                        ? "state-verified"
+                        : isUnderReview
+                        ? "state-review"
+                        : isRejection || isFailed
+                        ? "state-resubmit"
+                        : ""
                     }`}
                   >
-                    {isUploading ? "Uploading…" : statusConfig.label}
-                  </span>
+                    <div className="doc-card-header">
+                      <div className="doc-card-title-group">
+                        <div
+                          className={`doc-card-icon-wrap ${
+                            isVerified
+                              ? "verified"
+                              : isRejection || isFailed
+                              ? "resubmit"
+                              : isUnderReview
+                              ? "review"
+                              : "default"
+                          }`}
+                        >
+                          <IconFileText size={20} />
+                        </div>
+                        <div>
+                          <h3 className="doc-card-title">{doc.label}</h3>
+                          <div className="doc-card-slot-meta">
+                            Slot: <span className="doc-card-slot-chip">{doc.doc_type}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="doc-card-status-action-group">
+                        <span
+                          className={`doc-state-tag ${
+                            isUploading ? "uploading" : statusConfig.badgeClass
+                          }`}
+                        >
+                          {isUploading ? "Uploading…" : statusConfig.label}
+                        </span>
+
+                        {/* Primary Upload CTA Button */}
+                        {isOpen && isPending && (
+                          <button
+                            type="button"
+                            className="customer-access-btn doc-card-action-btn"
+                            onClick={() => openUploadModal(doc, false)}
+                            id={`upload-btn-${doc.doc_type}`}
+                          >
+                            <IconUploadCloud size={15} />
+                            <span>Upload Document</span>
+                          </button>
+                        )}
+
+                        {/* Resubmit CTA Button */}
+                        {isOpen && (isRejection || isFailed) && (
+                          <button
+                            type="button"
+                            className="resubmit-btn doc-card-action-btn"
+                            onClick={() => openUploadModal(doc, true)}
+                            id={`resubmit-btn-${doc.doc_type}`}
+                          >
+                            <IconUploadCloud size={15} />
+                            <span>Upload Again</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* State: Verified */}
+                    {isVerified && (
+                      <div className="verified-success-box">
+                        <div className="verified-icon-check">
+                          <IconCheck size={16} />
+                        </div>
+                        <div>
+                          <div className="state-headline success">
+                            Document verified
+                          </div>
+                          <div className="state-subtext">
+                            Transmitted securely and encrypted with AES-256-GCM. Scheduled for automated purge in 7 days.
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* State: Processing & OCR */}
+                    {isProcessing && (
+                      <div className="processing-pulse-banner">
+                        <div className="processing-spinner" />
+                        <div>
+                          <div className="state-headline processing">
+                            We're securely processing your document.
+                          </div>
+                          <div className="state-subtext">
+                            Checking document readability and validity. This typically takes 5–15 seconds.
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* State: Manual Review (Calm amber, zero fraud scores) */}
+                    {isUnderReview && (
+                      <div className="manual-review-box">
+                        <IconAlertTriangle
+                          size={20}
+                          color="var(--warn, #C58A2B)"
+                          style={{ flexShrink: 0, marginTop: 2 }}
+                        />
+                        <div>
+                          <div className="state-headline warning">
+                            Your document is being reviewed.
+                          </div>
+                          <div className="state-subtext">
+                            Our compliance team is completing a standard quality check. No action is needed right now.
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* State: Resubmit Required / Rejected */}
+                    {(isRejection || isFailed) && (
+                      <div className="rejection-guidance-box" role="alert">
+                        <div className="rejection-title-row">
+                          <IconAlertCircle size={18} />
+                          <span>Please upload a replacement document.</span>
+                        </div>
+                        <p className="rejection-text">
+                          Ensure the document is clear, well-lit, all text is legible, and it matches the requested <strong>{doc.label}</strong>.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Per-document status or error message */}
+                    {statusMessage && (
+                      <div
+                        className={`msg ${statusMessage.ok ? "ok" : "err"}`}
+                        style={{
+                          marginTop: 12,
+                          padding: "8px 14px",
+                          borderRadius: 8,
+                          fontSize: 12,
+                        }}
+                        role="status"
+                      >
+                        {statusMessage.text}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* PART 2 SECURITY & TRUST MESSAGE */}
+            <div className="customer-trust-section">
+              <div className="trust-indicator-card">
+                <div className="trust-indicator-icon">
+                  <IconLock size={18} color="var(--acc, #075E5B)" />
                 </div>
-
-                {/* State: Verified */}
-                {isVerified && (
-                  <div className="verified-success-box">
-                    <div className="verified-icon-check">
-                      <IconCheck size={16} />
-                    </div>
-                    <div>
-                      <div
-                        style={{
-                          fontSize: 13,
-                          fontWeight: 700,
-                          color: "var(--adm-success, #10b981)",
-                        }}
-                      >
-                        Document verified and accepted
-                      </div>
-                      <div
-                        style={{
-                          fontSize: 12,
-                          color: "var(--adm-text-secondary, #94a3b8)",
-                        }}
-                      >
-                        Cryptographically encrypted with AES-256-GCM. Scheduled
-                        for auto-purge in 7 days.
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* State: Processing & OCR */}
-                {isProcessing && (
-                  <div className="processing-pulse-banner">
-                    <div className="processing-spinner" />
-                    <div>
-                      <div
-                        style={{
-                          fontSize: 13,
-                          fontWeight: 700,
-                          color: "var(--adm-primary, #60a5fa)",
-                        }}
-                      >
-                        Analyzing Document &amp; Checking Validity…
-                      </div>
-                      <div
-                        style={{
-                          fontSize: 12,
-                          color: "var(--adm-text-secondary, #94a3b8)",
-                        }}
-                      >
-                        Running stateless OCR extraction and rule validation.
-                        This typically takes 5–15 seconds.
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* State: Manual Review (Calm amber, zero fraud scores) */}
-                {isUnderReview && (
-                  <div className="manual-review-box">
-                    <IconAlertTriangle
-                      size={20}
-                      color="var(--adm-warning, #f59e0b)"
-                      style={{ flexShrink: 0, marginTop: 2 }}
-                    />
-                    <div>
-                      <div
-                        style={{
-                          fontSize: 13,
-                          fontWeight: 700,
-                          color: "var(--adm-warning, #f59e0b)",
-                        }}
-                      >
-                        Under Review by Verification Team
-                      </div>
-                      <div
-                        style={{
-                          fontSize: 12,
-                          color: "var(--adm-text-secondary, #cbd5e1)",
-                          lineHeight: 1.5,
-                        }}
-                      >
-                        Your document was securely received. Our compliance
-                        specialists are conducting a standard quality review. No
-                        immediate action is needed on your part.
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* State: Resubmit Required / Rejected */}
-                {isRejection && (
-                  <div className="rejection-guidance-box" role="alert">
-                    <div className="rejection-title-row">
-                      <IconAlertCircle size={18} />
-                      <span>Resubmission Required</span>
-                    </div>
-                    <p className="rejection-text">
-                      Please upload a clear, valid copy. Ensure the document is
-                      unobscured, well-lit, all text is legible, and it matches
-                      the requested <strong>{doc.label}</strong> type.
-                    </p>
-                    {!isSlotResubmitting && isOpen && (
-                      <button
-                        type="button"
-                        className="resubmit-btn"
-                        onClick={() =>
-                          setResubmittingSlots((prev) => ({
-                            ...prev,
-                            [doc.doc_type]: true,
-                          }))
-                        }
-                      >
-                        Resubmit Document
-                        <IconArrowRight size={14} />
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* State: Failed */}
-                {isFailed && (
-                  <div className="rejection-guidance-box" role="alert">
-                    <div className="rejection-title-row">
-                      <IconAlertCircle size={18} />
-                      <span>Processing Failed</span>
-                    </div>
-                    <p className="rejection-text">
-                      We were unable to process the uploaded file. Please verify
-                      the file is not password-protected and upload a fresh
-                      copy.
-                    </p>
-                    {!isSlotResubmitting && isOpen && (
-                      <button
-                        type="button"
-                        className="resubmit-btn"
-                        onClick={() =>
-                          setResubmittingSlots((prev) => ({
-                            ...prev,
-                            [doc.doc_type]: true,
-                          }))
-                        }
-                      >
-                        Retry Upload
-                        <IconArrowRight size={14} />
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* Upload Dropzone (for Pending Upload or active Resubmit) */}
-                {canUpload && (
-                  <div style={{ marginTop: 14 }}>
-                    <div
-                      role="button"
-                      tabIndex={!isUploading ? 0 : -1}
-                      aria-label={`Upload ${doc.label}`}
-                      className={`customer-dropzone ${
-                        dragOverDoc === doc.doc_type ? "active" : ""
-                      }`}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          const inputEl = document.getElementById(
-                            `file-${doc.doc_type}`
-                          ) as HTMLInputElement | null;
-                          inputEl?.click();
-                        }
-                      }}
-                      onDragOver={(e) => {
-                        e.preventDefault();
-                        if (!isUploading) setDragOverDoc(doc.doc_type);
-                      }}
-                      onDragLeave={() => setDragOverDoc(null)}
-                      onDrop={(e) => {
-                        e.preventDefault();
-                        setDragOverDoc(null);
-                        if (isUploading) return;
-                        const file = e.dataTransfer.files?.[0] || null;
-                        if (file) handleUpload(doc, file);
-                      }}
-                      onClick={() => {
-                        const inputEl = document.getElementById(
-                          `file-${doc.doc_type}`
-                        ) as HTMLInputElement | null;
-                        inputEl?.click();
-                      }}
-                    >
-                      <div className="customer-dropzone-icon">
-                        <IconFileText size={22} />
-                      </div>
-                      <div className="customer-dropzone-label">
-                        {dragOverDoc === doc.doc_type
-                          ? "Drop file to upload immediately"
-                          : isSlotResubmitting
-                          ? "Drop a clear, legible replacement file here"
-                          : `Drag & drop ${doc.label} here, or click to browse`}
-                      </div>
-                      <div className="customer-dropzone-hint">
-                        Accepted formats: PDF, PNG, JPG (up to{" "}
-                        {portal.max_upload_mb} MB)
-                      </div>
-                    </div>
-
-                    {/* File input and upload button row */}
-                    <div
-                      style={{
-                        marginTop: 10,
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 10,
-                      }}
-                    >
-                      <input
-                        type="file"
-                        id={`file-${doc.doc_type}`}
-                        accept=".pdf,.png,.jpg,.jpeg"
-                        style={{
-                          flex: 1,
-                          fontSize: 13,
-                          color: "var(--adm-text-secondary, #94a3b8)",
-                        }}
-                        disabled={isUploading}
-                        onChange={(e) => {
-                          const file = e.target.files?.[0] || null;
-                          if (file) handleUpload(doc, file);
-                        }}
-                      />
-                      <button
-                        type="button"
-                        disabled={isUploading}
-                        onClick={() => {
-                          const inputEl = document.getElementById(
-                            `file-${doc.doc_type}`
-                          ) as HTMLInputElement | null;
-                          const file = inputEl?.files?.[0] || null;
-                          handleUpload(doc, file);
-                        }}
-                        id={`upload-btn-${doc.doc_type}`}
-                        className="customer-access-btn"
-                        style={{
-                          padding: "8px 16px",
-                          fontSize: 13,
-                          borderRadius: 6,
-                        }}
-                      >
-                        {isUploading ? "Uploading…" : "Upload"}
-                      </button>
-                    </div>
-
-                    {/* Upload progress shimmer bar */}
-                    {isUploading && (
-                      <div
-                        className="upload-shimmer-bar"
-                        role="progressbar"
-                        aria-label="Uploading file"
-                      >
-                        <i />
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Per-document status or error message */}
-                {statusMessage && (
-                  <div
-                    className={`msg ${statusMessage.ok ? "ok" : "err"}`}
-                    style={{
-                      marginTop: 12,
-                      padding: "8px 12px",
-                      borderRadius: 6,
-                      fontSize: 12,
-                    }}
-                    role="status"
-                  >
-                    {statusMessage.text}
-                  </div>
-                )}
+                <div>
+                  <h4 className="trust-indicator-title">🔒 Encrypted</h4>
+                  <p className="trust-indicator-desc">
+                    All document bytes are encrypted with AES-256-GCM before reaching storage.
+                  </p>
+                </div>
               </div>
-            );
-          })}
-        </div>
 
-        {/* Customer Data Privacy & DPDP Rights Card */}
-        <div className="portal-privacy-footer-card" id="portal-privacy-card">
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 8,
-                background: "rgba(16, 185, 129, 0.15)",
-                color: "#10b981",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                flexShrink: 0,
-              }}
-            >
-              <IconShieldCheck size={20} />
-            </div>
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: "var(--adm-text, #f1f5f9)" }}>
-                  Consent: Granted • India DPDP Act 2023 Protected
-                </span>
-                <span className="privacy-trust-pill green" style={{ fontSize: 10, padding: "2px 8px" }}>
-                  Active Enclave
-                </span>
+              <div className="trust-indicator-card">
+                <div className="trust-indicator-icon">
+                  <IconShieldCheck size={18} color="var(--acc, #075E5B)" />
+                </div>
+                <div>
+                  <h4 className="trust-indicator-title">🛡 Private</h4>
+                  <p className="trust-indicator-desc">
+                    Private enclave processing compliant with India's DPDP Act 2023.
+                  </p>
+                </div>
               </div>
-              <div style={{ fontSize: 12, color: "var(--adm-text-secondary, #94a3b8)", marginTop: 2 }}>
-                Stored encrypted with AES-256-GCM. You have the statutory right to withdraw consent or request immediate data erasure at any time.
+
+              <div className="trust-indicator-card">
+                <div className="trust-indicator-icon">
+                  <IconCheckCircle2 size={18} color="var(--acc, #075E5B)" />
+                </div>
+                <div>
+                  <h4 className="trust-indicator-title">✓ Secure Processing</h4>
+                  <p className="trust-indicator-desc">
+                    Stateless OCR verification with automatic permanent deletion within 7 days.
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
 
-          <Link
-            to="/privacy"
-            className="consent-btn-decline"
-            id="portal-manage-privacy-link"
-            style={{ textDecoration: "none", fontSize: 12, padding: "8px 14px", flexShrink: 0, whiteSpace: "nowrap" }}
-          >
-            Manage Privacy &amp; Data
-          </Link>
-        </div>
+            {/* PART 4 PRIVACY / DATA DELETION FOOTER */}
+            <div className="portal-privacy-footer-card" id="portal-privacy-card">
+              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+                <div className="privacy-footer-icon-badge">
+                  <IconShieldCheck size={22} />
+                </div>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: "var(--ink, #123B3A)" }}>
+                      Privacy &amp; Data Rights • DPDP Act 2023
+                    </span>
+                    <span className="privacy-trust-pill green" style={{ fontSize: 10, padding: "2px 8px" }}>
+                      Active Consent
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--ink-secondary, #526866)", marginTop: 2 }}>
+                    You maintain the legal right to inspect your processing records, withdraw consent, or request permanent deletion at any time.
+                  </div>
+                </div>
+              </div>
+
+              <Link
+                to="/privacy"
+                className="consent-btn-decline"
+                id="portal-manage-privacy-link"
+                style={{
+                  textDecoration: "none",
+                  fontSize: 13,
+                  padding: "9px 16px",
+                  flexShrink: 0,
+                  whiteSpace: "nowrap",
+                  fontWeight: 600,
+                }}
+              >
+                Request Data Deletion
+              </Link>
+            </div>
+          </>
+        )}
 
         {/* Security & Retention Micro-Notice */}
         <p
           className="customer-footer"
           style={{
-            marginTop: 24,
+            marginTop: 28,
             justifyContent: "center",
             textAlign: "center",
+            color: "var(--mut, #687F7D)",
+            fontSize: 12,
           }}
         >
-          Accepted formats: {portal.allowed_types.join(", ").toUpperCase()} (up
-          to {portal.max_upload_mb} MB each). All files are encrypted using
-          AES-256-GCM and permanently deleted after verification.
+          Accepted formats: {portal.allowed_types.join(", ").toUpperCase()} (up to {portal.max_upload_mb} MB each). All files are encrypted using AES-256-GCM and permanently deleted after verification.
         </p>
       </main>
+
+      {/* DEDICATED UPLOAD MODAL */}
+      <UploadModal
+        isOpen={isUploadModalOpen}
+        doc={activeUploadDoc}
+        maxUploadMb={portal.max_upload_mb}
+        allowedTypes={portal.allowed_types}
+        onClose={() => {
+          if (!modalUploading) {
+            setIsUploadModalOpen(false);
+            setModalError(null);
+          }
+        }}
+        onUpload={handleModalUpload}
+        isUploading={modalUploading}
+        errorMessage={modalError}
+        isResubmission={isModalResubmission}
+      />
     </div>
   );
 };

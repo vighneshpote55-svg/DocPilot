@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { clearAdminToken, getAdminToken } from "../api";
-import { IconShieldCheck } from "./admin/AdminIcons";
+import { IconShieldCheck, IconLock } from "./admin/AdminIcons";
 import { ThemeToggle } from "./ThemeToggle";
 
 export const Header: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const token = getAdminToken();
+  const isCustomerPortal =
+    location.pathname.startsWith("/consent") || location.pathname.startsWith("/portal");
 
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     return (localStorage.getItem("docpilot_customer_theme") as "dark" | "light") ||
@@ -47,14 +50,20 @@ export const Header: React.FC = () => {
         </div>
         <div className="customer-brand-text">
           <span className="customer-brand-name">DocPilot</span>
-          <span className="customer-brand-sub">Secure Enclave</span>
+          <span className="customer-brand-sub">
+            {isCustomerPortal ? "Secure Portal" : "Secure Enclave"}
+          </span>
         </div>
       </Link>
 
       <div className="customer-header-right">
-        <div className="customer-security-pill" title="End-to-End Encrypted Session">
-          <IconShieldCheck size={13} />
-          <span>256-Bit SSL Enclave</span>
+        <div
+          className="customer-security-pill"
+          title="End-to-End Encrypted Session"
+          id="header-security-badge"
+        >
+          {isCustomerPortal ? <IconLock size={12} /> : <IconShieldCheck size={13} />}
+          <span>{isCustomerPortal ? "Secure & Private" : "256-Bit SSL Enclave"}</span>
         </div>
 
         <ThemeToggle
@@ -68,27 +77,30 @@ export const Header: React.FC = () => {
           Data Rights
         </Link>
 
-        <div id="who" style={{ display: "inline-flex", alignItems: "center" }}>
-          {token ? (
-            <span style={{ fontSize: 13, color: "var(--adm-text-muted)" }}>
-              Staff ·{" "}
-              <button
-                type="button"
-                className="customer-nav-link"
-                style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
-                onClick={handleSignOut}
-                id="staff-sign-out"
-              >
-                Sign out
-              </button>
-            </span>
-          ) : (
-            <Link to="/admin" className="customer-nav-link" id="nav-staff-login">
-              Staff sign in
-            </Link>
-          )}
-        </div>
+        {!isCustomerPortal && (
+          <div id="who" style={{ display: "inline-flex", alignItems: "center" }}>
+            {token ? (
+              <span style={{ fontSize: 13, color: "var(--adm-text-muted)" }}>
+                Staff ·{" "}
+                <button
+                  type="button"
+                  className="customer-nav-link"
+                  style={{ background: "none", border: "none", cursor: "pointer", padding: 0 }}
+                  onClick={handleSignOut}
+                  id="staff-sign-out"
+                >
+                  Sign out
+                </button>
+              </span>
+            ) : (
+              <Link to="/admin" className="customer-nav-link" id="nav-staff-login">
+                Staff sign in
+              </Link>
+            )}
+          </div>
+        )}
       </div>
     </header>
   );
 };
+

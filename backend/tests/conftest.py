@@ -57,6 +57,7 @@ def env(monkeypatch, tmp_path):
     monkeypatch.setenv("SUPABASE_JWT_SECRET", JWT_SECRET)
     monkeypatch.setenv("ADMIN_EMAILS", "admin@example.com")
     monkeypatch.setenv("PUBLIC_BASE_URL", "http://portal.test")
+    monkeypatch.setenv("SMTP_HOST", "")
     get_settings.cache_clear()
     storage.reset_storage()
     emailer.OUTBOX.clear()
@@ -76,9 +77,12 @@ def client(env):
     return TestClient(create_app())
 
 
-def admin_headers(email="admin@example.com"):
-    tok = jwt.encode({"email": email, "aud": "authenticated", "exp": int(time.time()) + 3600},
-                     JWT_SECRET, algorithm="HS256")
+def admin_headers(email=None):
+    s = get_settings()
+    admin_email = email or (s.admin_email_list[0] if s.admin_email_list else "admin@example.com")
+    secret = s.supabase_jwt_secret or JWT_SECRET
+    tok = jwt.encode({"email": admin_email, "aud": "authenticated", "exp": int(time.time()) + 3600},
+                     secret, algorithm="HS256")
     return {"Authorization": f"Bearer {tok}"}
 
 

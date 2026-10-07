@@ -207,7 +207,7 @@ def test_upload_link_email_content_and_dispatch(client):
     assert "Please do not reply with attachments." in mail["body"]
 
 
-def test_reminder_email_content_and_dispatch():
+def test_reminder_email_content_and_dispatch(env):
     """Test 3: Reminder email formatting and copy."""
     emailer.OUTBOX.clear()
     emailer.pending_documents(

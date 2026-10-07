@@ -1638,3 +1638,667 @@
   }
 }
 
+/* ==========================================================================
+   DocPilot — Redesigned Customer Portals & Dedicated Upload Modal
+   ========================================================================== */
+
+/* --- Consent Portal Redesign --- */
+.consent-main-heading {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--ink, #f8fafc);
+  margin: 0 0 14px;
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+
+.consent-doc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.consent-doc-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--card-subtle, #14203a);
+  border: 1px solid var(--line, rgba(59, 130, 246, 0.2));
+  border-radius: 10px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.consent-doc-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--acc-bg, rgba(7, 94, 91, 0.12));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.consent-doc-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.consent-doc-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink, #f1f5f9);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.consent-doc-status-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--acc, #075E5B);
+  display: inline-flex;
+  align-items: center;
+}
+
+/* --- Document Upload Workspace Header & Welcome --- */
+.portal-welcome-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+  gap: 16px;
+}
+
+.portal-welcome-meta {
+  flex: 1;
+}
+
+.portal-welcome-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--acc, #2BA99A);
+  margin-bottom: 6px;
+}
+
+.portal-welcome-title {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--ink, #f8fafc);
+  margin: 0 0 6px;
+  letter-spacing: -0.025em;
+  line-height: 1.25;
+}
+
+.portal-welcome-desc {
+  font-size: 14px;
+  color: var(--ink-secondary, #94a3b8);
+  margin: 0;
+  line-height: 1.5;
+  max-width: 600px;
+}
+
+.portal-welcome-status-pill {
+  flex-shrink: 0;
+}
+
+/* --- Prominent Progress Section --- */
+.portal-progress-card {
+  background: var(--card, #101930);
+  border: 1px solid var(--line, rgba(59, 130, 246, 0.2));
+  border-radius: 14px;
+  padding: 22px 26px;
+  box-shadow: var(--shadow-md, 0 4px 14px rgba(0, 0, 0, 0.2));
+  margin-bottom: 28px;
+}
+
+.portal-progress-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.portal-progress-count-headline {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 16px;
+  color: var(--ink, #f8fafc);
+  font-weight: 700;
+}
+
+.portal-progress-percent-chip {
+  background: var(--acc-bg, rgba(7, 94, 91, 0.15));
+  color: var(--acc, #2BA99A);
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid var(--acc-border, rgba(7, 94, 91, 0.25));
+}
+
+.portal-progress-remaining-text {
+  font-size: 13px;
+  color: var(--mut, #86A6A2);
+}
+
+.portal-progress-breakdown {
+  display: flex;
+  gap: 28px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line, rgba(59, 130, 246, 0.1));
+}
+
+.progress-stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.progress-stat-item .stat-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--mut, #86A6A2);
+  font-weight: 600;
+}
+
+.progress-stat-item .stat-val {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--ink, #f8fafc);
+}
+
+.progress-stat-item.verified-stat .stat-val {
+  color: var(--acc, #2BA99A);
+}
+
+.progress-stat-item.pending-stat .stat-val {
+  color: var(--warn, #D5A64A);
+}
+
+/* --- Document Checklist Header & Cards --- */
+.customer-docs-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.customer-docs-section-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--ink, #f8fafc);
+  margin: 0;
+}
+
+.customer-docs-section-hint {
+  font-size: 12px;
+  color: var(--mut, #86A6A2);
+}
+
+.doc-card-icon-wrap {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: var(--acc-bg, rgba(7, 94, 91, 0.12));
+  color: var(--acc, #2BA99A);
+}
+
+.doc-card-icon-wrap.verified {
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+}
+
+.doc-card-icon-wrap.resubmit {
+  background: rgba(217, 87, 87, 0.15);
+  color: #D95757;
+}
+
+.doc-card-icon-wrap.review {
+  background: rgba(197, 138, 43, 0.15);
+  color: #C58A2B;
+}
+
+.doc-card-status-action-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.doc-card-action-btn {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: transform 0.15s, background-color 0.15s, box-shadow 0.15s;
+}
+
+.doc-card-action-btn:hover {
+  transform: translateY(-1px);
+}
+
+.state-headline {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 2px;
+}
+
+.state-headline.success {
+  color: #10b981;
+}
+
+.state-headline.processing {
+  color: var(--acc, #2BA99A);
+}
+
+.state-headline.warning {
+  color: var(--warn, #C58A2B);
+}
+
+.state-subtext {
+  font-size: 12px;
+  color: var(--ink-secondary, #94a3b8);
+  line-height: 1.5;
+}
+
+/* --- Subtle Security Trust Section --- */
+.customer-trust-section {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-top: 28px;
+}
+
+.trust-indicator-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px 18px;
+  background: var(--card-subtle, #14203a);
+  border: 1px solid var(--line, rgba(59, 130, 246, 0.15));
+  border-radius: 12px;
+}
+
+.trust-indicator-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--acc-bg, rgba(7, 94, 91, 0.15));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.trust-indicator-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink, #f8fafc);
+  margin: 0 0 3px;
+}
+
+.trust-indicator-desc {
+  font-size: 11px;
+  color: var(--mut, #86A6A2);
+  margin: 0;
+  line-height: 1.45;
+}
+
+.privacy-footer-icon-badge {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--acc-bg, rgba(7, 94, 91, 0.15));
+  color: var(--acc, #2BA99A);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* --- Dedicated Upload Modal --- */
+.upload-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  animation: modalFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.upload-modal-card {
+  background: var(--card, #0f172a);
+  border: 1px solid var(--line, rgba(59, 130, 246, 0.25));
+  border-radius: 18px;
+  max-width: 520px;
+  width: 100%;
+  padding: 28px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
+  position: relative;
+  animation: modalScaleIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes modalScaleIn {
+  from {
+    transform: scale(0.96);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.upload-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.upload-modal-title-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.upload-modal-icon-badge {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--acc-bg, rgba(7, 94, 91, 0.15));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.upload-modal-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--ink, #f8fafc);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.upload-modal-slot-meta {
+  font-size: 11px;
+  color: var(--mut, #86A6A2);
+  margin-top: 2px;
+}
+
+.upload-modal-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--mut, #86A6A2);
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s, background-color 0.15s;
+}
+
+.upload-modal-close-btn:hover {
+  color: var(--ink, #f8fafc);
+  background: var(--card-subtle, #1e293b);
+}
+
+.upload-modal-subtitle {
+  font-size: 13px;
+  color: var(--ink-secondary, #94a3b8);
+  margin: 0 0 18px;
+  line-height: 1.5;
+}
+
+.upload-modal-err {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.upload-modal-dropzone {
+  border: 2px dashed var(--line, rgba(59, 130, 246, 0.3));
+  border-radius: 12px;
+  padding: 32px 20px;
+  text-align: center;
+  cursor: pointer;
+  background: var(--card-subtle, #14203a);
+  transition: all 0.2s ease;
+  margin-bottom: 16px;
+}
+
+.upload-modal-dropzone:hover,
+.upload-modal-dropzone.active {
+  border-color: var(--acc, #2BA99A);
+  background: var(--acc-bg, rgba(7, 94, 91, 0.12));
+}
+
+.upload-modal-dropzone.has-file {
+  border-style: solid;
+  border-color: var(--acc, #2BA99A);
+  background: var(--card-subtle, #14203a);
+  padding: 18px 20px;
+}
+
+.upload-selected-file-view {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-align: left;
+}
+
+.upload-file-icon-wrap {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: rgba(16, 185, 129, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.upload-file-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow: hidden;
+}
+
+.upload-file-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink, #f8fafc);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.upload-file-size {
+  font-size: 12px;
+  color: var(--mut, #86A6A2);
+}
+
+.upload-dropzone-cloud-icon {
+  margin-bottom: 10px;
+}
+
+.upload-dropzone-main-text {
+  font-size: 14px;
+  color: var(--ink, #f8fafc);
+  margin-bottom: 4px;
+}
+
+.upload-dropzone-sub-text {
+  font-size: 12px;
+  color: var(--mut, #86A6A2);
+}
+
+.upload-modal-security-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--mut, #86A6A2);
+  background: var(--card-subtle, #14203a);
+  border: 1px solid var(--line, rgba(59, 130, 246, 0.15));
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 22px;
+  line-height: 1.4;
+}
+
+.upload-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.upload-modal-cancel-btn {
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.upload-modal-submit-btn {
+  padding: 10px 24px;
+  font-size: 13px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* --- Light Mode Refinements for Customer Portals --- */
+[data-theme="light"] .consent-panel-card,
+.customer-theme-light .consent-panel-card,
+[data-theme="light"] .portal-progress-card,
+.customer-theme-light .portal-progress-card,
+[data-theme="light"] .doc-upload-card,
+.customer-theme-light .doc-upload-card,
+[data-theme="light"] .upload-modal-card,
+.customer-theme-light .upload-modal-card {
+  background: #FFFDF8;
+  border-color: #DDE5DE;
+  box-shadow: 0 4px 16px rgba(18, 59, 58, 0.06);
+}
+
+[data-theme="light"] .consent-doc-card,
+.customer-theme-light .consent-doc-card,
+[data-theme="light"] .trust-indicator-card,
+.customer-theme-light .trust-indicator-card,
+[data-theme="light"] .upload-modal-dropzone,
+.customer-theme-light .upload-modal-dropzone,
+[data-theme="light"] .upload-modal-security-note,
+.customer-theme-light .upload-modal-security-note {
+  background: #FAF7F0;
+  border-color: #DDE5DE;
+}
+
+[data-theme="light"] .upload-modal-dropzone:hover,
+.customer-theme-light .upload-modal-dropzone:hover,
+[data-theme="light"] .upload-modal-dropzone.active,
+.customer-theme-light .upload-modal-dropzone.active {
+  background: #EEF5F2;
+  border-color: #075E5B;
+}
+
+[data-theme="light"] .consent-main-heading,
+.customer-theme-light .consent-main-heading,
+[data-theme="light"] .portal-welcome-title,
+.customer-theme-light .portal-welcome-title,
+[data-theme="light"] .customer-docs-section-title,
+.customer-theme-light .customer-docs-section-title,
+[data-theme="light"] .upload-modal-title,
+.customer-theme-light .upload-modal-title,
+[data-theme="light"] .upload-file-name,
+.customer-theme-light .upload-file-name,
+[data-theme="light"] .upload-dropzone-main-text,
+.customer-theme-light .upload-dropzone-main-text,
+[data-theme="light"] .trust-indicator-title,
+.customer-theme-light .trust-indicator-title {
+  color: #123B3A;
+}
+
+/* --- Responsive Adjustments --- */
+@media (max-width: 768px) {
+  .portal-welcome-section {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .customer-trust-section {
+    grid-template-columns: 1fr;
+  }
+  .portal-progress-meta-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .doc-card-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 14px;
+  }
+  .doc-card-status-action-group {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .consent-doc-grid {
+    grid-template-columns: 1fr;
+  }
+  .upload-modal-card {
+    padding: 20px 16px;
+  }
+  .portal-progress-breakdown {
+    gap: 16px;
+  }
+}
+
+
