@@ -465,3 +465,25 @@ def test_prevent_approving_superseded_or_withdrawn_document(client, env):
     assert res2.status_code == 400
     assert "consent_withdrawn" in res2.json()["detail"]
 
+
+def test_list_reviews_status_all_and_filtering(client):
+    # Test that status=all returns 200 and not 422
+    res_all = client.get("/api/admin/reviews?status=all", headers=admin_headers())
+    assert res_all.status_code == 200
+    assert isinstance(res_all.json(), list)
+
+    res_open = client.get("/api/admin/reviews?status=open", headers=admin_headers())
+    assert res_open.status_code == 200
+    assert isinstance(res_open.json(), list)
+
+    res_app = client.get("/api/admin/reviews?status=approved", headers=admin_headers())
+    assert res_app.status_code == 200
+    assert isinstance(res_app.json(), list)
+
+    res_rej = client.get("/api/admin/reviews?status=rejected", headers=admin_headers())
+    assert res_rej.status_code == 200
+    assert isinstance(res_rej.json(), list)
+
+    res_invalid = client.get("/api/admin/reviews?status=invalid_status", headers=admin_headers())
+    assert res_invalid.status_code == 422
+

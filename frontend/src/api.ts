@@ -10,6 +10,8 @@ import type {
   PortalState,
   PrivacyResponse,
   UploadResponse,
+  ImportPreviewResponse,
+  ImportBatchResponse,
 } from "./types";
 
 
@@ -386,6 +388,26 @@ export async function createAdminCustomer(
   });
 }
 
+export async function previewCustomerImport(file: File): Promise<ImportPreviewResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+  return request<ImportPreviewResponse>("/api/admin/customers/import/preview", {
+    method: "POST",
+    body: formData,
+    isAdmin: true,
+  });
+}
+
+export async function executeCustomerImport(file: File): Promise<ImportBatchResponse> {
+  const formData = new FormData();
+  formData.append("file", file);
+  return request<ImportBatchResponse>("/api/admin/customers/import", {
+    method: "POST",
+    body: formData,
+    isAdmin: true,
+  });
+}
+
 export async function closeAdminCase(
   customerId: number,
   reason?: string
@@ -454,7 +476,9 @@ export async function deleteAdminDocumentFile(docId: string): Promise<{ message:
   );
 }
 
-export async function getAdminReviews(status: string = "open"): Promise<AdminReviewItem[]> {
+export async function getAdminReviews(
+  status: "open" | "approved" | "rejected" | "all" | string = "open"
+): Promise<AdminReviewItem[]> {
   return request<AdminReviewItem[]>(`/api/admin/reviews?status=${encodeURIComponent(status)}`, {
     isAdmin: true,
   });

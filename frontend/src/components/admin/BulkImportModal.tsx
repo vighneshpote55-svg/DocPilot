@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
-import { createAdminCustomer } from "../../api";
+import { previewCustomerImport, executeCustomerImport } from "../../api";
+import type { ImportPreviewResponse, ImportBatchResponse, ImportRowResult } from "../../types";
 import {
   IconX,
   IconFileSpreadsheet,
@@ -12,11 +13,7 @@ import {
   IconFileCheck,
   IconFileWarning,
 } from "./AdminIcons";
-import {
-  downloadSampleExcelTemplate,
-  parseExcelBuffer,
-  type ExcelParseResult,
-} from "../../utils/excelImport";
+import { downloadSampleExcelTemplate } from "../../utils/excelImport";
 import { useDialogA11y } from "../../utils/a11yUtils";
 
 interface BulkImportModalProps {
@@ -32,23 +29,22 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
   isOpen,
   onClose,
   onImportComplete,
-  existingEmails = new Set(),
+  existingEmails: _existingEmails,
 }) => {
   const [step, setStep] = useState<ImportStep>("upload");
   const [isDragOver, setIsDragOver] = useState(false);
-  const [parseResult, setParseResult] = useState<ExcelParseResult | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewResult, setPreviewResult] = useState<ImportPreviewResponse | null>(null);
   const [parseError, setParseError] = useState<string | null>(null);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
 
   // Preview filtering
   const [previewFilter, setPreviewFilter] = useState<"all" | "valid" | "issues">("all");
-  const [skipInvalid, setSkipInvalid] = useState(true);
 
-  // Batch progress state
-  const [progressIndex, setProgressIndex] = useState(0);
-  const [totalToImport, setTotalToImport] = useState(0);
-  const [currentImportName, setCurrentImportName] = useState("");
+  // Batch import result state
   const [successCount, setSuccessCount] = useState(0);
   const [failureCount, setFailureCount] = useState(0);
+  const [emailSentCount, setEmailSentCount] = useState(0);
   const [failureDetails, setFailureDetails] = useState<Array<{ name: string; email: string; error: string }>>([]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -58,14 +54,14 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
     if (!isOpen) return;
     queueMicrotask(() => {
       setStep("upload");
-      setParseResult(null);
+      setSelectedFile(null);
+      setPreviewResult(null);
       setParseError(null);
+      setIsAnalyzing(false);
       setPreviewFilter("all");
-      setSkipInvalid(true);
-      setProgressIndex(0);
-      setTotalToImport(0);
       setSuccessCount(0);
       setFailureCount(0);
+      setEmailSentCount(0);
       setFailureDetails([]);
     });
   }, [isOpen]);
@@ -84,21 +80,25 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
       return;
     }
 
+    setIsAnalyzing(true);
     try {
-      const buffer = await file.arrayBuffer();
-      const result = parseExcelBuffer(buffer, file.name, existingEmails);
-      setParseResult(result);
+      const res = await previewCustomerImport(file);
+      setSelectedFile(file);
+      setPreviewResult(res);
       setStep("preview");
     } catch (err: unknown) {
       setParseError(
-        err instanceof Error ? err.message : "Failed to parse the uploaded Excel file."
+        err instanceof Error ? err.message : "Failed to analyze the uploaded Excel file."
       );
+    } finally {
+      setIsAnalyzing(false);
     }
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragOver(false);
+    if (isAnalyzing) return;
     const file = e.dataTransfer.files?.[0];
     if (file) {
       handleProcessFile(file);
@@ -107,7 +107,9 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    setIsDragOver(true);
+    if (!isAnalyzing) {
+      setIsDragOver(true);
+    }
   };
 
   const handleDragLeave = (e: React.DragEvent) => {
@@ -123,71 +125,64 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
   };
 
   const handleStartImport = async () => {
-    if (!parseResult) return;
+    if (!selectedFile || !previewResult) return;
 
-    // Filter candidate rows
-    const rowsToImport = parseResult.rows.filter((r) => {
-      if (r.status === "valid" || r.status === "warning") {
-        return true;
-      }
-      return !skipInvalid; // only if not skipping invalid
-    });
-
-    if (rowsToImport.length === 0) {
+    if (previewResult.valid_rows === 0) {
       alert("No valid rows available to import.");
       return;
     }
 
     setStep("importing");
-    setTotalToImport(rowsToImport.length);
-    setProgressIndex(0);
-    setSuccessCount(0);
-    setFailureCount(0);
-    setFailureDetails([]);
+    setParseError(null);
 
-    let ok = 0;
-    let fail = 0;
-    const failures: Array<{ name: string; email: string; error: string }> = [];
+    try {
+      const res: ImportBatchResponse = await executeCustomerImport(selectedFile);
+      setSuccessCount(res.imported);
+      setFailureCount(res.rejected + res.duplicates + res.failed);
+      setEmailSentCount(res.email_sent);
 
-    for (let i = 0; i < rowsToImport.length; i++) {
-      const row = rowsToImport[i];
-      setProgressIndex(i + 1);
-      setCurrentImportName(row.name);
-
-      try {
-        await createAdminCustomer({
-          name: row.name,
-          email: row.email,
-          mobile: row.mobile || null,
-          required_documents: row.requiredDocuments,
-          send_consent: row.sendConsent,
-        });
-        ok++;
-        setSuccessCount(ok);
-      } catch (err: unknown) {
-        fail++;
-        setFailureCount(fail);
-        failures.push({
-          name: row.name,
-          email: row.email,
-          error: err instanceof Error ? err.message : "Failed to create",
-        });
-        setFailureDetails([...failures]);
+      const failures: Array<{ name: string; email: string; error: string }> = [];
+      for (const row of res.rows) {
+        if (row.status !== "valid") {
+          failures.push({
+            name: row.name || `Row ${row.row}`,
+            email: row.email || "—",
+            error: row.errors.map((e) => e.message).join("; ") || row.status,
+          });
+        }
       }
+      for (const ef of res.email_failures) {
+        failures.push({
+          name: `Customer ID ${ef.customer_id}`,
+          email: `Row ${ef.row}`,
+          error: `Consent email dispatch failed (${ef.code})`,
+        });
+      }
+      setFailureDetails(failures);
+      setStep("complete");
+      onImportComplete(res.imported);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Batch import failed.";
+      setParseError(msg);
+      setFailureCount(previewResult.valid_rows);
+      setFailureDetails([
+        {
+          name: "Batch Import Error",
+          email: selectedFile.name,
+          error: msg,
+        },
+      ]);
+      setStep("complete");
     }
-
-    setStep("complete");
-    onImportComplete(ok);
   };
 
-  const filteredPreviewRows = (parseResult?.rows || []).filter((r) => {
+  const filteredPreviewRows = (previewResult?.rows || []).filter((r: ImportRowResult) => {
     if (previewFilter === "valid") return r.status === "valid";
-    if (previewFilter === "issues") return r.status === "warning" || r.status === "invalid";
+    if (previewFilter === "issues") return r.status !== "valid";
     return true;
   });
 
-  const importableCount =
-    (parseResult?.validRows || 0) + (parseResult?.warningRows || 0);
+  const importableCount = previewResult?.valid_rows || 0;
 
   return (
     <div
@@ -213,7 +208,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
               Bulk Customer Intake (.xlsx)
             </h2>
             <p className="modal-subtitle">
-              Import multiple customer KYC & business cases using standard Excel spreadsheets
+              Import multiple customer KYC & business cases via atomic backend batch validation
             </p>
           </div>
           {step !== "importing" && (
@@ -270,8 +265,9 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => !isAnalyzing && fileInputRef.current?.click()}
                 id="excel-dropzone"
+                style={{ opacity: isAnalyzing ? 0.7 : 1, pointerEvents: isAnalyzing ? "none" : "auto" }}
               >
                 <input
                   type="file"
@@ -279,14 +275,27 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
                   onChange={handleFileChange}
                   accept=".xlsx, .xls"
                   style={{ display: "none" }}
+                  disabled={isAnalyzing}
                 />
                 <div className="dropzone-icon-circle">
-                  <IconUploadCloud size={38} color="var(--adm-primary)" />
+                  {isAnalyzing ? (
+                    <span className="spinner-lg" />
+                  ) : (
+                    <IconUploadCloud size={38} color="var(--adm-primary)" />
+                  )}
                 </div>
-                <h4 className="dropzone-title">Drag & drop your .xlsx workbook here</h4>
-                <p className="dropzone-subtitle">or click to browse from your computer</p>
+                <h4 className="dropzone-title">
+                  {isAnalyzing
+                    ? "Validating workbook with DocPilot server…"
+                    : "Drag & drop your .xlsx workbook here"}
+                </h4>
+                <p className="dropzone-subtitle">
+                  {isAnalyzing
+                    ? "Executing schema validation, duplicate detection, and integrity checks"
+                    : "or click to browse from your computer"}
+                </p>
                 <div className="dropzone-badge">
-                  Supports Microsoft Excel (.xlsx, .xls) • Max 500 rows per batch
+                  Supports Microsoft Excel (.xlsx) • Up to 1,000 rows per atomic batch
                 </div>
               </div>
 
@@ -308,27 +317,34 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
           )}
 
           {/* STEP 2: PREVIEW & VALIDATION */}
-          {step === "preview" && parseResult && (
+          {step === "preview" && previewResult && (
             <div className="bulk-preview-step">
+              {parseError && (
+                <div className="msg err" role="alert" style={{ marginBottom: 16 }}>
+                  <IconAlertCircle size={16} />
+                  <span>{parseError}</span>
+                </div>
+              )}
+
               {/* Summary Stats Row */}
               <div className="preview-metrics-row">
                 <div className="preview-metric-pill total">
-                  <span className="preview-metric-val">{parseResult.totalRows}</span>
+                  <span className="preview-metric-val">{previewResult.total_rows}</span>
                   <span className="preview-metric-lbl">Total Rows</span>
                 </div>
                 <div className="preview-metric-pill valid">
                   <IconFileCheck size={16} color="var(--adm-success)" />
-                  <span className="preview-metric-val">{parseResult.validRows}</span>
+                  <span className="preview-metric-val">{previewResult.valid_rows}</span>
                   <span className="preview-metric-lbl">Ready to Import</span>
                 </div>
                 <div className="preview-metric-pill warning">
                   <IconFileWarning size={16} color="var(--adm-warn)" />
-                  <span className="preview-metric-val">{parseResult.warningRows}</span>
-                  <span className="preview-metric-lbl">Warnings / Duplicates</span>
+                  <span className="preview-metric-val">{previewResult.duplicate_rows}</span>
+                  <span className="preview-metric-lbl">Duplicates</span>
                 </div>
                 <div className="preview-metric-pill invalid">
                   <IconAlertCircle size={16} color="var(--adm-danger)" />
-                  <span className="preview-metric-val">{parseResult.invalidRows}</span>
+                  <span className="preview-metric-val">{previewResult.invalid_rows}</span>
                   <span className="preview-metric-lbl">Invalid Rows</span>
                 </div>
               </div>
@@ -341,33 +357,31 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
                     className={`preview-tab-btn ${previewFilter === "all" ? "active" : ""}`}
                     onClick={() => setPreviewFilter("all")}
                   >
-                    All Rows ({parseResult.totalRows})
+                    All Rows ({previewResult.total_rows})
                   </button>
                   <button
                     type="button"
                     className={`preview-tab-btn ${previewFilter === "valid" ? "active" : ""}`}
                     onClick={() => setPreviewFilter("valid")}
                   >
-                    Ready ({parseResult.validRows})
+                    Ready ({previewResult.valid_rows})
                   </button>
                   <button
                     type="button"
                     className={`preview-tab-btn ${previewFilter === "issues" ? "active" : ""}`}
                     onClick={() => setPreviewFilter("issues")}
                   >
-                    Issues ({parseResult.warningRows + parseResult.invalidRows})
+                    Issues ({previewResult.duplicate_rows + previewResult.invalid_rows})
                   </button>
                 </div>
 
-                {parseResult.invalidRows > 0 && (
-                  <label className="skip-invalid-toggle">
-                    <input
-                      type="checkbox"
-                      checked={skipInvalid}
-                      onChange={(e) => setSkipInvalid(e.target.checked)}
-                    />
-                    <span>Skip invalid rows automatically</span>
-                  </label>
+                {previewResult.document_types_detected.length > 0 && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12 }} className="mut">
+                    <span>Types detected:</span>
+                    {previewResult.document_types_detected.map((t) => (
+                      <span key={t} className="doc-tag-sm">{t}</span>
+                    ))}
+                  </div>
                 )}
               </div>
 
@@ -377,7 +391,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
                   <thead>
                     <tr>
                       <th style={{ width: 60 }}>Row</th>
-                      <th style={{ width: 110 }}>Status</th>
+                      <th style={{ width: 130 }}>Status</th>
                       <th>Customer Name</th>
                       <th>Email</th>
                       <th>Mobile</th>
@@ -386,50 +400,63 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredPreviewRows.map((row) => (
-                      <tr key={row.id} className={`preview-row-${row.status}`}>
-                        <td className="row-num">{row.rowNumber}</td>
-                        <td>
-                          <span className={`status-badge ${row.status}`}>
-                            {row.status === "valid" && <IconCheck size={12} />}
-                            {row.status === "warning" && <IconAlertTriangle size={12} />}
-                            {row.status === "invalid" && <IconAlertCircle size={12} />}
-                            {row.status.toUpperCase()}
-                          </span>
-                        </td>
-                        <td>
-                          <b>{row.name || <span className="mut">(Empty)</span>}</b>
-                        </td>
-                        <td>
-                          <span className="email-cell">
-                            {row.email || <span className="mut">(Empty)</span>}
-                          </span>
-                        </td>
-                        <td>
-                          <span className="mut">{row.mobile || "—"}</span>
-                        </td>
-                        <td>
-                          <div className="doc-pill-wrap">
-                            {row.requiredDocuments.map((d) => (
-                              <span key={d} className="doc-tag-sm">
-                                {d}
-                              </span>
-                            ))}
-                          </div>
-                        </td>
-                        <td>
-                          {row.issues.length > 0 ? (
-                            <ul className="row-issues-list">
-                              {row.issues.map((issue, idx) => (
-                                <li key={idx}>{issue}</li>
+                    {filteredPreviewRows.map((row) => {
+                      const isDup = row.status === "duplicate_customer" || row.status === "duplicate_excel_row";
+                      const statusClass = row.status === "valid" ? "valid" : (isDup ? "warning" : "invalid");
+                      const statusLabel = row.status === "valid"
+                        ? "VALID"
+                        : (row.status === "duplicate_customer"
+                            ? "DUPLICATE"
+                            : (row.status === "duplicate_excel_row" ? "IN-FILE DUP" : "INVALID"));
+
+                      return (
+                        <tr key={row.row} className={`preview-row-${statusClass}`}>
+                          <td className="row-num">{row.row}</td>
+                          <td>
+                            <span className={`status-badge ${statusClass}`}>
+                              {row.status === "valid" && <IconCheck size={12} />}
+                              {isDup && <IconAlertTriangle size={12} />}
+                              {row.status === "invalid" && <IconAlertCircle size={12} />}
+                              {statusLabel}
+                            </span>
+                          </td>
+                          <td>
+                            <b>{row.name || <span className="mut">(Empty / Invalid)</span>}</b>
+                          </td>
+                          <td>
+                            <span className="email-cell">
+                              {row.email || <span className="mut">(Empty / Invalid)</span>}
+                            </span>
+                          </td>
+                          <td>
+                            <span className="mut">{row.mobile || "—"}</span>
+                          </td>
+                          <td>
+                            <div className="doc-pill-wrap">
+                              {row.required_documents.map((d) => (
+                                <span key={d} className="doc-tag-sm">
+                                  {d}
+                                </span>
                               ))}
-                            </ul>
-                          ) : (
-                            <span className="row-issue-ok">Passed all checks</span>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
+                              {row.required_documents.length === 0 && (
+                                <span className="mut" style={{ fontSize: 12 }}>—</span>
+                              )}
+                            </div>
+                          </td>
+                          <td>
+                            {row.errors.length > 0 ? (
+                              <ul className="row-issues-list">
+                                {row.errors.map((issue, idx) => (
+                                  <li key={idx}>{issue.message}</li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <span className="row-issue-ok">Passed all server checks</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -443,33 +470,29 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
                 <div className="import-spinner-wrap">
                   <span className="spinner-lg" />
                 </div>
-                <h3 className="import-progress-title">Importing Customers…</h3>
+                <h3 className="import-progress-title">Executing Batch Import…</h3>
                 <p className="import-progress-subtitle">
-                  Processing <b>{currentImportName}</b> ({progressIndex} of {totalToImport})
+                  Performing atomic PostgreSQL transaction for <b>{selectedFile?.name}</b> ({previewResult?.valid_rows} customer{previewResult?.valid_rows === 1 ? "" : "s"})
                 </p>
               </div>
 
-              {/* Progress Bar */}
+              {/* Indeterminate Animated Progress Bar */}
               <div className="import-progress-bar-container">
                 <div
                   className="import-progress-bar-fill"
                   style={{
-                    width: `${Math.round((progressIndex / Math.max(1, totalToImport)) * 100)}%`,
+                    width: "100%",
+                    transition: "width 0.4s ease",
                   }}
                 />
               </div>
 
               <div className="import-progress-footer">
                 <span className="mut">
-                  {Math.round((progressIndex / Math.max(1, totalToImport)) * 100)}% Complete
+                  Single atomic transaction — safe against partial import failures
                 </span>
                 <span className="import-counter-stat">
-                  <span style={{ color: "var(--adm-success)" }}>{successCount} created</span>
-                  {failureCount > 0 && (
-                    <span style={{ color: "var(--adm-danger)", marginLeft: 12 }}>
-                      {failureCount} failed
-                    </span>
-                  )}
+                  <span style={{ color: "var(--adm-primary)" }}>{previewResult?.valid_rows} rows queued</span>
                 </span>
               </div>
             </div>
@@ -483,7 +506,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
               </div>
               <h3 className="complete-title">Bulk Intake Completed!</h3>
               <p className="complete-desc">
-                Finished processing the customer batch from <b>{parseResult?.fileName}</b>.
+                Finished processing the customer batch from <b>{selectedFile?.name}</b>.
               </p>
 
               <div className="complete-stats-card">
@@ -493,23 +516,21 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
                 </div>
                 <div className="complete-stat-item">
                   <span className="stat-number err">{failureCount}</span>
-                  <span className="stat-label">Failed Requests</span>
+                  <span className="stat-label">Skipped / Issues</span>
                 </div>
                 <div className="complete-stat-item">
-                  <span className="stat-number mut">
-                    {skipInvalid ? parseResult?.invalidRows || 0 : 0}
-                  </span>
-                  <span className="stat-label">Skipped Invalid</span>
+                  <span className="stat-number mut">{emailSentCount}</span>
+                  <span className="stat-label">Consent Emails Sent</span>
                 </div>
               </div>
 
               {failureDetails.length > 0 && (
                 <div className="complete-failures-box">
-                  <h4 className="failures-title">Failures Breakdown:</h4>
+                  <h4 className="failures-title">Items Breakdown / Rejections:</h4>
                   <ul className="failures-list">
                     {failureDetails.map((f, i) => (
                       <li key={i}>
-                        <b>{f.name}</b> ({f.email}): {f.error}
+                        <b>{f.name}</b> {f.email !== "—" ? `(${f.email})` : ""}: {f.error}
                       </li>
                     ))}
                   </ul>
@@ -522,7 +543,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
         {/* Modal Footer */}
         <div className="modal-footer">
           {step === "upload" && (
-            <button type="button" className="sec" onClick={onClose}>
+            <button type="button" className="sec" onClick={onClose} disabled={isAnalyzing}>
               Cancel
             </button>
           )}
@@ -534,7 +555,8 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
                 className="sec"
                 onClick={() => {
                   setStep("upload");
-                  setParseResult(null);
+                  setSelectedFile(null);
+                  setPreviewResult(null);
                 }}
               >
                 <IconRefreshCw size={14} /> Re-upload File

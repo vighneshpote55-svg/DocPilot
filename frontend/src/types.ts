@@ -239,3 +239,41 @@ export interface ApiError {
   code?: string;
   message: string;
 }
+
+export interface ImportRowError {
+  code: string;
+  message: string;
+}
+
+export interface ImportRowResult {
+  row: number;
+  status: "valid" | "invalid" | "duplicate_customer" | "duplicate_excel_row";
+  errors: ImportRowError[];
+  name: string | null;
+  email: string | null;
+  mobile: string | null;
+  required_documents: string[];
+  send_consent: boolean;
+}
+
+export interface ImportPreviewResponse {
+  total_rows: number;
+  valid_rows: number;
+  invalid_rows: number;
+  duplicate_rows: number;
+  document_types_detected: string[];
+  rows: ImportRowResult[];
+}
+
+export interface ImportBatchResponse {
+  total_rows: number;
+  imported: number;
+  rejected: number;
+  duplicates: number;
+  failed: number;
+  email_sent: number;
+  email_failed: number;
+  email_failures: Array<{ row: number; customer_id: number; code: string }>;
+  created: Array<{ row: number; id: number; code: string }>;
+  rows: ImportRowResult[];
+}

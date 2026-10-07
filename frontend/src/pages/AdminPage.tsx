@@ -308,8 +308,7 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
 
   const fetchReviews = (statusFilter: "open" | "approved" | "rejected" | "all" = reviewsStatusFilter) => {
     setLoadingReviews(true);
-    const queryStatus = statusFilter === "all" ? "open" : statusFilter;
-    getAdminReviews(queryStatus)
+    getAdminReviews(statusFilter)
       .then((items) => {
         setReviews(items);
         setLoadingReviews(false);

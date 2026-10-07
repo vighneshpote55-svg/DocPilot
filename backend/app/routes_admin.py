@@ -541,9 +541,12 @@ def resend_upload_link(customer_id: int, db: Session = Depends(get_db), admin: s
 
 
 @router.get("/reviews")
-def list_reviews(status: Literal["open", "approved", "rejected"] = "open", db: Session = Depends(get_db),
+def list_reviews(status: Literal["open", "approved", "rejected", "all"] = "open", db: Session = Depends(get_db),
                  admin: str = Depends(require_admin)):
-    reviews = list(db.scalars(select(ManualReview).where(ManualReview.status == status).order_by(ManualReview.created_at)))
+    query = select(ManualReview)
+    if status != "all":
+        query = query.where(ManualReview.status == status)
+    reviews = list(db.scalars(query.order_by(ManualReview.created_at)))
     services.audit(db, admin, "manual_review_opened", "system", "review_queue", {"status": status})
     db.commit()
     if not reviews:
