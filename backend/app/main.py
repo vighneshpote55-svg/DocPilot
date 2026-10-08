@@ -1,14 +1,20 @@
+import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from .config import get_settings
-from .db import ensure_db
+from .db import ensure_db, get_db
 from .logging_conf import setup_logging
 from .routes_admin import router as admin_router
 from .routes_portal import router as portal_router
 from .routes_public import router as public_router
+
+log = logging.getLogger("docpilot.main")
 
 
 @asynccontextmanager
@@ -44,9 +50,25 @@ def create_app() -> FastAPI:
     app.include_router(portal_router)
     app.include_router(public_router)
 
+    @app.exception_handler(Exception)
+    async def global_exception_handler(request: Request, exc: Exception):
+        if isinstance(exc, HTTPException):
+            detail = exc.detail if isinstance(exc.detail, dict) else {"detail": exc.detail}
+            return JSONResponse(status_code=exc.status_code, content=detail, headers=exc.headers)
+        log.exception("Unhandled server error on %s: %s", request.url.path, exc)
+        return JSONResponse(
+            status_code=500,
+            content={"code": "internal_error", "message": "An internal server error occurred."}
+        )
+
     @app.get("/health")
-    def health():
-        return {"status": "ok"}
+    def health(db: Session = Depends(get_db)):
+        try:
+            db.execute(select(1)).scalar()
+        except Exception as e:
+            log.error("health_check_database_failed: %s", e)
+            raise HTTPException(503, {"status": "degraded", "database": "unavailable"})
+        return {"status": "ok", "database": "connected"}
 
     return app
 
