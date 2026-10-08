@@ -663,11 +663,15 @@ def view_document(doc_id: str, download: bool = False, db: Session = Depends(get
         raise HTTPException(404, "not_found")
 
     if d.file_state != "stored":
-
         raise HTTPException(410, "file_deleted")
 
-    if download and not get_settings().allow_download:
+    c = db.get(Customer, d.customer_id)
+    if c and c.case_status == "deleted":
+        raise HTTPException(410, "file_deleted")
+    if c and (c.consent_status == "withdrawn" or c.case_status == "consent_withdrawn"):
+        raise HTTPException(403, "consent_withdrawn")
 
+    if download and not get_settings().allow_download:
         raise HTTPException(403, "download_disabled")
 
     data = get_file(d.storage_key)

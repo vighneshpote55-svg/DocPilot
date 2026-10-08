@@ -18,9 +18,26 @@ async def lifespan(app: FastAPI):
     yield
 
 
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next) -> Response:
+        response = await call_next(request)
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "DENY")
+        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        if request.url.path.startswith("/api/"):
+            response.headers.setdefault("Cache-Control", "no-store, no-cache, must-revalidate")
+        return response
+
+
 def create_app() -> FastAPI:
     s = get_settings()
     app = FastAPI(title="Secure Document Collection API", lifespan=lifespan)
+    app.add_middleware(SecurityHeadersMiddleware)
     app.add_middleware(CORSMiddleware, allow_origins=s.cors_origin_list, allow_credentials=True,
                        allow_methods=["*"], allow_headers=["*"])
     app.include_router(admin_router)
