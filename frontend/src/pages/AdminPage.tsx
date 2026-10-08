@@ -464,6 +464,26 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
 
           {/* Main Content Area */}
           <main className="admin-content" id="main-content">
+            {authError && (
+              <div
+                className="admin-auth-error-banner msg err"
+                role="alert"
+                id="admin-auth-error-banner"
+                style={{
+                  margin: "16px 20px 0",
+                  padding: "12px 16px",
+                  background: "rgba(239, 68, 68, 0.12)",
+                  border: "1px solid rgba(239, 68, 68, 0.35)",
+                  color: "#f87171",
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: 600,
+                }}
+              >
+                Access Denied: {authError}
+              </div>
+            )}
+
             {/* --- TAB 0: DASHBOARD OVERVIEW --- */}
             {activeTab === "dashboard" && (
               <div id="tab-pane-dashboard">

@@ -70,7 +70,7 @@ export const AdminReportsView: React.FC<AdminReportsViewProps> = ({
   const [auditLogs, setAuditLogs] = useState<AdminAuditItem[]>(initialAuditLogs);
 
   // Status State
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [lastRefreshed, setLastRefreshed] = useState<Date>(() => new Date());
 
@@ -115,7 +115,6 @@ export const AdminReportsView: React.FC<AdminReportsViewProps> = ({
   // Initial load
   useEffect(() => {
     let ignore = false;
-    setLoading(true);
     Promise.all([
       getAdminSummary().catch(() => null),
       getAdminCustomers("", 50, 0, "").catch(() => ({ customers: [] })),
