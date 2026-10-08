@@ -735,7 +735,7 @@ with session_scope() as db:
     await urlInput.fill("http://127.0.0.1:8000");
     const saveOcrBtn = page.locator("#btn-save-ocr-settings");
     await Promise.all([
-      page.waitForResponse((res) => res.url().includes("/settings/ocr") && res.request().method() === "POST" && res.status() === 200, { timeout: 15000 }),
+      page.waitForResponse((res) => res.url().includes("/settings/ocr") && res.request().method() === "PUT" && res.status() === 200, { timeout: 15000 }),
       saveOcrBtn.click(),
     ]);
     await page.waitForTimeout(600);
