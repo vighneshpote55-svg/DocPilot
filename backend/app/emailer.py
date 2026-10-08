@@ -73,62 +73,63 @@ def send_email(to: str, subject: str, body: str) -> bool:
             return True
         except Exception as e:
             if attempt < max_retries - 1:
-                log.warning("Email send failed (attempt %s/%s), retrying: %s", attempt + 1, max_retries, e)
+                log.warning("Email send to %s failed (attempt %s/%s), retrying: %s", mask_email(to), attempt + 1, max_retries, e)
                 time.sleep(1)
             else:
-                log.exception("Failed to send email after %s attempts (subject=%s)", max_retries, subject)
+                log.exception("Failed to send email to %s after %s attempts (subject=%s)", mask_email(to), max_retries, subject)
                 return False
 
 
-def consent_request(to: str, name: str, labels: list[str], link: str) -> None:
+def consent_request(to: str, name: str, labels: list[str], link: str) -> bool:
     docs = "\n".join(f"  - {x}" for x in labels)
-    send_email(to, "Consent needed to collect your documents", (
+    return send_email(to, "Consent needed to collect your documents", (
         f"Hello {name},\n\nWe need the following documents:\n{docs}\n\n"
         f"Please review how they will be used and give or decline consent here:\n{link}\n\n"
         "Documents are uploaded through a secure portal; please do not send them by email."))
 
 
-def pending_documents(to: str, name: str, labels: list[str], link: str, reminder: bool) -> None:
+def pending_documents(to: str, name: str, labels: list[str], link: str, reminder: bool) -> bool:
     docs = "\n".join(f"  - {x}" for x in labels)
     subject = "Reminder: documents still pending" if reminder else "Please upload your documents"
-    send_email(to, subject, (
+    return send_email(to, subject, (
         f"Hello {name},\n\nThe following documents are still pending:\n{docs}\n\n"
         f"Upload them securely here (you can upload one at a time):\n{link}\n\n"
         "Please do not reply with attachments."))
 
 
-def resubmit(to: str, name: str, doc_label: str, link: str) -> None:
-    send_email(to, f"Please re-upload your {doc_label}", (
+def resubmit(to: str, name: str, doc_label: str, link: str) -> bool:
+    return send_email(to, f"Please re-upload your {doc_label}", (
         f"Hello {name},\n\nWe could not accept the {doc_label} you uploaded. "
         f"Please upload a clear, valid copy here:\n{link}"))
 
 
-def completed(to: str, name: str) -> None:
-    send_email(to, "All documents received", (
+def completed(to: str, name: str) -> bool:
+    return send_email(to, "All documents received", (
         f"Hello {name},\n\nAll your documents have been verified. Thank you. "
         "Your uploaded files will be permanently deleted shortly."))
 
 
-def privacy_verification(to: str, name: str, action: str, link: str) -> None:
+def privacy_verification(to: str, name: str, action: str, link: str) -> bool:
     what = "delete your data" if action == "delete" else "withdraw your consent"
-    send_email(to, "Confirm your privacy request", (
+    return send_email(to, "Confirm your privacy request", (
         f"Hello {name},\n\nWe received a request to {what}. Confirm it within 30 minutes:\n{link}\n\n"
         "If you did not make this request, ignore this email."))
 
 
-def deletion_confirmation(to: str, name: str) -> None:
-    send_email(to, "Your documents have been deleted", (
+def deletion_confirmation(to: str, name: str) -> bool:
+    return send_email(to, "Your documents have been deleted", (
         f"Hello {name},\n\nYour uploaded documents and temporary processing data have been permanently deleted."))
 
 
-def withdrawal_confirmation(to: str, name: str) -> None:
-    send_email(to, "Consent withdrawn", (
+def withdrawal_confirmation(to: str, name: str) -> bool:
+    return send_email(to, "Consent withdrawn", (
         f"Hello {name},\n\nWe have stopped processing and reminders for your case. "
         "Any files already uploaded will be deleted shortly."))
 
 
-def send_upload_otp(to: str, name: str, otp: str) -> None:
-    send_email(to, "Your DocPilot verification code", (
+def send_upload_otp(to: str, name: str, otp: str) -> bool:
+    return send_email(to, "Your DocPilot verification code", (
         f"Hello {name},\n\nYour one-time upload verification code is: {otp}\n\n"
         "This code will expire in 10 minutes. If you did not request this, please ignore this email."))
+
 
