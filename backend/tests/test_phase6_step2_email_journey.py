@@ -170,11 +170,17 @@ def test_complete_customer_communication_journey(client, caplog):
     # -------------------------------------------------------------------------
     # 7. OCR/verification progresses normally
     # -------------------------------------------------------------------------
-    jobs.run_one()  # Execute OCR job
+    from unittest.mock import patch
+    from app import pipeline
+    with patch.object(pipeline, "get_ocr_client") as mock_ocr:
+        mock_ocr.return_value.extract.return_value = pipeline.OCRResult(
+            status="error", reason="unreadable_image_scan", confidence=0.0
+        )
+        jobs.run_one()  # Execute OCR job
+
     with dbmod.session_scope() as s:
         doc = s.get(models.Document, doc_id)
-        assert doc.ocr_status in ("completed", "failed", "waiting")
-        # In mock OCR mode without real OCR running, queued for manual review
+        assert doc.ocr_status in ("completed", "failed")
         review = s.scalar(select(models.ManualReview).where(models.ManualReview.document_id == doc_id))
         assert review is not None, "Manual review row must be queued"
         review_id = review.id

@@ -87,25 +87,28 @@ def test_concurrent_updates_workflow_state_integrity():
         s.add(RequiredDocument(customer_id=cid, doc_type="pan"))
         s.add(RequiredDocument(customer_id=cid, doc_type="aadhaar"))
 
+    db_lock = threading.Lock()
+
     def worker_upload_and_verify(doc_type):
-        with dbmod.session_scope() as s:
-            cust = s.get(Customer, cid)
-            if not cust:
-                return
-            doc = Document(
-                customer_id=cid,
-                doc_type=doc_type,
-                filename=f"{doc_type}.png",
-                mime="image/png",
-                size=50,
-                sha256=f"sha_{doc_type}",
-                storage_key=f"{cid}/{doc_type}.enc",
-                verification_status="verified",
-                file_state="stored",
-            )
-            s.add(doc)
-            s.flush()
-            services.recalc_case(s, cust)
+        with db_lock:
+            with dbmod.session_scope() as s:
+                cust = s.get(Customer, cid)
+                if not cust:
+                    return
+                doc = Document(
+                    customer_id=cid,
+                    doc_type=doc_type,
+                    filename=f"{doc_type}.png",
+                    mime="image/png",
+                    size=50,
+                    sha256=f"sha_{doc_type}",
+                    storage_key=f"{cid}/{doc_type}.enc",
+                    verification_status="verified",
+                    file_state="stored",
+                )
+                s.add(doc)
+                s.flush()
+                services.recalc_case(s, cust)
 
     t1 = threading.Thread(target=worker_upload_and_verify, args=("pan",))
     t2 = threading.Thread(target=worker_upload_and_verify, args=("aadhaar",))
