@@ -49,6 +49,18 @@ export const UploadModal: React.FC<UploadModalProps> = ({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, isUploading, onClose]);
 
+  // Reset selected file and errors whenever modal opens or doc changes
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedFile(null);
+      setClientError(null);
+      setDragOver(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+    }
+  }, [isOpen, doc?.doc_type]);
+
   if (!isOpen || !doc) return null;
 
   const validateFile = (file: File): boolean => {

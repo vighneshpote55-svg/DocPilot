@@ -1043,22 +1043,25 @@ export const PortalPage: React.FC = () => {
       </main>
 
       {/* DEDICATED UPLOAD MODAL */}
-      <UploadModal
-        isOpen={isUploadModalOpen}
-        doc={activeUploadDoc}
-        maxUploadMb={portal.max_upload_mb}
-        allowedTypes={portal.allowed_types}
-        onClose={() => {
-          if (!modalUploading) {
-            setIsUploadModalOpen(false);
-            setModalError(null);
-          }
-        }}
-        onUpload={handleModalUpload}
-        isUploading={modalUploading}
-        errorMessage={modalError}
-        isResubmission={isModalResubmission}
-      />
+      {isUploadModalOpen && activeUploadDoc && (
+        <UploadModal
+          key={activeUploadDoc.doc_type}
+          isOpen={isUploadModalOpen}
+          doc={activeUploadDoc}
+          maxUploadMb={portal.max_upload_mb}
+          allowedTypes={portal.allowed_types}
+          onClose={() => {
+            if (!modalUploading) {
+              setIsUploadModalOpen(false);
+              setModalError(null);
+            }
+          }}
+          onUpload={handleModalUpload}
+          isUploading={modalUploading}
+          errorMessage={modalError}
+          isResubmission={isModalResubmission}
+        />
+      )}
     </div>
   );
 };
