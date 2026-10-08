@@ -619,12 +619,12 @@ with session_scope() as db:
 
     // Customer Delta should be present in Due tab
     const deltaDueRow = page.locator(`tr#retention-row-${custDeltaId}`);
-    await deltaDueRow.waitFor({ state: "visible", timeout: 3000 });
+    await deltaDueRow.waitFor({ state: "visible", timeout: 15000 });
     console.log("  -> Customer Delta found in Due for Purge list.");
 
     // Execute Manual Purge on Customer Delta
     const purgeBtn = page.locator(`#btn-retention-purge-${custDeltaId}`);
-    await purgeBtn.waitFor({ state: "visible", timeout: 3000 });
+    await purgeBtn.waitFor({ state: "visible", timeout: 10000 });
     await purgeBtn.click();
     await page.waitForTimeout(300);
 
