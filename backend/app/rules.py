@@ -182,7 +182,7 @@ def _check_structural_identifier(slot: str, fields: dict) -> list[str]:
         # If masked with XXXX, check length and suffix
         if pan_val.startswith("XXXX"):
             digits_suffix = pan_val[4:]
-            if len(digits_suffix) < 4:
+            if len(digits_suffix) != 4 or not re.match(r"^[0-9]{3}[A-Z]$", digits_suffix):
                 flags.append("invalid_structural_identifier:pan")
         elif not re.match(r"^[A-Z]{5}[0-9]{4}[A-Z]$", pan_val) and not re.match(r"^[A-Z]{3}\*{4}[A-Z]$", pan_val):
             flags.append("invalid_structural_identifier:pan")
@@ -192,7 +192,7 @@ def _check_structural_identifier(slot: str, fields: dict) -> list[str]:
     if aadhaar_val and slot == "aadhaar":
         if aadhaar_val.startswith("XXXX"):
             digits_suffix = aadhaar_val[4:]
-            if len(digits_suffix) < 4:
+            if len(digits_suffix) != 4 or not digits_suffix.isdigit():
                 flags.append("invalid_structural_identifier:aadhaar")
         elif not (aadhaar_val.isdigit() and len(aadhaar_val) == 12):
             flags.append("invalid_structural_identifier:aadhaar")
