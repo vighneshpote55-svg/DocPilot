@@ -53,7 +53,14 @@ def handle_process_document(db, payload: dict) -> None:
     audit(db, "system", "ocr_processing_started", "document", doc.id, {"doc_type": doc.doc_type})
     db.commit()
 
-    data = get_file(doc.storage_key)
+    try:
+        data = get_file(doc.storage_key)
+    except Exception as e:
+        log.exception("Storage retrieval or decryption failed for document %s: %s", doc.id, e)
+        doc.ocr_status = "failed"
+        audit(db, "system", "file_retrieval_failed", "document", doc.id, {"reason": "storage_or_decryption_error"})
+        apply_decision(db, doc, customer, rules.Decision("manual_review", ["file_retrieval_error"], "storage_or_decryption_error"))
+        return
     expected = {"name": customer.name} if s.ocr_pass_expected_name else None
     try:
         res: OCRResult = get_ocr_client().extract(

@@ -674,7 +674,16 @@ def view_document(doc_id: str, download: bool = False, db: Session = Depends(get
     if download and not get_settings().allow_download:
         raise HTTPException(403, "download_disabled")
 
-    data = get_file(d.storage_key)
+    try:
+        data = get_file(d.storage_key)
+    except FileNotFoundError:
+        raise HTTPException(404, "file_not_found")
+    except Exception as e:
+        err_str = str(e).lower()
+        if "not found" in err_str or "404" in err_str or "nosuchkey" in err_str:
+            raise HTTPException(404, "file_not_found")
+        log.exception("Failed to retrieve or decrypt document %s: %s", d.id, e)
+        raise HTTPException(500, "file_decryption_failed")
 
     services.audit(db, admin, "document_downloaded" if download else "document_viewed", "document", d.id)
 
