@@ -51,6 +51,14 @@ def init_db(url: str | None = None, create_tables: bool = False):
         kwargs["pool_recycle"] = 300
         kwargs["connect_args"] = {"ssl_context": True}  # Supabase requires SSL
     _engine = create_engine(url, **kwargs)
+    if url.startswith("sqlite"):
+        from sqlalchemy import event
+
+        @event.listens_for(_engine, "connect")
+        def _set_sqlite_pragma(dbapi_connection, connection_record):
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.close()
     _SessionLocal = sessionmaker(bind=_engine, autoflush=False, expire_on_commit=False)
     if create_tables:
         run_migrations(_engine)
