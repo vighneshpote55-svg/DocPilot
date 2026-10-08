@@ -15,23 +15,69 @@ def mask_email(email: str) -> str:
     return f"{local[:1]}***@{domain}"
 
 
-def send_email(to: str, subject: str, body: str) -> None:
+import time
+
+
+def test_smtp_connection() -> dict:
+    s = get_settings()
+    if not s.smtp_host:
+        return {"configured": False, "mode": "dev_outbox", "message": "SMTP not configured. Using in-memory outbox."}
+    try:
+        if s.smtp_port == 465:
+            with smtplib.SMTP_SSL(s.smtp_host, s.smtp_port, timeout=10) as smtp:
+                if s.smtp_user:
+                    smtp.login(s.smtp_user, s.smtp_password)
+                smtp.noop()
+        else:
+            with smtplib.SMTP(s.smtp_host, s.smtp_port, timeout=10) as smtp:
+                smtp.starttls()
+                if s.smtp_user:
+                    smtp.login(s.smtp_user, s.smtp_password)
+                smtp.noop()
+        return {"configured": True, "connected": True, "host": s.smtp_host, "port": s.smtp_port}
+    except Exception as e:
+        log.warning("SMTP connection check failed: %s", e)
+        return {"configured": True, "connected": False, "host": s.smtp_host, "port": s.smtp_port, "error": str(e)}
+
+
+def send_email(to: str, subject: str, body: str) -> bool:
     s = get_settings()
     if not s.smtp_host:
         OUTBOX.append({"to": to, "subject": subject, "body": body})
         log.info("EMAIL (dev outbox) to=%s subject=%s", mask_email(to), subject)
-        return
+        return True
+
+    # Warn if configured for live SMTP but public_base_url is still localhost
+    if "localhost" in s.public_base_url or "127.0.0.1" in s.public_base_url:
+        log.warning("SMTP is enabled but PUBLIC_BASE_URL is set to localhost: %s", s.public_base_url)
+
     msg = EmailMessage()
     msg["From"], msg["To"], msg["Subject"] = s.smtp_from, to, subject
     msg.set_content(body)
-    try:
-        with smtplib.SMTP(s.smtp_host, s.smtp_port, timeout=30) as smtp:
-            smtp.starttls()
-            if s.smtp_user:
-                smtp.login(s.smtp_user, s.smtp_password)
-            smtp.send_message(msg)
-    except Exception:
-        log.exception("Failed to send email (subject=%s)", subject)
+
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            if s.smtp_port == 465:
+                with smtplib.SMTP_SSL(s.smtp_host, s.smtp_port, timeout=30) as smtp:
+                    if s.smtp_user:
+                        smtp.login(s.smtp_user, s.smtp_password)
+                    smtp.send_message(msg)
+            else:
+                with smtplib.SMTP(s.smtp_host, s.smtp_port, timeout=30) as smtp:
+                    smtp.starttls()
+                    if s.smtp_user:
+                        smtp.login(s.smtp_user, s.smtp_password)
+                    smtp.send_message(msg)
+            log.info("EMAIL sent successfully to=%s subject=%s", mask_email(to), subject)
+            return True
+        except Exception as e:
+            if attempt < max_retries - 1:
+                log.warning("Email send failed (attempt %s/%s), retrying: %s", attempt + 1, max_retries, e)
+                time.sleep(1)
+            else:
+                log.exception("Failed to send email after %s attempts (subject=%s)", max_retries, subject)
+                return False
 
 
 def consent_request(to: str, name: str, labels: list[str], link: str) -> None:

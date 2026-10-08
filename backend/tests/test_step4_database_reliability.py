@@ -90,6 +90,8 @@ def test_concurrent_updates_workflow_state_integrity():
     def worker_upload_and_verify(doc_type):
         with dbmod.session_scope() as s:
             cust = s.get(Customer, cid)
+            if not cust:
+                return
             doc = Document(
                 customer_id=cid,
                 doc_type=doc_type,

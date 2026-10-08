@@ -825,3 +825,11 @@ def test_ocr_connection(payload: OCRConfigIn | None = None, admin: str = Depends
     except Exception as e:
         return {"connected": False, "status_code": 0, "message": f"Connection failed: {str(e)}"}
 
+
+@router.post("/settings/email/test")
+def test_email_connection(admin: str = Depends(require_admin)):
+    """Test SMTP connection safely without exposing passwords or sending test emails."""
+    from . import emailer
+    return emailer.test_smtp_connection()
+
+
