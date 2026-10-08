@@ -91,7 +91,7 @@ export const AdminReportsView: React.FC<AdminReportsViewProps> = ({
     setError(null);
     Promise.all([
       getAdminSummary().catch(() => null),
-      getAdminCustomers("", 200, 0, "").catch(() => ({ customers: [] })),
+      getAdminCustomers("", 50, 0, "").catch(() => ({ customers: [] })),
       getAdminDocuments("", "", "", 200, 0, "").catch(() => ({ documents: [], totalCount: 0 })),
       getAdminReviews("all").catch(() => []),
       getAdminAudit(200).catch(() => []),
@@ -115,9 +115,10 @@ export const AdminReportsView: React.FC<AdminReportsViewProps> = ({
   // Initial load
   useEffect(() => {
     let ignore = false;
+    setLoading(true);
     Promise.all([
       getAdminSummary().catch(() => null),
-      getAdminCustomers("", 200, 0, "").catch(() => ({ customers: [] })),
+      getAdminCustomers("", 50, 0, "").catch(() => ({ customers: [] })),
       getAdminDocuments("", "", "", 200, 0, "").catch(() => ({ documents: [], totalCount: 0 })),
       getAdminReviews("all").catch(() => []),
       getAdminAudit(200).catch(() => []),
@@ -134,6 +135,11 @@ export const AdminReportsView: React.FC<AdminReportsViewProps> = ({
       .catch((err) => {
         if (!ignore) {
           setError(err instanceof Error ? err.message : "Failed to load report analytics.");
+        }
+      })
+      .finally(() => {
+        if (!ignore) {
+          setLoading(false);
         }
       });
 
