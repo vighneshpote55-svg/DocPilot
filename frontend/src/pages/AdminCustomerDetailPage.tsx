@@ -178,6 +178,10 @@ export const AdminCustomerDetailPage: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, [id]);
+
+  useEffect(() => {
     queueMicrotask(() => {
       loadCustomer();
       loadAudit();
@@ -1115,16 +1119,14 @@ export const AdminCustomerDetailPage: React.FC = () => {
                     </div>
 
                     {/* Filter controls */}
-                    <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
-                      <div className="filter-input-wrap" style={{ minWidth: 220 }}>
-                        <IconSearch size={14} className="filter-input-icon" />
+                    <div className="doc-filter-form" style={{ gap: 10 }}>
+                      <div className="search-input-wrap" style={{ minWidth: 220, maxWidth: 300, height: 36 }}>
+                        <IconSearch size={14} className="search-icon" />
                         <input
                           type="search"
                           placeholder="Filter files by name or type..."
                           value={docSearch}
                           onChange={(e) => setDocSearch(e.target.value)}
-                          className="admin-input-styled with-icon"
-                          style={{ padding: "6px 10px 6px 32px", fontSize: 13 }}
                         />
                       </div>
 
@@ -1132,7 +1134,7 @@ export const AdminCustomerDetailPage: React.FC = () => {
                         value={docStatusFilter}
                         onChange={(e) => setDocStatusFilter(e.target.value)}
                         className="admin-select-styled"
-                        style={{ padding: "6px 12px", fontSize: 13 }}
+                        style={{ height: 36, padding: "0 12px", fontSize: 13, minWidth: 120 }}
                       >
                         <option value="all">All States</option>
                         <option value="verified">Verified</option>

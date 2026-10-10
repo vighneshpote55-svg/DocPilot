@@ -9,12 +9,23 @@ import { PrivacyConfirmPage } from "./pages/PrivacyConfirmPage";
 import { AdminPage } from "./pages/AdminPage";
 import { AdminCustomerDetailPage } from "./pages/AdminCustomerDetailPage";
 
+const ScrollToTop: React.FC = () => {
+  const { pathname } = useLocation();
+
+  React.useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+  }, [pathname]);
+
+  return null;
+};
+
 const AppContent: React.FC = () => {
   const location = useLocation();
   const isAdmin = location.pathname.startsWith("/admin");
 
   return (
     <>
+      <ScrollToTop />
       <a href="#main-content" className="skip-link">
         Skip to main content
       </a>
@@ -22,8 +33,8 @@ const AppContent: React.FC = () => {
       <main
         style={
           isAdmin
-            ? { minHeight: "100vh", padding: 0, width: "100%", maxWidth: "100vw", overflowX: "hidden" }
-            : { minHeight: "calc(100vh - 70px)", padding: "16px 0", width: "100%", maxWidth: "100vw", overflowX: "hidden" }
+            ? { minHeight: "100vh", padding: 0, width: "100%", maxWidth: "100vw", overflowX: "clip" }
+            : { minHeight: "calc(100vh - 70px)", padding: "16px 0", width: "100%", maxWidth: "100vw", overflowX: "clip" }
         }
       >
         <Routes>

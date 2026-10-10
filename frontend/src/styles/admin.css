@@ -95,7 +95,7 @@
   min-height: 100vh;
   width: 100%;
   max-width: 100vw;
-  overflow-x: hidden;
+  overflow-x: clip;
   background-color: var(--adm-bg);
   color: var(--adm-text);
   display: flex;
@@ -648,7 +648,7 @@
   min-width: 0;
   max-width: 100%;
   width: 100%;
-  overflow-x: hidden;
+  overflow-x: clip;
   margin-left: var(--adm-sidebar-width);
   min-height: 100vh;
   display: flex;
@@ -6090,6 +6090,28 @@
 .text-secondary-sm {
   font-size: 13px;
   color: var(--adm-text-secondary);
+}
+
+.section-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.filter-input-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.filter-input-icon {
+  position: absolute;
+  left: 10px;
+  color: var(--adm-text-muted);
+  pointer-events: none;
 }
 
 /* Status Pills for Customer Profile & Cases */
