@@ -52,10 +52,9 @@ export const ConsentPage: React.FC = () => {
 
   // Auto-redirect timer when consent is successfully granted
   useEffect(() => {
-    if (consentGranted === true && (uploadToken || token)) {
-      const targetToken = uploadToken || token || "";
+    if (consentGranted === true && uploadToken) {
       if (countdown <= 0) {
-        navigate(`/portal/${encodeURIComponent(targetToken)}`);
+        navigate(`/portal/${encodeURIComponent(uploadToken)}`);
         return;
       }
       const timer = setTimeout(() => {
@@ -63,7 +62,7 @@ export const ConsentPage: React.FC = () => {
       }, 1000);
       return () => clearTimeout(timer);
     }
-  }, [consentGranted, countdown, uploadToken, token, navigate]);
+  }, [consentGranted, countdown, uploadToken, navigate]);
 
   const handleDecision = async (granted: boolean) => {
     if (!token) return;
@@ -262,7 +261,7 @@ export const ConsentPage: React.FC = () => {
 
               <div style={{ display: "flex", justifyContent: "center", gap: 14 }}>
                 <Link
-                  to={`/portal/${encodeURIComponent(uploadToken || token || "")}`}
+                  to={uploadToken ? `/portal/${encodeURIComponent(uploadToken)}` : "#"}
                   id="proceed-portal-btn"
                   className="customer-access-btn"
                   style={{
@@ -270,6 +269,8 @@ export const ConsentPage: React.FC = () => {
                     fontSize: 15,
                     padding: "14px 28px",
                     fontWeight: 700,
+                    pointerEvents: uploadToken ? "auto" : "none",
+                    opacity: uploadToken ? 1 : 0.6,
                   }}
                 >
                   Continue to Document Upload
