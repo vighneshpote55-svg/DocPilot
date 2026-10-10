@@ -15,7 +15,21 @@ import type {
 } from "./types";
 
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:8080";
+const getApiBase = (): string => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (typeof window !== "undefined" && window.location.hostname) {
+    const host = window.location.hostname;
+    if (host === "localhost" || host === "127.0.0.1") {
+      return "http://localhost:8080";
+    }
+    if (!envUrl || envUrl.includes("localhost") || envUrl.includes("127.0.0.1")) {
+      return `http://${host}:8080`;
+    }
+  }
+  return envUrl || "http://localhost:8080";
+};
+
+const API_BASE = getApiBase();
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "";
 const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
 
