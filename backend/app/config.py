@@ -1,6 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _ENV_PATH = Path(__file__).resolve().parent.parent / ".env"
@@ -14,6 +15,11 @@ class Settings(BaseSettings):
     auto_create_tables: bool = False
     cors_origins: str = "http://localhost:3000,http://localhost:5180,http://localhost:5173"
     public_base_url: str = "http://localhost:3000"  # where the customer portal frontend lives
+
+    @field_validator("public_base_url")
+    @classmethod
+    def clean_public_base_url(cls, v: str) -> str:
+        return v.rstrip("/") if v else v
 
     # --- storage (files are always AES-256-GCM encrypted before they are stored) ---
     storage_backend: str = "local"  # local | supabase
