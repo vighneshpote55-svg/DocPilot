@@ -282,18 +282,39 @@ def resolve_token(db, raw: str, purpose: str, consume: bool = False) -> AccessTo
 
 
 # ------------------------------------------------------------------ consent & emails
+def build_consent_url(base_url: str, token: str) -> str:
+    """Build a well-formed customer consent URL with defensive slash trimming."""
+    clean_base = (base_url or "").strip().rstrip("/")
+    clean_token = (token or "").strip()
+    return f"{clean_base}/consent/{clean_token}"
+
+
+def build_portal_url(base_url: str, token: str) -> str:
+    """Build a well-formed customer upload portal URL with defensive slash trimming."""
+    clean_base = (base_url or "").strip().rstrip("/")
+    clean_token = (token or "").strip()
+    return f"{clean_base}/portal/{clean_token}"
+
+
+def build_privacy_confirm_url(base_url: str, token: str) -> str:
+    """Build a well-formed privacy request confirmation URL with defensive slash trimming."""
+    clean_base = (base_url or "").strip().rstrip("/")
+    clean_token = (token or "").strip()
+    return f"{clean_base}/privacy/confirm/{clean_token}"
+
+
 def send_consent_email(db, customer: Customer) -> None:
     s = get_settings()
     raw = issue_token(db, customer.id, "consent", timedelta(hours=s.consent_token_hours))
     labels = [label(k) for k in pending_keys(db, customer.id)]
-    emailer.consent_request(customer.email, customer.name, labels, f"{s.public_base_url}/consent/{raw}")
+    emailer.consent_request(customer.email, customer.name, labels, build_consent_url(s.public_base_url, raw))
 
 
 def send_upload_link(db, customer: Customer, reminder: bool = False) -> str:
     s = get_settings()
     raw = issue_token(db, customer.id, "upload", timedelta(hours=s.upload_token_hours))
     labels = [label(k) for k in pending_keys(db, customer.id)]
-    emailer.pending_documents(customer.email, customer.name, labels, f"{s.public_base_url}/portal/{raw}", reminder)
+    emailer.pending_documents(customer.email, customer.name, labels, build_portal_url(s.public_base_url, raw), reminder)
     return raw
 
 
@@ -514,7 +535,7 @@ def mark_verified(db, doc: Document) -> None:
 def request_resubmission(db, customer: Customer, doc: Document) -> None:
     s = get_settings()
     raw = issue_token(db, customer.id, "upload", timedelta(hours=s.upload_token_hours))
-    emailer.resubmit(customer.email, customer.name, label(doc.doc_type), f"{s.public_base_url}/portal/{raw}")
+    emailer.resubmit(customer.email, customer.name, label(doc.doc_type), build_portal_url(s.public_base_url, raw))
 
 
 def decide_review(db, review: ManualReview, approve: bool, admin: str, note: str | None) -> None:
@@ -574,7 +595,7 @@ def start_privacy_request(db, email: str, action: str) -> None:
     db.flush()
     s = get_settings()
     raw = issue_token(db, c.id, "privacy", timedelta(minutes=s.privacy_token_minutes), ref_id=pr.id)
-    emailer.privacy_verification(c.email, c.name, action, f"{s.public_base_url}/privacy/confirm/{raw}")
+    emailer.privacy_verification(c.email, c.name, action, build_privacy_confirm_url(s.public_base_url, raw))
 
 
 def confirm_privacy_request(db, raw: str) -> str | None:
