@@ -6,6 +6,7 @@ from sqlalchemy import select
 from . import ai_service, rules
 from .config import get_settings
 from .db import utcnow
+from .doc_types import DOCS_WITH_PERSONAL_HOLDER_NAME
 from .masking import create_redacted_evidence, mask_fields
 from .models import Customer, Document, ManualReview, OcrResult
 from .ocr_client import OCRResult, get_ocr_client
@@ -61,7 +62,11 @@ def handle_process_document(db, payload: dict) -> None:
         audit(db, "system", "file_retrieval_failed", "document", doc.id, {"reason": "storage_or_decryption_error"})
         apply_decision(db, doc, customer, rules.Decision("manual_review", ["file_retrieval_error"], "storage_or_decryption_error"))
         return
-    expected = {"name": customer.name} if s.ocr_pass_expected_name else None
+    expected = (
+        {"name": customer.name}
+        if s.ocr_pass_expected_name and doc.doc_type in DOCS_WITH_PERSONAL_HOLDER_NAME
+        else None
+    )
     try:
         res: OCRResult = get_ocr_client().extract(
             data, doc.filename, doc.mime, doc.doc_type, expected, customer_id=customer.id

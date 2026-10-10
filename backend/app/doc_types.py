@@ -108,3 +108,34 @@ def strict_key(v) -> str | None:
 # If your OCR service names a type differently from our canonical key, map it here.
 OCR_TYPE_NAMES: dict[str, str] = {k: k for k in CANONICAL}
 OCR_TYPE_NAMES["voter"] = "voter_id"
+
+# Document types that represent individuals and expect the customer's personal name
+DOCS_WITH_PERSONAL_HOLDER_NAME: set[str] = {
+    "aadhaar",
+    "pan",
+    "passport",
+    "voter",
+    "driving_licence",
+    "salary_slip",
+    "cancelled_cheque",
+    "bank_passbook",
+    "itr",
+    "form_16",
+    "income_certificate",
+    "bank_statement",
+}
+
+# Document types that represent business entities or non-personal accounts
+DOCS_WITH_ENTITY_NAME: set[str] = {
+    "gst_certificate",
+    "certificate_of_incorporation",
+    "partnership_deed",
+    "udyam",
+    "fssai",
+    "shop_establishment",
+    "iec_certificate",
+    "utility_bill",
+    "property_tax_receipt",
+    "rent_agreement",
+}
+
