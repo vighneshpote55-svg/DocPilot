@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useDocumentTitle } from "../utils/useDocumentTitle";
 import { requestPrivacy } from "../api";
 import { useDialogA11y } from "../utils/a11yUtils";
 import {
@@ -14,6 +15,7 @@ import {
 } from "../components/admin/AdminIcons";
 
 export const PrivacyPage: React.FC = () => {
+  useDocumentTitle("Privacy & Data Rights");
   const navigate = useNavigate();
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     return (localStorage.getItem("docpilot_theme") as "dark" | "light") || "dark";

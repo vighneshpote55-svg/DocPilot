@@ -73,6 +73,10 @@ export const Header: React.FC = () => {
           onToggle={toggleTheme}
         />
 
+        <Link to="/terms" className="customer-nav-link" id="nav-terms-link">
+          Terms
+        </Link>
+
         <Link to="/privacy" className="customer-nav-link" id="nav-privacy-link">
           Data Rights
         </Link>

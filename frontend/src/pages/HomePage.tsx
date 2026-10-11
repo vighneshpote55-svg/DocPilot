@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { useDocumentTitle } from "../utils/useDocumentTitle";
 import {
   IconShieldCheck,
   IconLock,
@@ -11,6 +12,7 @@ import {
 } from "../components/admin/AdminIcons";
 
 export const HomePage: React.FC = () => {
+  useDocumentTitle("Secure Document Collection");
   const navigate = useNavigate();
   const [tokenInput, setTokenInput] = useState<string>("");
   const [inputError, setInputError] = useState<string | null>(null);
@@ -222,6 +224,10 @@ export const HomePage: React.FC = () => {
           <div className="customer-footer-links">
             <Link to="/privacy" className="customer-nav-link">
               Privacy Rights & Deletion
+            </Link>
+            <span>•</span>
+            <Link to="/terms" className="customer-nav-link">
+              Terms of Service
             </Link>
             <span>•</span>
             <Link to="/admin" className="customer-nav-link">

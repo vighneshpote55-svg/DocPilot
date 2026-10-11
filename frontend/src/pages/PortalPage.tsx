@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState, useRef } from "react";
 import { useParams, Link } from "react-router-dom";
+import { useDocumentTitle } from "../utils/useDocumentTitle";
 import {
   getDocumentStatus,
   getPortal,
@@ -73,6 +74,7 @@ const CUSTOMER_STATE_CONFIG: Record<
 };
 
 export const PortalPage: React.FC = () => {
+  useDocumentTitle("Document Upload Portal");
   const { token } = useParams<{ token: string }>();
   const [portal, setPortal] = useState<PortalState | null>(null);
   const [loading, setLoading] = useState<boolean>(true);

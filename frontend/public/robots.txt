@@ -1,0 +1,11 @@
+# DocPilot Secure Document Collection System
+# Protect private customer portals, verification tokens, and administrative suites
+
+User-agent: *
+Disallow: /admin/
+Disallow: /portal/
+Disallow: /consent/
+Disallow: /privacy/confirm/
+Allow: /
+Allow: /privacy
+Allow: /terms

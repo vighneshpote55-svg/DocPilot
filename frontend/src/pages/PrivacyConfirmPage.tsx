@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
+import { useDocumentTitle } from "../utils/useDocumentTitle";
 import { confirmPrivacy } from "../api";
 import { useDialogA11y } from "../utils/a11yUtils";
 import {
@@ -14,6 +15,7 @@ import {
 } from "../components/admin/AdminIcons";
 
 export const PrivacyConfirmPage: React.FC = () => {
+  useDocumentTitle("Confirm Data Erasure");
   const { token } = useParams<{ token: string }>();
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     return (localStorage.getItem("docpilot_theme") as "dark" | "light") || "dark";

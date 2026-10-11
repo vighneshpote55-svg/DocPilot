@@ -13,6 +13,7 @@ import {
 } from "../api";
 import type { AdminCustomerDetail, AdminDocumentItem, AdminAuditItem } from "../types";
 import { useDialogA11y } from "../utils/a11yUtils";
+import { useDocumentTitle } from "../utils/useDocumentTitle";
 import { AdminSidebar } from "../components/admin/AdminSidebar";
 import { AdminTopNav } from "../components/admin/AdminTopNav";
 import { SecureDocViewerModal } from "../components/admin/SecureDocViewerModal";
@@ -109,6 +110,7 @@ export const AdminCustomerDetailPage: React.FC = () => {
 
   // Customer Data & State
   const [customer, setCustomer] = useState<AdminCustomerDetail | null>(null);
+  useDocumentTitle(customer ? `Customer Case #${customer.id}` : "Customer Case");
   const [auditLogs, setAuditLogs] = useState<AdminAuditItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
+import { useDocumentTitle } from "../utils/useDocumentTitle";
 import { getConsent, submitConsent } from "../api";
 import type { ConsentInfo } from "../types";
 import {
@@ -13,6 +14,7 @@ import {
 } from "../components/admin/AdminIcons";
 
 export const ConsentPage: React.FC = () => {
+  useDocumentTitle("Verification Consent");
   const { token } = useParams<{ token: string }>();
   const navigate = useNavigate();
   const [info, setInfo] = useState<ConsentInfo | null>(null);

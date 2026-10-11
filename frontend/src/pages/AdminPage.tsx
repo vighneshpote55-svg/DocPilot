@@ -38,6 +38,7 @@ import { AdminRetentionView } from "../components/admin/AdminRetentionView";
 import { calculateRetentionSummary } from "../utils/retentionUtils";
 import { SecureDocViewerModal } from "../components/admin/SecureDocViewerModal";
 import { NeedsAttentionBanner } from "../components/admin/NeedsAttentionBanner";
+import { useDocumentTitle } from "../utils/useDocumentTitle";
 
 
 function getAdminEmail(): string {
@@ -69,6 +70,24 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
 
   // Shell Layout State
   const [activeTab, setActiveTab] = useState<AdminNavTab>(initialTab);
+  const [prevInitialTab, setPrevInitialTab] = useState<AdminNavTab>(initialTab);
+  if (initialTab !== prevInitialTab) {
+    setPrevInitialTab(initialTab);
+    setActiveTab(initialTab);
+  }
+
+  const TAB_TITLE_MAP: Record<AdminNavTab, string> = {
+    dashboard: "Operations Dashboard",
+    cases: "Customer Cases",
+    documents: "All Documents",
+    reviews: "Manual Review Queue",
+    reminders: "Active Reminders",
+    retention: "Retention & Purge Pipeline",
+    audit: "Audit Log",
+    reports: "Compliance Reports",
+    settings: "System Settings",
+  };
+  useDocumentTitle(token ? TAB_TITLE_MAP[activeTab] || "Operations Dashboard" : "Staff Sign In");
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("docpilot_adm_sidebar_collapsed");
@@ -434,10 +453,26 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
     );
   }
 
+  const TAB_PATH_MAP: Record<AdminNavTab, string> = {
+    dashboard: "/admin",
+    cases: "/admin/customers",
+    documents: "/admin/documents",
+    reviews: "/admin/reviews",
+    reminders: "/admin/reminders",
+    retention: "/admin/retention",
+    audit: "/admin/audit",
+    reports: "/admin/reports",
+    settings: "/admin/settings",
+  };
+
   // Helper to switch tabs
   const handleSelectTab = (newTab: AdminNavTab) => {
     startTransition(() => {
       setActiveTab(newTab);
+      const targetPath = TAB_PATH_MAP[newTab] || "/admin";
+      if (typeof window !== "undefined" && window.location.pathname !== targetPath) {
+        navigate(targetPath, { replace: true });
+      }
     });
   };
 
