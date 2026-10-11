@@ -35,8 +35,18 @@ export const UploadModal: React.FC<UploadModalProps> = ({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [clientError, setClientError] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<boolean>(false);
+  const [prevDocKey, setPrevDocKey] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const modalCardRef = useRef<HTMLDivElement | null>(null);
+
+  // Reset selected file and errors whenever modal opens or doc changes
+  const currentDocKey = isOpen && doc ? `${doc.doc_type}` : null;
+  if (currentDocKey !== prevDocKey) {
+    setPrevDocKey(currentDocKey);
+    setSelectedFile(null);
+    setClientError(null);
+    setDragOver(false);
+  }
 
   // Handle ESC key to close
   useEffect(() => {
@@ -48,18 +58,6 @@ export const UploadModal: React.FC<UploadModalProps> = ({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, isUploading, onClose]);
-
-  // Reset selected file and errors whenever modal opens or doc changes
-  useEffect(() => {
-    if (isOpen) {
-      setSelectedFile(null);
-      setClientError(null);
-      setDragOver(false);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-    }
-  }, [isOpen, doc?.doc_type]);
 
   if (!isOpen || !doc) return null;
 

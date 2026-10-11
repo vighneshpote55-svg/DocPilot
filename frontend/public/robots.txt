@@ -9,3 +9,5 @@ Disallow: /privacy/confirm/
 Allow: /
 Allow: /privacy
 Allow: /terms
+
+Sitemap: /sitemap.xml

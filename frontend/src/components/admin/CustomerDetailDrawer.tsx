@@ -213,13 +213,29 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({
                     <span className="info-item-label">
                       <IconMail size={13} /> Email Address
                     </span>
-                    <span className="info-item-value">{customer.email}</span>
+                    <span className="info-item-value">
+                      {customer.email ? (
+                        <a href={`mailto:${customer.email}`} style={{ color: "inherit", textDecoration: "underline", textUnderlineOffset: 2 }}>
+                          {customer.email}
+                        </a>
+                      ) : (
+                        "Not specified"
+                      )}
+                    </span>
                   </div>
                   <div className="drawer-info-item">
                     <span className="info-item-label">
                       <IconPhone size={13} /> Mobile Number
                     </span>
-                    <span className="info-item-value">{customer.mobile || "Not specified"}</span>
+                    <span className="info-item-value">
+                      {customer.mobile ? (
+                        <a href={`tel:${customer.mobile}`} style={{ color: "inherit", textDecoration: "underline", textUnderlineOffset: 2 }}>
+                          {customer.mobile}
+                        </a>
+                      ) : (
+                        "Not specified"
+                      )}
+                    </span>
                   </div>
                   <div className="drawer-info-item">
                     <span className="info-item-label">

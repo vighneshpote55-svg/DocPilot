@@ -6,10 +6,13 @@ import { ConsentPage } from "./pages/ConsentPage";
 import { PortalPage } from "./pages/PortalPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
 import { PrivacyConfirmPage } from "./pages/PrivacyConfirmPage";
-import { AdminPage } from "./pages/AdminPage";
-import { AdminCustomerDetailPage } from "./pages/AdminCustomerDetailPage";
 import { TermsPage } from "./pages/TermsPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
+
+const AdminPage = React.lazy(() => import("./pages/AdminPage").then((m) => ({ default: m.AdminPage })));
+const AdminCustomerDetailPage = React.lazy(() =>
+  import("./pages/AdminCustomerDetailPage").then((m) => ({ default: m.AdminCustomerDetailPage }))
+);
 
 const ScrollToTop: React.FC = () => {
   const { pathname } = useLocation();
@@ -39,25 +42,36 @@ const AppContent: React.FC = () => {
             : { minHeight: "calc(100vh - 70px)", padding: "16px 0", width: "100%", maxWidth: "100vw", overflowX: "clip" }
         }
       >
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/consent/:token" element={<ConsentPage />} />
-          <Route path="/portal/:token" element={<PortalPage />} />
-          <Route path="/privacy" element={<PrivacyPage />} />
-          <Route path="/privacy/confirm/:token" element={<PrivacyConfirmPage />} />
-          <Route path="/terms" element={<TermsPage />} />
-          <Route path="/admin" element={<AdminPage />} />
-          <Route path="/admin/customers" element={<AdminPage initialTab="cases" />} />
-          <Route path="/admin/documents" element={<AdminPage initialTab="documents" />} />
-          <Route path="/admin/reviews" element={<AdminPage initialTab="reviews" />} />
-          <Route path="/admin/reminders" element={<AdminPage initialTab="reminders" />} />
-          <Route path="/admin/retention" element={<AdminPage initialTab="retention" />} />
-          <Route path="/admin/audit" element={<AdminPage initialTab="audit" />} />
-          <Route path="/admin/reports" element={<AdminPage initialTab="reports" />} />
-          <Route path="/admin/settings" element={<AdminPage initialTab="settings" />} />
-          <Route path="/admin/customers/:id" element={<AdminCustomerDetailPage />} />
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
+        <React.Suspense
+          fallback={
+            <div
+              className="loading-state"
+              style={{ minHeight: "60vh", display: "flex", alignItems: "center", justifyContent: "center" }}
+            >
+              <div className="loading-spinner" />
+            </div>
+          }
+        >
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/consent/:token" element={<ConsentPage />} />
+            <Route path="/portal/:token" element={<PortalPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/privacy/confirm/:token" element={<PrivacyConfirmPage />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/admin" element={<AdminPage />} />
+            <Route path="/admin/customers" element={<AdminPage initialTab="cases" />} />
+            <Route path="/admin/documents" element={<AdminPage initialTab="documents" />} />
+            <Route path="/admin/reviews" element={<AdminPage initialTab="reviews" />} />
+            <Route path="/admin/reminders" element={<AdminPage initialTab="reminders" />} />
+            <Route path="/admin/retention" element={<AdminPage initialTab="retention" />} />
+            <Route path="/admin/audit" element={<AdminPage initialTab="audit" />} />
+            <Route path="/admin/reports" element={<AdminPage initialTab="reports" />} />
+            <Route path="/admin/settings" element={<AdminPage initialTab="settings" />} />
+            <Route path="/admin/customers/:id" element={<AdminCustomerDetailPage />} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+        </React.Suspense>
       </main>
     </>
   );

@@ -11,6 +11,8 @@ import {
   IconShield,
 } from "../components/admin/AdminIcons";
 
+const CURRENT_YEAR = new Date().getFullYear();
+
 export const HomePage: React.FC = () => {
   useDocumentTitle("Secure Document Collection");
   const navigate = useNavigate();
@@ -219,7 +221,7 @@ export const HomePage: React.FC = () => {
         {/* Customer Footer */}
         <footer className="customer-footer">
           <div>
-            <span>© 2026 DocPilot Secure Document Collection System.</span>
+            <span>© {CURRENT_YEAR} DocPilot Secure Document Collection System.</span>
           </div>
           <div className="customer-footer-links">
             <Link to="/privacy" className="customer-nav-link">

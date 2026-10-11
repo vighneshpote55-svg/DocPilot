@@ -486,7 +486,13 @@ export const AdminCustomerDetailPage: React.FC = () => {
                       <span className="profile-meta-label">Email Address</span>
                       <span className="profile-meta-value font-mono">
                         <IconMail size={13} style={{ display: "inline", marginRight: 4, verticalAlign: "-2px" }} />
-                        {customer.email}
+                        {customer.email ? (
+                          <a href={`mailto:${customer.email}`} style={{ color: "inherit", textDecoration: "underline", textUnderlineOffset: 2 }}>
+                            {customer.email}
+                          </a>
+                        ) : (
+                          "Not specified"
+                        )}
                       </span>
                     </div>
 
@@ -494,7 +500,13 @@ export const AdminCustomerDetailPage: React.FC = () => {
                       <span className="profile-meta-label">Mobile Number</span>
                       <span className="profile-meta-value font-mono">
                         <IconPhone size={13} style={{ display: "inline", marginRight: 4, verticalAlign: "-2px" }} />
-                        {customer.mobile || "Not specified"}
+                        {customer.mobile ? (
+                          <a href={`tel:${customer.mobile}`} style={{ color: "inherit", textDecoration: "underline", textUnderlineOffset: 2 }}>
+                            {customer.mobile}
+                          </a>
+                        ) : (
+                          "Not specified"
+                        )}
                       </span>
                     </div>
 
