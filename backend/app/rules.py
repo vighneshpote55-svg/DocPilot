@@ -352,13 +352,17 @@ def _check_structural_identifier(slot: str, fields: dict) -> list[str]:
         if not re.match(r"^[A-Z]{4}0[A-Z0-9]{6}$", ifsc_val, re.I):
             flags.append("invalid_structural_identifier:ifsc")
 
-    # GSTIN structural format: 15 chars (e.g. 27ABCDE1234F1Z5)
+    # GSTIN structural format: 15 chars (e.g. 27ABCDE1234F1Z5) or masked XXXX...
     gstin_val = str(fields.get("gstin") or "").strip().upper()
     if gstin_val and slot == "gst_certificate":
-        if not re.match(r"^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$", gstin_val):
+        if gstin_val.startswith("XXXX"):
+            digits_suffix = gstin_val[4:]
+            if len(digits_suffix) != 4:
+                flags.append("invalid_structural_identifier:gstin")
+        elif not re.match(r"^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$", gstin_val):
             flags.append("invalid_structural_identifier:gstin")
 
-    # FSSAI structural format: 14 digits (e.g. 10012011000123)
+    # FSSAI structural format: 14 digits (e.g. 10012011000123) or masked XXXX...
     fssai_val = str(
         fields.get("fssai_licence_number")
         or fields.get("fssai_registration_number")
@@ -367,19 +371,31 @@ def _check_structural_identifier(slot: str, fields: dict) -> list[str]:
         or ""
     ).strip()
     if fssai_val and slot == "fssai":
-        if not re.match(r"^\d{14}$", fssai_val):
+        if fssai_val.startswith("XXXX"):
+            digits_suffix = fssai_val[4:]
+            if len(digits_suffix) != 4 or not digits_suffix.isdigit():
+                flags.append("invalid_structural_identifier:fssai")
+        elif not re.match(r"^\d{14}$", fssai_val):
             flags.append("invalid_structural_identifier:fssai")
 
-    # CIN structural format: 21 alphanumeric chars (e.g. U72900MH2025PTC123456)
+    # CIN structural format: 21 alphanumeric chars (e.g. U72900MH2025PTC123456) or masked XXXX...
     cin_val = str(fields.get("cin") or "").strip().upper()
     if cin_val and slot == "certificate_of_incorporation":
-        if not re.match(r"^[UL][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$", cin_val):
+        if cin_val.startswith("XXXX"):
+            digits_suffix = cin_val[4:]
+            if len(digits_suffix) != 4 or not digits_suffix.isalnum():
+                flags.append("invalid_structural_identifier:cin")
+        elif not re.match(r"^[UL][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$", cin_val):
             flags.append("invalid_structural_identifier:cin")
 
-    # Udyam structural format: UDYAM-XX-00-0000000 (e.g. UDYAM-MH-01-0012345)
+    # Udyam structural format: UDYAM-XX-00-0000000 or masked XXXX...
     udyam_val = str(fields.get("udyam_registration_number") or "").strip().upper()
     if udyam_val and slot == "udyam":
-        if not re.match(r"^UDYAM-[A-Z]{2}-[0-9]{2}-[0-9]{7}$", udyam_val):
+        if udyam_val.startswith("XXXX"):
+            digits_suffix = udyam_val[4:]
+            if len(digits_suffix) != 4:
+                flags.append("invalid_structural_identifier:udyam")
+        elif not re.match(r"^UDYAM-[A-Z]{2}-[0-9]{2}-[0-9]{7}$", udyam_val):
             flags.append("invalid_structural_identifier:udyam")
 
     return flags
