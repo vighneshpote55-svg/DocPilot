@@ -315,3 +315,301 @@ class TestDocTypeCategorizationCoverage:
         assert all_canonical == categorized, (
             f"Uncategorized doc types: {all_canonical - categorized}"
         )
+
+
+class TestUnsupportedDocTypeFailSafe:
+    """Verify unrecognized or unsupported document types fail safely rather than auto-verifying."""
+
+    def test_unsupported_slot_rejected_with_unsupported_flag(self):
+        fields = {"some_field": "some_value"}
+        ocr_res = {
+            "status": "success",
+            "confidence": 0.99,
+            "doc_type": "random_fake_slot",
+            "extracted_fields": fields,
+            "field_confidences": {"some_field": 0.99},
+        }
+        decision = evaluate(
+            ocr_res,
+            "random_fake_slot",
+            customer_name="Vighnesh Pote",
+            min_overall=0.90,
+            min_field=0.80,
+        )
+        assert decision.outcome == DecisionState.REJECTED
+        assert "unsupported_document_type" in decision.flags
+        assert decision.reason == "unsupported_document_type"
+
+    def test_alias_slot_resolves_to_canonical(self):
+        # "voter_id" is an alias for "voter"
+        fields = {"epic_number": "ABC1234567", "name": "Vighnesh Pote"}
+        ocr_res = {
+            "status": "success",
+            "confidence": 0.95,
+            "doc_type": "voter_id",
+            "extracted_fields": fields,
+            "field_confidences": {k: 0.95 for k in fields},
+        }
+        decision = evaluate(
+            ocr_res,
+            "voter_id",
+            customer_name="Vighnesh Pote",
+            min_overall=0.90,
+            min_field=0.80,
+        )
+        assert decision.outcome == DecisionState.VERIFIED
+        assert "unsupported_document_type" not in decision.flags
+
+
+class TestCommercialEntityNameMatchingIsolation:
+    """Verify commercial/entity documents do not mistakenly flag holder_name_mismatch on business names."""
+
+    def test_fssai_with_company_name_does_not_trigger_holder_name_mismatch(self):
+        fields = {
+            "fssai_licence_number": "10012011000123",
+            "business_name": "Pote Agro Industries Pvt Ltd",
+            "name": "Pote Agro Industries Pvt Ltd",
+            "valid_till": "01/01/2030",
+        }
+        ocr_res = {
+            "status": "success",
+            "confidence": 0.95,
+            "doc_type": "fssai",
+            "extracted_fields": fields,
+            "field_confidences": {k: 0.95 for k in fields},
+        }
+        decision = evaluate(
+            ocr_res,
+            "fssai",
+            customer_name="Vighnesh Pote",
+            min_overall=0.90,
+            min_field=0.80,
+        )
+        assert "holder_name_mismatch" not in decision.flags
+        assert decision.outcome == DecisionState.VERIFIED
+
+    def test_gst_certificate_with_legal_name_does_not_trigger_holder_name_mismatch(self):
+        fields = {
+            "gstin": "27ABCDE1234F1Z5",
+            "legal_name": "Apex Trading Solutions Ltd",
+            "name": "Apex Trading Solutions Ltd",
+        }
+        ocr_res = {
+            "status": "success",
+            "confidence": 0.95,
+            "doc_type": "gst_certificate",
+            "extracted_fields": fields,
+            "field_confidences": {k: 0.95 for k in fields},
+        }
+        decision = evaluate(
+            ocr_res,
+            "gst_certificate",
+            customer_name="Vighnesh Pote",
+            min_overall=0.90,
+            min_field=0.80,
+        )
+        assert "holder_name_mismatch" not in decision.flags
+        assert decision.outcome == DecisionState.VERIFIED
+
+    def test_coi_with_company_name_does_not_trigger_holder_name_mismatch(self):
+        fields = {
+            "cin": "U72900MH2025PTC123456",
+            "company_name": "Blue Horizon Software Private Limited",
+            "name": "Blue Horizon Software Private Limited",
+        }
+        ocr_res = {
+            "status": "success",
+            "confidence": 0.95,
+            "doc_type": "certificate_of_incorporation",
+            "extracted_fields": fields,
+            "field_confidences": {k: 0.95 for k in fields},
+        }
+        decision = evaluate(
+            ocr_res,
+            "certificate_of_incorporation",
+            customer_name="Vighnesh Pote",
+            min_overall=0.90,
+            min_field=0.80,
+        )
+        assert "holder_name_mismatch" not in decision.flags
+        assert decision.outcome == DecisionState.VERIFIED
+
+    def test_udyam_with_enterprise_name_does_not_trigger_holder_name_mismatch(self):
+        fields = {
+            "udyam_registration_number": "UDYAM-MH-01-0012345",
+            "enterprise_name": "Western Precision Tools",
+            "name": "Western Precision Tools",
+        }
+        ocr_res = {
+            "status": "success",
+            "confidence": 0.95,
+            "doc_type": "udyam",
+            "extracted_fields": fields,
+            "field_confidences": {k: 0.95 for k in fields},
+        }
+        decision = evaluate(
+            ocr_res,
+            "udyam",
+            customer_name="Vighnesh Pote",
+            min_overall=0.90,
+            min_field=0.80,
+        )
+        assert "holder_name_mismatch" not in decision.flags
+        assert decision.outcome == DecisionState.VERIFIED
+
+    def test_personal_pan_with_mismatched_name_triggers_holder_name_mismatch(self):
+        # Contrasted with personal documents where name mismatch MUST trigger review
+        fields = {
+            "pan_number": "ABCPE1234F",
+            "name": "Apex Trading Solutions",
+        }
+        ocr_res = {
+            "status": "success",
+            "confidence": 0.95,
+            "doc_type": "pan",
+            "extracted_fields": fields,
+            "field_confidences": {k: 0.95 for k in fields},
+        }
+        decision = evaluate(
+            ocr_res,
+            "pan",
+            customer_name="Vighnesh Pote",
+            min_overall=0.90,
+            min_field=0.80,
+        )
+        assert "holder_name_mismatch" in decision.flags
+        assert decision.outcome == DecisionState.MANUAL_REVIEW
+
+
+class TestStructuralIdentifierValidations:
+    """Verify structural identifier validations for PAN, Aadhaar, IFSC, GSTIN, FSSAI, CIN, Udyam."""
+
+    def test_gstin_valid_and_invalid(self):
+        # Valid GSTIN
+        fields_valid = {"gstin": "27ABCDE1234F1Z5", "legal_name": "Test Entity"}
+        res_valid = {"status": "success", "confidence": 0.95, "extracted_fields": fields_valid, "field_confidences": {k: 0.95 for k in fields_valid}}
+        d_valid = evaluate(res_valid, "gst_certificate", "Test Entity", min_overall=0.90, min_field=0.80)
+        assert "invalid_structural_identifier:gstin" not in d_valid.flags
+        assert d_valid.outcome == DecisionState.VERIFIED
+
+        # Invalid GSTIN
+        fields_invalid = {"gstin": "INVALID_GSTIN_123", "legal_name": "Test Entity"}
+        res_invalid = {"status": "success", "confidence": 0.95, "extracted_fields": fields_invalid, "field_confidences": {k: 0.95 for k in fields_invalid}}
+        d_invalid = evaluate(res_invalid, "gst_certificate", "Test Entity", min_overall=0.90, min_field=0.80)
+        assert "invalid_structural_identifier:gstin" in d_invalid.flags
+        assert d_invalid.outcome == DecisionState.MANUAL_REVIEW
+
+    def test_fssai_valid_and_invalid(self):
+        # Valid FSSAI (14 digits)
+        fields_valid = {"fssai_licence_number": "10012011000123", "business_name": "Food Enterprise", "valid_till": "01/01/2030"}
+        res_valid = {"status": "success", "confidence": 0.95, "extracted_fields": fields_valid, "field_confidences": {k: 0.95 for k in fields_valid}}
+        d_valid = evaluate(res_valid, "fssai", "Food Enterprise", min_overall=0.90, min_field=0.80)
+        assert "invalid_structural_identifier:fssai" not in d_valid.flags
+        assert d_valid.outcome == DecisionState.VERIFIED
+
+        # Invalid FSSAI (less than 14 digits)
+        fields_invalid = {"fssai_licence_number": "12345", "business_name": "Food Enterprise", "valid_till": "01/01/2030"}
+        res_invalid = {"status": "success", "confidence": 0.95, "extracted_fields": fields_invalid, "field_confidences": {k: 0.95 for k in fields_invalid}}
+        d_invalid = evaluate(res_invalid, "fssai", "Food Enterprise", min_overall=0.90, min_field=0.80)
+        assert "invalid_structural_identifier:fssai" in d_invalid.flags
+        assert d_invalid.outcome == DecisionState.MANUAL_REVIEW
+
+    def test_cin_valid_and_invalid(self):
+        # Valid CIN (21 chars)
+        fields_valid = {"cin": "U72900MH2025PTC123456", "company_name": "Test Tech Corp"}
+        res_valid = {"status": "success", "confidence": 0.95, "extracted_fields": fields_valid, "field_confidences": {k: 0.95 for k in fields_valid}}
+        d_valid = evaluate(res_valid, "certificate_of_incorporation", "Test Tech Corp", min_overall=0.90, min_field=0.80)
+        assert "invalid_structural_identifier:cin" not in d_valid.flags
+        assert d_valid.outcome == DecisionState.VERIFIED
+
+        # Invalid CIN
+        fields_invalid = {"cin": "INVALID_CIN", "company_name": "Test Tech Corp"}
+        res_invalid = {"status": "success", "confidence": 0.95, "extracted_fields": fields_invalid, "field_confidences": {k: 0.95 for k in fields_invalid}}
+        d_invalid = evaluate(res_invalid, "certificate_of_incorporation", "Test Tech Corp", min_overall=0.90, min_field=0.80)
+        assert "invalid_structural_identifier:cin" in d_invalid.flags
+        assert d_invalid.outcome == DecisionState.MANUAL_REVIEW
+
+    def test_udyam_valid_and_invalid(self):
+        # Valid Udyam
+        fields_valid = {"udyam_registration_number": "UDYAM-MH-01-0012345", "enterprise_name": "Precision Tools"}
+        res_valid = {"status": "success", "confidence": 0.95, "extracted_fields": fields_valid, "field_confidences": {k: 0.95 for k in fields_valid}}
+        d_valid = evaluate(res_valid, "udyam", "Precision Tools", min_overall=0.90, min_field=0.80)
+        assert "invalid_structural_identifier:udyam" not in d_valid.flags
+        assert d_valid.outcome == DecisionState.VERIFIED
+
+        # Invalid Udyam
+        fields_invalid = {"udyam_registration_number": "UDYAM-12345", "enterprise_name": "Precision Tools"}
+        res_invalid = {"status": "success", "confidence": 0.95, "extracted_fields": fields_invalid, "field_confidences": {k: 0.95 for k in fields_invalid}}
+        d_invalid = evaluate(res_invalid, "udyam", "Precision Tools", min_overall=0.90, min_field=0.80)
+        assert "invalid_structural_identifier:udyam" in d_invalid.flags
+        assert d_invalid.outcome == DecisionState.MANUAL_REVIEW
+
+
+class TestAll22DocTypesSyntheticMatrix:
+    """Verify all 22 document types pass with valid synthetic fields and fail with missing fields."""
+
+    @pytest.mark.parametrize("doc_type", list(CANONICAL.keys()))
+    def test_doc_type_passes_with_valid_synthetic_data(self, doc_type):
+        valid_fields = {
+            "aadhaar": {"aadhaar_number": "123456789012", "name": "Vighnesh Pote"},
+            "pan": {"pan_number": "ABCPE1234F", "name": "Vighnesh Pote"},
+            "passport": {"passport_number": "Z1234567", "name": "Vighnesh Pote", "expiry_date": "01/01/2035"},
+            "voter": {"epic_number": "ABC1234567", "name": "Vighnesh Pote"},
+            "driving_licence": {"licence_number": "MH1220150001234", "name": "Vighnesh Pote", "valid_till": "01/01/2035"},
+            "bank_statement": {"account_number": "123456789012", "bank_name": "HDFC Bank", "account_holder": "Vighnesh Pote"},
+            "salary_slip": {"employee_name": "Vighnesh Pote", "employer_name": "DocPilot Tech", "net_pay": "75000"},
+            "cancelled_cheque": {"account_holder": "Vighnesh Pote", "ifsc": "HDFC0001234"},
+            "itr": {"acknowledgement_number": "123456789012345", "name": "Vighnesh Pote"},
+            "udyam": {"udyam_registration_number": "UDYAM-MH-01-0012345", "enterprise_name": "DocPilot Solutions"},
+            "shop_establishment": {"registration_number": "REG-12345", "establishment_name": "DocPilot Tech Hub"},
+            "fssai": {"fssai_licence_number": "10012011000123", "business_name": "DocPilot Kitchens", "valid_till": "01/01/2030"},
+            "utility_bill": {"consumer_number": "100234567", "bill_amount": "1250.00"},
+            "gst_certificate": {"gstin": "27ABCDE1234F1Z5", "legal_name": "DocPilot Technologies Pvt Ltd"},
+            "certificate_of_incorporation": {"cin": "U72900MH2025PTC123456", "company_name": "DocPilot Technologies Private Limited"},
+            "partnership_deed": {"firm_name": "DocPilot & Partners"},
+            "rent_agreement": {"monthly_rent": "30000"},
+            "form_16": {"employer_name": "DocPilot Technologies", "pan_number": "ABCPE1234F"},
+            "bank_passbook": {"bank_name": "State Bank of India", "ifsc": "SBIN0001234"},
+            "property_tax_receipt": {"property_id": "PID-12345678", "tax_amount_paid": "4500.00"},
+            "iec_certificate": {"iec_number": "0123456789", "entity_name": "DocPilot Exports"},
+            "income_certificate": {"certificate_number": "MH-INC-2025-123456", "annual_income": "350000", "applicant_name": "Vighnesh Pote"},
+        }
+        fields = valid_fields[doc_type]
+        ocr_res = {
+            "status": "success",
+            "confidence": 0.95,
+            "doc_type": doc_type,
+            "extracted_fields": fields,
+            "field_confidences": {k: 0.95 for k in fields},
+        }
+        decision = evaluate(
+            ocr_res,
+            doc_type,
+            customer_name="Vighnesh Pote",
+            min_overall=0.90,
+            min_field=0.80,
+        )
+        assert decision.outcome == DecisionState.VERIFIED, (
+            f"Doc type '{doc_type}' failed verification with flags: {decision.flags}, reason: {decision.reason}"
+        )
+
+    @pytest.mark.parametrize("doc_type", list(CANONICAL.keys()))
+    def test_doc_type_flags_missing_required_fields(self, doc_type):
+        # Empty extracted fields must trigger missing_fields
+        ocr_res = {
+            "status": "success",
+            "confidence": 0.95,
+            "doc_type": doc_type,
+            "extracted_fields": {},
+            "field_confidences": {},
+        }
+        decision = evaluate(
+            ocr_res,
+            doc_type,
+            customer_name="Vighnesh Pote",
+            min_overall=0.90,
+            min_field=0.80,
+        )
+        assert decision.outcome == DecisionState.MANUAL_REVIEW
+        assert any(f.startswith("missing_fields:") for f in decision.flags)
+

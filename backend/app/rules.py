@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from typing import Any
 
-from .doc_types import canonical_key
+from .doc_types import canonical_key, DOCS_WITH_PERSONAL_HOLDER_NAME
 from .ocr_client import OCRResult
 
 # Fields that must be present for a document type to auto-verify. Matches your OCR service extractors.
@@ -94,6 +94,7 @@ HARD_FLAGS = {
     "review_required",
     "risk_score_high",
     "risk_detected",
+    "unsupported_document_type",
 }
 
 
@@ -304,6 +305,36 @@ def _check_structural_identifier(slot: str, fields: dict) -> list[str]:
         if not re.match(r"^[A-Z]{4}0[A-Z0-9]{6}$", ifsc_val, re.I):
             flags.append("invalid_structural_identifier:ifsc")
 
+    # GSTIN structural format: 15 chars (e.g. 27ABCDE1234F1Z5)
+    gstin_val = str(fields.get("gstin") or "").strip().upper()
+    if gstin_val and slot == "gst_certificate":
+        if not re.match(r"^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$", gstin_val):
+            flags.append("invalid_structural_identifier:gstin")
+
+    # FSSAI structural format: 14 digits (e.g. 10012011000123)
+    fssai_val = str(
+        fields.get("fssai_licence_number")
+        or fields.get("fssai_registration_number")
+        or fields.get("registration_number")
+        or fields.get("license_number")
+        or ""
+    ).strip()
+    if fssai_val and slot == "fssai":
+        if not re.match(r"^\d{14}$", fssai_val):
+            flags.append("invalid_structural_identifier:fssai")
+
+    # CIN structural format: 21 alphanumeric chars (e.g. U72900MH2025PTC123456)
+    cin_val = str(fields.get("cin") or "").strip().upper()
+    if cin_val and slot == "certificate_of_incorporation":
+        if not re.match(r"^[UL][0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$", cin_val):
+            flags.append("invalid_structural_identifier:cin")
+
+    # Udyam structural format: UDYAM-XX-00-0000000 (e.g. UDYAM-MH-01-0012345)
+    udyam_val = str(fields.get("udyam_registration_number") or "").strip().upper()
+    if udyam_val and slot == "udyam":
+        if not re.match(r"^UDYAM-[A-Z]{2}-[0-9]{2}-[0-9]{7}$", udyam_val):
+            flags.append("invalid_structural_identifier:udyam")
+
     return flags
 
 
@@ -407,6 +438,13 @@ class RulesEngine:
         reason = _val("reason")
         conf = float(_val("confidence", 0.0) or 0)
 
+        # 0. Fail-safe for unsupported or unrecognized document slots
+        canonical_slot = canonical_key(slot)
+        if not canonical_slot:
+            flags.append("unsupported_document_type")
+            return Decision(DecisionState.REJECTED, flags, "unsupported_document_type", conf)
+        slot = canonical_slot
+
         # 1. Document type and structure matching
         doc_type = _val("doc_type")
         returned_type = canonical_key(doc_type) if doc_type else None
@@ -444,9 +482,10 @@ class RulesEngine:
         if _expired(fields):
             flags.append("document_expired")
 
-        # 8. Customer name compatibility
-        if "holder_name_mismatch" not in flags and _name_mismatch(fields, customer_name):
-            flags.append("holder_name_mismatch")
+        # 8. Customer name compatibility (evaluated for personal document categories only)
+        if slot in DOCS_WITH_PERSONAL_HOLDER_NAME:
+            if "holder_name_mismatch" not in flags and _name_mismatch(fields, customer_name):
+                flags.append("holder_name_mismatch")
 
         # 8b. Structural identifier validity
         structural_flags = _check_structural_identifier(slot, fields)
