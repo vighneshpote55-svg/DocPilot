@@ -345,17 +345,17 @@ export const AdminDocumentsView: React.FC = () => {
           />
         ) : (
           <div className="admin-table-responsive">
-            <table className="admin-data-table" id="all-documents-table">
+            <table className="admin-data-table all-docs-table" id="all-documents-table">
               <thead>
                 <tr>
-                  <th>CUSTOMER</th>
-                  <th>DOCUMENT</th>
-                  <th>UPLOADED</th>
-                  <th>OCR</th>
-                  <th>VERIFICATION</th>
-                  <th>STORAGE</th>
-                  <th>RISK / REASON</th>
-                  <th style={{ textAlign: "right" }}>ACTIONS</th>
+                  <th className="th-all-customer">CUSTOMER</th>
+                  <th className="th-cust-doc">DOCUMENT</th>
+                  <th className="th-cust-uploaded">UPLOADED</th>
+                  <th className="th-cust-ocr">OCR</th>
+                  <th className="th-cust-verif">VERIFICATION</th>
+                  <th className="th-cust-storage">STORAGE</th>
+                  <th className="th-cust-risk">RISK / REASON</th>
+                  <th className="th-cust-actions">ACTIONS</th>
                 </tr>
               </thead>
               <tbody>
@@ -365,7 +365,7 @@ export const AdminDocumentsView: React.FC = () => {
                     className="table-row-hoverable"
                     onClick={() => setInspectDoc(d)}
                   >
-                    <td>
+                    <td className="td-all-customer">
                       <div>
                         <Link
                           to={`/admin/customers/${d.customer_id}`}
@@ -380,27 +380,36 @@ export const AdminDocumentsView: React.FC = () => {
                       </span>
                     </td>
 
-                    <td>
+                    <td className="td-cust-doc">
                       <div className="doc-label-row">
                         <span className="doc-type-label">{d.label}</span>
                         {d.superseded && (
                           <span className="badge-superseded">Superseded</span>
                         )}
                       </div>
-                      <span className="doc-filename-sub">{d.filename}</span>
+                      <span className="doc-filename-sub" title={d.filename}>{d.filename}</span>
                     </td>
 
-                    <td>
-                      <span className="text-secondary-sm">
-                        {d.uploaded_at ? new Date(d.uploaded_at).toLocaleString() : "—"}
-                      </span>
+                    <td className="td-cust-uploaded">
+                      {d.uploaded_at ? (
+                        <>
+                          <span className="doc-upload-date">
+                            {new Date(d.uploaded_at).toLocaleDateString()}
+                          </span>
+                          <span className="doc-upload-time">
+                            {new Date(d.uploaded_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-secondary-sm">—</span>
+                      )}
                     </td>
 
-                    <td>{renderOcrBadge(d.ocr_status)}</td>
+                    <td className="td-cust-ocr">{renderOcrBadge(d.ocr_status)}</td>
 
-                    <td>{renderVerificationBadge(d.verification_status, d.review_reason)}</td>
+                    <td className="td-cust-verif">{renderVerificationBadge(d.verification_status, d.review_reason)}</td>
 
-                    <td>
+                    <td className="td-cust-storage">
                       {d.file_state === "stored" ? (
                         <span className="badge-storage-stored">
                           <IconShieldCheck size={11} /> Encrypted
@@ -410,7 +419,7 @@ export const AdminDocumentsView: React.FC = () => {
                       )}
                     </td>
 
-                    <td>
+                    <td className="td-cust-risk">
                       {d.flags && d.flags.length > 0 ? (
                         <div className="risk-flag-mini-pill" title={d.flags.join(", ")}>
                           <IconAlertTriangle size={12} /> {d.flags[0]}
@@ -425,8 +434,8 @@ export const AdminDocumentsView: React.FC = () => {
                       )}
                     </td>
 
-                    <td style={{ textAlign: "right" }} onClick={(e) => e.stopPropagation()}>
-                      <div className="table-actions-cell" style={{ justifyContent: "flex-end" }}>
+                    <td className="td-cust-actions" onClick={(e) => e.stopPropagation()}>
+                      <div className="table-actions-cell">
                         {d.file_state === "stored" && (
                           <button
                             type="button"
@@ -449,7 +458,6 @@ export const AdminDocumentsView: React.FC = () => {
                           className="btn-action-view"
                           onClick={() => setInspectDoc(d)}
                           title="Inspect document metadata & timeline"
-                          style={{ background: "transparent", borderColor: "var(--adm-border)" }}
                         >
                           <IconInfo size={13} /> Inspect
                         </button>

@@ -77,9 +77,35 @@ export const AdminCustomerDetailPage: React.FC = () => {
       (localStorage.getItem("docpilot_adm_theme") as "dark" | "light") ||
       "dark";
   });
-  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("docpilot_adm_sidebar_collapsed");
+      if (saved !== null) return saved === "true";
+      return window.innerWidth <= 1280;
+    }
+    return false;
+  });
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [now] = useState<number>(() => Date.now());
+
+  // Responsive auto-collapse listener for viewports at or below 1280px (Linux 150% scaling)
+  useEffect(() => {
+    let lastWidth = typeof window !== "undefined" ? window.innerWidth : 1920;
+    const handleResize = () => {
+      const currentWidth = window.innerWidth;
+      if (currentWidth <= 1280 && lastWidth > 1280) {
+        setSidebarCollapsed(true);
+      } else if (currentWidth > 1280 && lastWidth <= 1280) {
+        const saved = localStorage.getItem("docpilot_adm_sidebar_collapsed");
+        if (saved !== "true") {
+          setSidebarCollapsed(false);
+        }
+      }
+      lastWidth = currentWidth;
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // Customer Data & State
   const [customer, setCustomer] = useState<AdminCustomerDetail | null>(null);
@@ -1161,16 +1187,16 @@ export const AdminCustomerDetailPage: React.FC = () => {
                   ) : (
                     <div className="admin-table-card" style={{ padding: 0 }}>
                       <div className="admin-table-responsive">
-                        <table className="admin-data-table">
+                        <table className="admin-data-table customer-docs-table">
                           <thead>
                             <tr>
-                              <th>DOCUMENT</th>
-                              <th>UPLOADED</th>
-                              <th>OCR STATUS</th>
-                              <th>VERIFICATION</th>
-                              <th>STORAGE</th>
-                              <th>RISK / REASON</th>
-                              <th style={{ textAlign: "right" }}>ACTIONS</th>
+                              <th className="th-cust-doc">DOCUMENT</th>
+                              <th className="th-cust-uploaded">UPLOADED</th>
+                              <th className="th-cust-ocr">OCR STATUS</th>
+                              <th className="th-cust-verif">VERIFICATION</th>
+                              <th className="th-cust-storage">STORAGE</th>
+                              <th className="th-cust-risk">RISK / REASON</th>
+                              <th className="th-cust-actions">ACTIONS</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -1180,29 +1206,32 @@ export const AdminCustomerDetailPage: React.FC = () => {
                                 className="table-row-hoverable"
                                 onClick={() => setInspectDoc(d)}
                               >
-                                <td>
+                                <td className="td-cust-doc">
                                   <div className="doc-label-row">
                                     <span className="doc-type-label">{d.label}</span>
                                     {d.superseded && (
                                       <span className="badge-superseded">Superseded</span>
                                     )}
                                   </div>
-                                  <span className="doc-filename-sub">{d.filename}</span>
+                                  <span className="doc-filename-sub" title={d.filename}>{d.filename}</span>
                                 </td>
 
-                                <td>
-                                  <span className="text-secondary-sm">
-                                    {new Date(d.uploaded_at).toLocaleString()}
+                                <td className="td-cust-uploaded">
+                                  <span className="doc-upload-date">
+                                    {new Date(d.uploaded_at).toLocaleDateString()}
+                                  </span>
+                                  <span className="doc-upload-time">
+                                    {new Date(d.uploaded_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                                   </span>
                                 </td>
 
-                                <td>
+                                <td className="td-cust-ocr">
                                   <span className={`ocr-pill ${d.ocr_status}`}>
                                     {d.ocr_status}
                                   </span>
                                 </td>
 
-                                <td>
+                                <td className="td-cust-verif">
                                   {d.verification_status === "verified" ? (
                                     <span className="badge-status-verified">
                                       <IconCheck size={12} /> Verified
@@ -1222,7 +1251,7 @@ export const AdminCustomerDetailPage: React.FC = () => {
                                   )}
                                 </td>
 
-                                <td>
+                                <td className="td-cust-storage">
                                   {d.file_state === "stored" ? (
                                     <span className="badge-storage-stored">
                                       <IconShieldCheck size={12} /> Encrypted
@@ -1232,7 +1261,7 @@ export const AdminCustomerDetailPage: React.FC = () => {
                                   )}
                                 </td>
 
-                                <td>
+                                <td className="td-cust-risk">
                                   {d.flags && d.flags.length > 0 ? (
                                     <div className="risk-flag-mini-pill" title={d.flags.join(", ")}>
                                       <IconAlertTriangle size={12} /> {d.flags[0]}
@@ -1247,8 +1276,8 @@ export const AdminCustomerDetailPage: React.FC = () => {
                                   )}
                                 </td>
 
-                                <td style={{ textAlign: "right" }} onClick={(e) => e.stopPropagation()}>
-                                  <div className="table-actions-cell" style={{ justifyContent: "flex-end" }}>
+                                <td className="td-cust-actions" onClick={(e) => e.stopPropagation()}>
+                                  <div className="table-actions-cell">
                                     {d.file_state === "stored" && (
                                       <button
                                         type="button"
@@ -1271,7 +1300,6 @@ export const AdminCustomerDetailPage: React.FC = () => {
                                       className="btn-action-view"
                                       onClick={() => setInspectDoc(d)}
                                       title="Inspect document metadata & timeline"
-                                      style={{ background: "transparent", borderColor: "var(--adm-border)" }}
                                     >
                                       <IconInfo size={13} /> Inspect
                                     </button>
@@ -1279,8 +1307,7 @@ export const AdminCustomerDetailPage: React.FC = () => {
                                     {(d.verification_status === "manual_review" || d.verification_status === "under_review") && (
                                       <Link
                                         to="/admin/reviews"
-                                        className="btn-action-view"
-                                        style={{ background: "rgba(245, 158, 11, 0.15)", color: "#fbbf24", borderColor: "rgba(245, 158, 11, 0.35)", textDecoration: "none" }}
+                                        className="btn-action-queue"
                                         title="Open in Manual Review Queue"
                                         id={`btn-open-queue-${d.id}`}
                                       >

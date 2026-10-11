@@ -2829,6 +2829,7 @@
 
 .customers-data-table {
   width: 100%;
+  min-width: 860px;
   border-collapse: collapse;
   font-size: 13px;
   text-align: left;
@@ -5632,24 +5633,34 @@
   background: rgba(245, 158, 11, 0.12);
   padding: 2px 6px;
   border-radius: 4px;
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .doc-label-row {
   display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
 }
 
 .doc-type-label {
   font-weight: 600;
   color: var(--adm-text);
   font-size: 13px;
+  white-space: nowrap;
 }
 
 .doc-filename-sub {
   font-size: 12px;
   color: var(--adm-text-muted);
   display: block;
+  max-width: 250px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .customer-link {
@@ -5670,14 +5681,164 @@
   display: block;
 }
 
+/* Document Table Actions Cell & Button System */
+.table-actions-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
+.btn-action-view,
+.btn-action-queue,
+.btn-action-delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  height: 28px !important;
+  min-height: 28px !important;
+  max-height: 28px !important;
+  padding: 0 8px !important;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+  text-decoration: none;
+  box-sizing: border-box;
+  border: 1px solid var(--adm-border);
+  background: var(--adm-card-elevated);
+  color: var(--adm-text);
+  line-height: 1;
+}
+
+.btn-action-view:hover {
+  background: var(--adm-card-hover);
+  border-color: var(--adm-primary);
+  color: #ffffff;
+}
+
+.btn-action-view:focus-visible,
+.btn-action-queue:focus-visible,
+.btn-action-delete:focus-visible {
+  outline: 2px solid var(--adm-primary);
+  outline-offset: 2px;
+}
+
+.btn-action-queue {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border-color: rgba(245, 158, 11, 0.35);
+}
+
+.btn-action-queue:hover {
+  background: rgba(245, 158, 11, 0.25);
+  border-color: #f59e0b;
+  color: #fef3c7;
+}
+
+.btn-action-delete {
+  padding: 0 7px !important;
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--adm-danger);
+  border-color: rgba(239, 68, 68, 0.25);
+}
+
+.btn-action-delete:hover {
+  background: var(--adm-danger);
+  color: #ffffff;
+  border-color: var(--adm-danger);
+}
+
+/* Light theme support for table actions */
+.admin-theme-light .btn-action-view {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #1e293b;
+}
+
+.admin-theme-light .btn-action-view:hover {
+  background: #f1f5f9;
+  border-color: var(--adm-primary);
+  color: var(--adm-primary);
+}
+
+.admin-theme-light .btn-action-queue {
+  background: #fffbeb;
+  color: #d97706;
+  border-color: #fcd34d;
+}
+
+.admin-theme-light .btn-action-queue:hover {
+  background: #fef3c7;
+  color: #b45309;
+  border-color: #f59e0b;
+}
+
+.admin-theme-light .btn-action-delete {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #dc2626;
+}
+
+.admin-theme-light .btn-action-delete:hover {
+  background: #dc2626;
+  color: #ffffff;
+  border-color: #dc2626;
+}
+
+/* Date/Time column typography */
+.doc-upload-date {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--adm-text);
+  display: block;
+  white-space: nowrap;
+}
+
+.doc-upload-time {
+  font-size: 11px;
+  color: var(--adm-text-muted);
+  display: block;
+  white-space: nowrap;
+}
+
+/* Semantic Document Table Constraints */
+.customer-docs-table,
+.all-docs-table {
+  min-width: 940px;
+  width: 100%;
+}
+
+.customer-docs-table th,
+.customer-docs-table td,
+.all-docs-table th,
+.all-docs-table td {
+  padding: 10px 12px !important;
+}
+
+.th-all-customer, .td-all-customer { min-width: 120px; }
+.th-cust-doc, .td-cust-doc { min-width: 160px; max-width: 240px; }
+.th-cust-uploaded, .td-cust-uploaded { min-width: 105px; white-space: nowrap; }
+.th-cust-ocr, .td-cust-ocr { min-width: 85px; }
+.th-cust-verif, .td-cust-verif { min-width: 115px; }
+.th-cust-storage, .td-cust-storage { min-width: 90px; }
+.th-cust-risk, .td-cust-risk { min-width: 135px; max-width: 190px; }
+.th-cust-actions, .td-cust-actions { min-width: 290px; text-align: right; }
+
 /* --- FULL CUSTOMER DETAIL PAGE LAYOUT --- */
 .customer-detail-page-layout {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 20px;
   max-width: 1400px;
   margin: 0 auto;
-  padding: 24px 32px 60px;
+  padding: 4px 4px 40px;
 }
 
 .customer-detail-breadcrumbs {
