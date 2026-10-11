@@ -102,7 +102,7 @@ async function runRegressionSuite() {
       headers: adminHeaders,
       body: JSON.stringify({
         name: "Phase5 Acceptance Customer",
-        email: "phase5_acceptance@example.com",
+        email: `phase5_acceptance_${Date.now()}@example.com`,
         mobile: "9876543210",
         required_documents: ["pan", "aadhaar"],
         send_consent: true,
@@ -242,27 +242,25 @@ with db.session_scope() as s:
     // 6. Pipeline OCR & Manual Review Decision Flow
     // --------------------------------------------------------------------------
     console.log("\n[VERIFY 6] Testing Pipeline OCR Processing & Manual Review Workflow...");
-    // Run background worker job for the document
-    const runJobPy = `
-from app import jobs
-jobs.run_one()
-`;
-    execSync(`./.venv/bin/python3 -c '${runJobPy}'`, {
-      cwd: path.resolve(__dirname, "../../backend"),
-      encoding: "utf-8",
-    });
-
-    // Check manual review row created
-    const checkReviewPy = `
+    let reviewId = "NONE";
+    for (let attempt = 0; attempt < 10; attempt++) {
+      execSync(`./.venv/bin/python3 -c 'from app import jobs; jobs.run_one()'`, {
+        cwd: path.resolve(__dirname, "../../backend"),
+        encoding: "utf-8",
+      });
+      const checkReviewPy = `
 from app import db, models
 with db.session_scope() as s:
     rev = s.query(models.ManualReview).filter_by(document_id="${testDocumentId}").first()
     print(rev.id if rev else "NONE")
 `;
-    const reviewId = execSync(`./.venv/bin/python3 -c '${checkReviewPy}'`, {
-      cwd: path.resolve(__dirname, "../../backend"),
-      encoding: "utf-8",
-    }).trim();
+      reviewId = execSync(`./.venv/bin/python3 -c '${checkReviewPy}'`, {
+        cwd: path.resolve(__dirname, "../../backend"),
+        encoding: "utf-8",
+      }).trim();
+      if (reviewId !== "NONE") break;
+      await sleep(1000);
+    }
     assert(reviewId !== "NONE", "ManualReview entry was not created");
     console.log(`  -> Manual review queued with ID: ${reviewId}`);
 
@@ -327,9 +325,11 @@ from app import db, models, storage
 from sqlalchemy import delete, select
 
 with db.session_scope() as s:
-    c = s.get(models.Customer, ${testCustomerId})
-    if c:
-        docs = list(s.scalars(select(models.Document).where(models.Document.customer_id == c.id)))
+    test_cids = [c.id for c in s.scalars(select(models.Customer).where(models.Customer.email.like("phase5_acceptance%")))]
+    if ${testCustomerId} not in test_cids:
+        test_cids.append(${testCustomerId})
+    if test_cids:
+        docs = list(s.scalars(select(models.Document).where(models.Document.customer_id.in_(test_cids))))
         for d in docs:
             try: storage.delete_file(d.storage_key)
             except Exception: pass
@@ -338,13 +338,12 @@ with db.session_scope() as s:
             s.execute(delete(models.OcrResult).where(models.OcrResult.document_id.in_(doc_ids)))
             s.execute(delete(models.ManualReview).where(models.ManualReview.document_id.in_(doc_ids)))
             s.execute(delete(models.Document).where(models.Document.id.in_(doc_ids)))
-        s.execute(delete(models.RequiredDocument).where(models.RequiredDocument.customer_id == c.id))
-        s.execute(delete(models.AccessToken).where(models.AccessToken.customer_id == c.id))
-        s.execute(delete(models.PrivacyRequest).where(models.PrivacyRequest.customer_id == c.id))
-        s.execute(delete(models.ConsentLedger).where(models.ConsentLedger.customer_id == c.id))
-        s.delete(c)
-    s.execute(delete(models.Job))
-    active_count = len(list(s.scalars(select(models.Customer).where(models.Customer.email == "phase5_acceptance@example.com"))))
+        s.execute(delete(models.RequiredDocument).where(models.RequiredDocument.customer_id.in_(test_cids)))
+        s.execute(delete(models.AccessToken).where(models.AccessToken.customer_id.in_(test_cids)))
+        s.execute(delete(models.PrivacyRequest).where(models.PrivacyRequest.customer_id.in_(test_cids)))
+        s.execute(delete(models.ConsentLedger).where(models.ConsentLedger.customer_id.in_(test_cids)))
+        s.execute(delete(models.Customer).where(models.Customer.id.in_(test_cids)))
+    active_count = len(list(s.scalars(select(models.Customer).where(models.Customer.id == ${testCustomerId}))))
     print(f"ACTIVE_TEST_RECORDS:{active_count}")
 `;
     const cleanOutput = execSync(`./.venv/bin/python3 -c '${cleanupPy}'`, {
