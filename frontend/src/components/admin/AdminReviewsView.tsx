@@ -273,13 +273,13 @@ export const AdminReviewsView: React.FC<AdminReviewsViewProps> = ({
           <table className="reviews-table" id="reviews-queue-table">
             <thead>
               <tr>
-                <th style={{ width: "24%" }}>Customer Profile</th>
-                <th style={{ width: "16%" }}>Document Slot</th>
-                <th style={{ width: "18%" }}>Exception Trigger</th>
-                <th style={{ width: "10%" }}>Risk Flags</th>
-                <th style={{ width: "12%" }}>Status</th>
-                <th style={{ width: "10%" }}>Queued</th>
-                <th style={{ width: "10%", textAlign: "right" }}>Actions</th>
+                <th className="th-customer">Customer Profile</th>
+                <th className="th-doc">Document Slot</th>
+                <th className="th-trigger">Exception Trigger</th>
+                <th className="th-flags">Risk Flags</th>
+                <th className="th-status">Status</th>
+                <th className="th-queued">Queued</th>
+                <th className="th-actions" style={{ textAlign: "right" }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -294,13 +294,13 @@ export const AdminReviewsView: React.FC<AdminReviewsViewProps> = ({
                 return (
                   <tr key={r.id} id={`review-row-${r.id}`} className="review-item-row">
                     {/* Customer Info */}
-                    <td>
+                    <td className="td-customer">
                       <div className="reviews-customer-cell">
                         <div className="reviews-avatar">
                           {r.customer_name ? r.customer_name.slice(0, 2).toUpperCase() : "CU"}
                         </div>
-                        <div>
-                          <div className="reviews-customer-name">{r.customer_name}</div>
+                        <div style={{ minWidth: 0, flex: "1 1 auto" }}>
+                          <div className="reviews-customer-name" title={r.customer_name}>{r.customer_name}</div>
                           <Link
                             to={`/admin/customers/${r.customer_id}`}
                             className="reviews-code-chip"
@@ -315,10 +315,10 @@ export const AdminReviewsView: React.FC<AdminReviewsViewProps> = ({
                     </td>
 
                     {/* Document Slot */}
-                    <td>
+                    <td className="td-doc">
                       <div className="reviews-doc-cell">
-                        <span className="reviews-doc-label">{r.document.label}</span>
-                        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                        <span className="reviews-doc-label" title={r.document.label}>{r.document.label}</span>
+                        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
                           <span className="doc-card-slot-chip">{r.document.doc_type}</span>
                           {confScore !== null && (
                             <span
@@ -336,8 +336,8 @@ export const AdminReviewsView: React.FC<AdminReviewsViewProps> = ({
                     </td>
 
                     {/* Exception Trigger */}
-                    <td>
-                      <div className="reviews-reason-cell">
+                    <td className="td-trigger">
+                      <div className="reviews-reason-cell" title={r.reason || "Confidence below auto-verification threshold"}>
                         <div className="reviews-reason-text">
                           {r.reason || "Confidence below auto-verification threshold"}
                         </div>
@@ -345,11 +345,11 @@ export const AdminReviewsView: React.FC<AdminReviewsViewProps> = ({
                     </td>
 
                     {/* Risk Flags */}
-                    <td>
+                    <td className="td-flags">
                         {r.flags && r.flags.length > 0 ? (
                           <div className="reviews-flags-row">
                             {r.flags.map((flag, idx) => (
-                              <span key={idx} className="review-flag-pill">
+                              <span key={idx} className="review-flag-pill" title={flag.replace(/_/g, " ")}>
                                 ⚠️ {flag.replace(/_/g, " ")}
                               </span>
                             ))}
@@ -360,7 +360,7 @@ export const AdminReviewsView: React.FC<AdminReviewsViewProps> = ({
                     </td>
 
                     {/* Verification / Review Status */}
-                    <td>
+                    <td className="td-status">
                       <span
                         className={`status-pill ${
                           isApproved
@@ -385,14 +385,14 @@ export const AdminReviewsView: React.FC<AdminReviewsViewProps> = ({
                     </td>
 
                     {/* Queued Time */}
-                    <td>
+                    <td className="td-queued">
                       <span title={new Date(r.created_at).toUTCString()} style={{ color: "var(--adm-text-muted)" }}>
                         {formatTime(r.created_at)}
                       </span>
                     </td>
 
                     {/* Actions */}
-                    <td style={{ textAlign: "right" }}>
+                    <td className="td-actions" style={{ textAlign: "right" }}>
                       <div className="review-actions-cell" style={{ justifyContent: "flex-end" }}>
                         {onSecureView && (
                           <button

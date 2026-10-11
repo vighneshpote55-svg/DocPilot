@@ -69,16 +69,37 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
 
   // Shell Layout State
   const [activeTab, setActiveTab] = useState<AdminNavTab>(initialTab);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("docpilot_adm_sidebar_collapsed");
+      if (saved !== null) return saved === "true";
+      return window.innerWidth <= 1280;
+    }
+    return false;
+  });
   const [sidebarMobileOpen, setSidebarMobileOpen] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const saved = localStorage.getItem("docpilot_admin_theme") || localStorage.getItem("docpilot_adm_theme");
     return saved === "dark"; // Default to light theme matching user reference mockup
   });
 
-  // Ensure left sidebar is always displayed on load
+  // Responsive auto-collapse listener for viewports at or below 1280px (Linux 150% scaling)
   useEffect(() => {
-    localStorage.removeItem("docpilot_adm_sidebar_collapsed");
+    let lastWidth = typeof window !== "undefined" ? window.innerWidth : 1920;
+    const handleResize = () => {
+      const currentWidth = window.innerWidth;
+      if (currentWidth <= 1280 && lastWidth > 1280) {
+        setSidebarCollapsed(true);
+      } else if (currentWidth > 1280 && lastWidth <= 1280) {
+        const saved = localStorage.getItem("docpilot_adm_sidebar_collapsed");
+        if (saved !== "true") {
+          setSidebarCollapsed(false);
+        }
+      }
+      lastWidth = currentWidth;
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   // Global Theme Synchronization on HTML Element
