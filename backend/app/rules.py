@@ -333,12 +333,12 @@ def _evaluate_cross_check(cc: Any, fields: dict, customer_name: str) -> list[str
         if "match" in cc or "matched" in cc:
             matched_flag = cc.get("match") if "match" in cc else cc.get("matched")
             if matched_flag is False:
-                flags.append("cross_check_failed")
                 mismatches = [str(m).lower() for m in (cc.get("mismatches") or [])]
                 fields_dict = cc.get("fields") or {}
                 has_name_fail = "name" in mismatches or (isinstance(fields_dict, dict) and fields_dict.get("name") is False)
                 if has_name_fail:
                     flags.append("holder_name_mismatch")
+                flags.append("cross_check_failed")
             return list(dict.fromkeys(flags))
 
         # Shape B: {"name": {"matched": false, "reason": "..."}, "dob": {...}}
@@ -354,9 +354,9 @@ def _evaluate_cross_check(cc: Any, fields: dict, customer_name: str) -> list[str
                     continue
 
                 if matched is False:
-                    flags.append("cross_check_failed")
                     if field_name.lower() in ("name", "holder_name", "account_holder", "customer_name"):
                         flags.append("holder_name_mismatch")
+                    flags.append("cross_check_failed")
 
             elif f_data is False and field_name in ("match", "matched", "valid", "passed", "ok"):
                 flags.append("cross_check_failed")

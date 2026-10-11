@@ -166,6 +166,7 @@ class TestCrossCheckDefensiveEvaluation:
         flags = _evaluate_cross_check(cc_payload, {"name": "Rohit Verma"}, "Vighnesh Pote")
         assert "holder_name_mismatch" in flags
         assert "cross_check_failed" in flags
+        assert flags[0] == "holder_name_mismatch"  # Primary flag rendered in Admin UI table
 
     def test_non_name_cross_check_failure_emits_cross_check_failed(self):
         """Discrepancy in non-name cross-checked data correctly produces cross_check_failed."""
