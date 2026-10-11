@@ -123,6 +123,52 @@ class OutcomeStr(str):
         return super().__hash__()
 
 
+def flag_sort_key(f: str) -> tuple[int, str]:
+    """Hierarchical sorting key ensuring specific root causes precede generic flags."""
+    if f == "unsupported_document_type":
+        return (0, f)
+    if f == "wrong_document_type":
+        return (1, f)
+    if f == "holder_name_mismatch":
+        return (2, f)
+    if f == "document_expired":
+        return (3, f)
+    if f == "demo_or_non_official_document":
+        return (4, f)
+    if f.startswith("invalid_structural_identifier:"):
+        return (5, f)
+    if f.startswith("missing_fields:"):
+        return (6, f)
+    if f == "qr_disagreement":
+        return (7, f)
+    if f.startswith("risk:") or f in ("risk_score_high", "risk_detected"):
+        return (8, f)
+    if f == "ocr_error" or f.startswith("ocr_reason:"):
+        return (9, f)
+    if f == "cross_check_failed":
+        return (10, f)
+    if f == "review_required":
+        return (11, f)
+    if f.startswith("low_field_confidence:"):
+        return (12, f)
+    if f == "low_confidence":
+        return (13, f)
+    if f in ("rules_inconclusive", "ai_uncertain"):
+        return (14, f)
+    return (15, f)
+
+
+def prioritize_flags(flags: list[str]) -> list[str]:
+    """Deduplicate and sort flags so the most specific diagnostic root cause appears first."""
+    seen = set()
+    unique = []
+    for f in flags:
+        if f not in seen:
+            seen.add(f)
+            unique.append(f)
+    return sorted(unique, key=flag_sort_key)
+
+
 @dataclass
 class Decision:
     outcome: OutcomeStr | str  # verified | rejected | manual_review | needs_ai
@@ -133,6 +179,7 @@ class Decision:
     def __post_init__(self):
         if not isinstance(self.outcome, OutcomeStr):
             self.outcome = OutcomeStr(str(self.outcome))
+        self.flags = prioritize_flags(self.flags)
 
     @property
     def state(self) -> str:
@@ -524,6 +571,9 @@ class RulesEngine:
         if conf < min_review:
             flags.append("low_confidence")
 
+        # Prioritize flags so specific root causes precede generic flags
+        flags = prioritize_flags(flags)
+
         # Wrong document type strictly REJECTS (preserves all accumulated flags)
         if "wrong_document_type" in flags:
             return Decision(DecisionState.REJECTED, flags, "wrong_document_type", conf)
@@ -614,9 +664,9 @@ def apply_ai(decision: Decision, ai: Any) -> Decision:
     if 0.0 <= conf_num <= 1.0:
         conf_num = conf_num * 100.0
 
-    accumulated_flags = list(decision.flags)
+    accumulated_flags = prioritize_flags(decision.flags)
     if risk_flags:
-        accumulated_flags.extend([f"ai_risk:{rf}" for rf in risk_flags])
+        accumulated_flags = prioritize_flags(accumulated_flags + [f"ai_risk:{rf}" for rf in risk_flags])
 
     if str(verdict or "").lower() == "verified" and conf_num >= 90.0 and not risk_flags:
         return Decision(

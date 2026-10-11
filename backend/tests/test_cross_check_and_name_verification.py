@@ -613,3 +613,153 @@ class TestAll22DocTypesSyntheticMatrix:
         assert decision.outcome == DecisionState.MANUAL_REVIEW
         assert any(f.startswith("missing_fields:") for f in decision.flags)
 
+
+class TestFlagPrioritizationHierarchy:
+    """Verify specific diagnostic root causes precede generic flags in flags list and decision reason."""
+
+    def test_missing_fields_precedes_generic_cross_check_failed(self):
+        # Bank statement missing account number with cross check mismatch
+        fields = {"bank_name": "HDFC Bank"}
+        ocr_res = {
+            "status": "success",
+            "confidence": 0.95,
+            "doc_type": "bank_statement",
+            "extracted_fields": fields,
+            "field_confidences": {"bank_name": 0.95},
+            "cross_check": {"dob": {"matched": False, "reason": "dob_mismatch"}},
+        }
+        decision = evaluate(ocr_res, "bank_statement", "Vighnesh Pote", min_overall=0.90, min_field=0.80)
+        assert decision.outcome == DecisionState.MANUAL_REVIEW
+        # Root cause must be first
+        assert decision.flags[0] == "missing_fields:account_number"
+        assert "cross_check_failed" in decision.flags
+        assert decision.flags.index("missing_fields:account_number") < decision.flags.index("cross_check_failed")
+        # Decision reason must lead with root cause
+        assert decision.reason.startswith("missing_fields:account_number")
+
+    def test_document_expired_precedes_generic_cross_check_failed(self):
+        fields = {"licence_number": "MH1220150001234", "name": "Vighnesh Pote", "valid_till": "01/01/2020"}
+        ocr_res = {
+            "status": "success",
+            "confidence": 0.95,
+            "doc_type": "driving_licence",
+            "extracted_fields": fields,
+            "field_confidences": {k: 0.95 for k in fields},
+            "cross_check": {"dob": {"matched": False, "reason": "dob_mismatch"}},
+        }
+        decision = evaluate(ocr_res, "driving_licence", "Vighnesh Pote", min_overall=0.90, min_field=0.80)
+        assert decision.outcome == DecisionState.MANUAL_REVIEW
+        assert decision.flags[0] == "document_expired"
+        assert decision.flags.index("document_expired") < decision.flags.index("cross_check_failed")
+        assert decision.reason.startswith("document_expired")
+
+    def test_invalid_structural_identifier_precedes_generic_cross_check_failed(self):
+        fields = {"pan_number": "INVALID_PAN_FORMAT", "name": "Vighnesh Pote"}
+        ocr_res = {
+            "status": "success",
+            "confidence": 0.95,
+            "doc_type": "pan",
+            "extracted_fields": fields,
+            "field_confidences": {k: 0.95 for k in fields},
+            "cross_check": {"dob": {"matched": False, "reason": "dob_mismatch"}},
+        }
+        decision = evaluate(ocr_res, "pan", "Vighnesh Pote", min_overall=0.90, min_field=0.80)
+        assert decision.outcome == DecisionState.MANUAL_REVIEW
+        assert decision.flags[0] == "invalid_structural_identifier:pan"
+        assert decision.flags.index("invalid_structural_identifier:pan") < decision.flags.index("cross_check_failed")
+
+    def test_holder_name_mismatch_precedes_generic_cross_check_failed(self):
+        fields = {"pan_number": "ABCPE1234F", "name": "Suresh Gupta"}
+        ocr_res = {
+            "status": "success",
+            "confidence": 0.95,
+            "doc_type": "pan",
+            "extracted_fields": fields,
+            "field_confidences": {k: 0.95 for k in fields},
+            "cross_check": {"name": {"matched": False, "reason": "name_mismatch"}},
+        }
+        decision = evaluate(ocr_res, "pan", "Vighnesh Pote", min_overall=0.90, min_field=0.80)
+        assert decision.outcome == DecisionState.MANUAL_REVIEW
+        assert decision.flags[0] == "holder_name_mismatch"
+        assert decision.flags.index("holder_name_mismatch") < decision.flags.index("cross_check_failed")
+
+
+class TestHardFailuresCannotAutoVerify:
+    """Verify that hard failures can never be auto-approved even with 100% confidence."""
+
+    @pytest.mark.parametrize("flag_scenario", [
+        {"name": "Suresh Gupta", "pan_number": "ABCPE1234F"},  # Name mismatch
+        {"name": "Vighnesh Pote", "pan_number": "INVALID_PAN"},  # Structural invalid
+        {"name": "Vighnesh Pote", "pan_number": "ABCPE1234F", "note": "SYNTHETIC DEMO"},  # Demo marker
+    ])
+    def test_hard_pan_failure_never_verifies(self, flag_scenario):
+        ocr_res = {
+            "status": "success",
+            "confidence": 1.0,
+            "doc_type": "pan",
+            "extracted_fields": flag_scenario,
+            "field_confidences": {k: 1.0 for k in flag_scenario},
+        }
+        decision = evaluate(ocr_res, "pan", "Vighnesh Pote", min_overall=0.90, min_field=0.80)
+        assert decision.outcome != DecisionState.VERIFIED
+        assert decision.outcome in (DecisionState.MANUAL_REVIEW, DecisionState.REJECTED)
+
+    def test_expired_document_never_verifies_with_perfect_confidence(self):
+        fields = {"passport_number": "Z1234567", "name": "Vighnesh Pote", "expiry_date": "01/01/2020"}
+        ocr_res = {
+            "status": "success",
+            "confidence": 1.0,
+            "doc_type": "passport",
+            "extracted_fields": fields,
+            "field_confidences": {k: 1.0 for k in fields},
+        }
+        decision = evaluate(ocr_res, "passport", "Vighnesh Pote", min_overall=0.90, min_field=0.80)
+        assert decision.outcome == DecisionState.MANUAL_REVIEW
+        assert "document_expired" in decision.flags
+
+    def test_unsupported_slot_strictly_rejected(self):
+        ocr_res = {
+            "status": "success",
+            "confidence": 1.0,
+            "doc_type": "unsupported_slot_name",
+            "extracted_fields": {"any_key": "any_val"},
+            "field_confidences": {"any_key": 1.0},
+        }
+        decision = evaluate(ocr_res, "unsupported_slot_name", "Vighnesh Pote", min_overall=0.90, min_field=0.80)
+        assert decision.outcome == DecisionState.REJECTED
+        assert "unsupported_document_type" in decision.flags
+
+
+class TestInconclusiveCasesEnterManualReview:
+    """Verify that ambiguous cases enter manual review with clear diagnostic reasons."""
+
+    def test_inconclusive_confidence_routes_to_ai_required_or_manual_review(self):
+        # Clean fields, but overall confidence is 0.85 (below 0.90 threshold, above 0.60 manual review limit)
+        fields = {"pan_number": "ABCPE1234F", "name": "Vighnesh Pote"}
+        ocr_res = {
+            "status": "success",
+            "confidence": 0.85,
+            "doc_type": "pan",
+            "extracted_fields": fields,
+            "field_confidences": {k: 0.85 for k in fields},
+        }
+        decision = evaluate(ocr_res, "pan", "Vighnesh Pote", min_overall=0.90, min_field=0.80)
+        # Without AI, borderline rules are inconclusive
+        assert decision.outcome == DecisionState.AI_REQUIRED
+        assert decision.reason == "rules_inconclusive"
+
+    def test_low_confidence_below_minimum_review_threshold_routes_to_manual_review(self):
+        # Confidence 0.50 (below min_review=0.60)
+        fields = {"pan_number": "ABCPE1234F", "name": "Vighnesh Pote"}
+        ocr_res = {
+            "status": "success",
+            "confidence": 0.50,
+            "doc_type": "pan",
+            "extracted_fields": fields,
+            "field_confidences": {k: 0.50 for k in fields},
+        }
+        decision = evaluate(ocr_res, "pan", "Vighnesh Pote", min_overall=0.90, min_field=0.80, min_review=0.60)
+        assert decision.outcome == DecisionState.MANUAL_REVIEW
+        assert "low_confidence" in decision.flags
+
+

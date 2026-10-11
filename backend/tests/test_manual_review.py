@@ -487,3 +487,92 @@ def test_list_reviews_status_all_and_filtering(client):
     res_invalid = client.get("/api/admin/reviews?status=invalid_status", headers=admin_headers())
     assert res_invalid.status_code == 422
 
+
+def test_review_displays_prioritized_specific_reason(client, env):
+    """Verify review queue response presents prioritized specific root-cause reason and flags."""
+    c, portal = onboard(client, docs=("PAN",))
+    env.responses["pan"] = OCRResult(
+        status="success",
+        doc_type="pan",
+        confidence=0.95,
+        extracted_fields={"pan_number": "ABCPE1234F", "name": "Mismatched Person"},
+        cross_check={"dob": {"matched": False, "reason": "dob_mismatch"}},
+    )
+    upload(client, portal, "PAN")
+    jobs.run_all()
+
+    reviews = client.get("/api/admin/reviews", headers=admin_headers()).json()
+    assert len(reviews) == 1
+    r = reviews[0]
+    # Specific identity mismatch must precede generic cross_check_failed
+    assert r["flags"][0] == "holder_name_mismatch"
+    assert "cross_check_failed" in r["flags"]
+    assert r["flags"].index("holder_name_mismatch") < r["flags"].index("cross_check_failed")
+    assert r["reason"].startswith("holder_name_mismatch")
+
+
+def test_approve_decision_completes_case_lifecycle(client, env):
+    """Verify approving a review marks doc verified and moves single-document case to completed."""
+    c, portal = onboard(client, docs=("PAN",), name="Vighnesh Pote", email="vighnesh@example.com")
+    env.responses["pan"] = OCRResult(
+        status="low_confidence",
+        doc_type="pan",
+        confidence=0.55,
+        reason="slight_blur",
+        extracted_fields={"pan_number": "ABCPE1234F", "name": "Vighnesh Pote"}
+    )
+    upload(client, portal, "PAN")
+    jobs.run_all()
+
+    reviews = client.get("/api/admin/reviews", headers=admin_headers()).json()
+    assert len(reviews) == 1
+    rid = reviews[0]["id"]
+    doc_id = reviews[0]["document"]["id"]
+
+    approve_resp = client.post(f"/api/admin/reviews/{rid}/approve", headers=admin_headers(), json={"note": "Verified manually"})
+    assert approve_resp.status_code == 200
+    assert approve_resp.json()["status"] == "approved"
+
+    # Verify document and customer updated
+    with dbmod.session_scope() as db:
+        doc = db.get(Document, doc_id)
+        cust = db.get(Customer, c["id"])
+        assert doc.verification_status == "verified"
+        assert cust.case_status == "completed"
+        assert cust.completed_at is not None
+        assert cust.delete_after is not None
+
+
+def test_reject_decision_triggers_resubmission_email(client, env):
+    """Verify rejecting a review sets status rejected and queues a resubmission email."""
+    c, portal = onboard(client, docs=("PAN",), name="Vighnesh Pote", email="vighnesh_rej@example.com")
+    env.responses["pan"] = OCRResult(
+        status="low_confidence",
+        doc_type="pan",
+        confidence=0.50,
+        reason="unreadable_text",
+        extracted_fields={"pan_number": "ABCPE1234F", "name": "Vighnesh Pote"}
+    )
+    upload(client, portal, "PAN")
+    jobs.run_all()
+
+    reviews = client.get("/api/admin/reviews", headers=admin_headers()).json()
+    rid = reviews[0]["id"]
+    doc_id = reviews[0]["document"]["id"]
+
+    reject_resp = client.post(f"/api/admin/reviews/{rid}/reject", headers=admin_headers(), json={"note": "Image is illegible"})
+    assert reject_resp.status_code == 200
+    assert reject_resp.json()["status"] == "rejected"
+
+    with dbmod.session_scope() as db:
+        doc = db.get(Document, doc_id)
+        cust = db.get(Customer, c["id"])
+        assert doc.verification_status == "rejected"
+        assert cust.case_status == "in_progress"
+
+    # Verify customer portal shows resubmit
+    p_state = client.get(f"/api/portal/{portal}").json()
+    pan_doc = next(d for d in p_state["documents"] if d["doc_type"] == "pan")
+    assert pan_doc["state"] == "resubmit"
+
+
