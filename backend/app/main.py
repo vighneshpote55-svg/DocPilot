@@ -35,7 +35,9 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("X-Frame-Options", "DENY")
         response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
-        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+        is_https = request.url.scheme == "https" or request.headers.get("x-forwarded-proto", "").lower() == "https"
+        if is_https:
+            response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
         response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
         response.headers.setdefault("Content-Security-Policy", "default-src 'self'; frame-ancestors 'none';")
         if request.url.path.startswith("/api/"):
