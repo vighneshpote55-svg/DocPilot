@@ -24,24 +24,11 @@ pytestmark = pytest.mark.live_e2e
 
 
 @pytest.fixture(autouse=True)
-def live_ocr_config(monkeypatch):
-    """Ensure OCR_URL points to port 8001 during live E2E tests and pairs with local OCR key."""
-    ocr_url = "http://127.0.0.1:8001"
-    monkeypatch.setenv("OCR_URL", ocr_url)
-    s = get_settings()
-    s.ocr_url = ocr_url
-
-    ocr_env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../company-ocr-service/.env"))
-    if os.path.exists(ocr_env_path):
-        with open(ocr_env_path) as f:
-            for line in f:
-                if line.startswith("API_KEY="):
-                    val = line.split("=", 1)[1].strip().strip('"').strip("'")
-                    if val:
-                        monkeypatch.setenv("OCR_API_KEY", val)
-                        s.ocr_api_key = val
-                        break
-
+def live_ocr_config():
+    """Ensure live HTTP OCR client is active and DocPilot settings point to live OCR service."""
+    settings = get_settings()
+    assert settings.ocr_api_key, "OCR_API_KEY must be configured in DocPilot environment"
+    assert ":8001" in settings.ocr_url, f"OCR_URL must point to port 8001, got {settings.ocr_url}"
     set_ocr_client(HTTPOCRClient())
 
 
