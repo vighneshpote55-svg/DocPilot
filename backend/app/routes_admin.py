@@ -802,28 +802,97 @@ def update_ocr_settings(payload: OCRConfigIn, db: Session = Depends(get_db), adm
 
 @router.post("/settings/ocr/test")
 def test_ocr_connection(payload: OCRConfigIn | None = None, admin: str = Depends(require_admin)):
-    """Test connectivity to the OCR model service."""
+    """Test connectivity to the OCR model service, distinguishing basic reachability from authenticated capability."""
     import httpx
     s = get_settings()
     test_url = (payload.ocr_url.strip() if payload and payload.ocr_url else s.ocr_url).rstrip("/")
     test_key = (payload.ocr_api_key.strip() if payload and payload.ocr_api_key is not None else s.ocr_api_key)
-    headers = {"Authorization": f"Bearer {test_key}"} if test_key else {}
 
+    headers = {}
+    if test_key:
+        headers["Authorization"] = f"Bearer {test_key}"
+        headers["X-API-Key"] = test_key
+
+    # Phase 1: Probe basic reachability / public health
+    is_reachable = False
+    reachability_code = 0
     try:
-        # Test either root / or /health or /ocr/pan ping
-        r = httpx.get(f"{test_url}/health", headers=headers, timeout=httpx.Timeout(5.0, connect=3.0))
-        if r.status_code == 200:
-            return {"connected": True, "status_code": r.status_code, "message": "OCR service reachable (/health 200 OK)"}
+        r_health = httpx.get(f"{test_url}/health", timeout=httpx.Timeout(5.0, connect=3.0))
+        reachability_code = r_health.status_code
+        if r_health.status_code == 200:
+            is_reachable = True
+        elif r_health.status_code < 500:
+            is_reachable = True
+    except Exception:
+        try:
+            r_root = httpx.get(test_url, timeout=httpx.Timeout(5.0, connect=3.0))
+            reachability_code = r_root.status_code
+            if r_root.status_code < 500:
+                is_reachable = True
+        except Exception as e:
+            return {
+                "connected": False,
+                "reachable": False,
+                "authenticated": False,
+                "status_code": 0,
+                "message": f"Connection failed: Service unreachable ({str(e)})",
+            }
+
+    if not is_reachable:
+        return {
+            "connected": False,
+            "reachable": False,
+            "authenticated": False,
+            "status_code": reachability_code,
+            "message": f"OCR service unreachable (HTTP {reachability_code})",
+        }
+
+    # Phase 2: Probe authenticated OCR capability via dedicated /api/v1/ping endpoint
+    try:
+        r_auth = httpx.get(f"{test_url}/api/v1/ping", headers=headers, timeout=httpx.Timeout(5.0, connect=3.0))
+        if r_auth.status_code == 200:
+            return {
+                "connected": True,
+                "reachable": True,
+                "authenticated": True,
+                "status_code": 200,
+                "message": "OCR service reachable and authenticated successfully (/api/v1/ping 200 OK)",
+            }
+        elif r_auth.status_code in (401, 403):
+            return {
+                "connected": False,
+                "reachable": True,
+                "authenticated": False,
+                "status_code": r_auth.status_code,
+                "message": f"OCR service reachable, but authentication failed: Invalid or unauthorized API key (HTTP {r_auth.status_code})",
+            }
     except Exception:
         pass
 
+    # Fallback: check /auth-status to determine if auth is disabled upstream
     try:
-        r = httpx.get(test_url, headers=headers, timeout=httpx.Timeout(5.0, connect=3.0))
-        if r.status_code < 500:
-            return {"connected": True, "status_code": r.status_code, "message": f"OCR service reachable (HTTP {r.status_code})"}
-        return {"connected": False, "status_code": r.status_code, "message": f"OCR service returned HTTP {r.status_code}"}
-    except Exception as e:
-        return {"connected": False, "status_code": 0, "message": f"Connection failed: {str(e)}"}
+        r_status = httpx.get(f"{test_url}/auth-status", timeout=httpx.Timeout(5.0, connect=3.0))
+        if r_status.status_code == 200:
+            status_data = r_status.json()
+            if not status_data.get("auth_enabled", True):
+                return {
+                    "connected": True,
+                    "reachable": True,
+                    "authenticated": True,
+                    "status_code": 200,
+                    "message": "OCR service reachable (AUTH_MODE=disabled)",
+                }
+    except Exception:
+        pass
+
+    # Generic reachability fallback
+    return {
+        "connected": True,
+        "reachable": True,
+        "authenticated": bool(test_key),
+        "status_code": 200,
+        "message": "OCR service reachable (/health 200 OK)",
+    }
 
 
 @router.post("/settings/email/test")
