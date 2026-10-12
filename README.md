@@ -23,11 +23,11 @@ flowchart TD
     B -->|2. Send Magic Link| C[Customer Email]
     C -->|3. View Terms| D[Consent Portal]
     D -->|4. Grant Consent| E[Upload Portal]
-    
+
     subgraph Client-Side Security
         E -->|5. Validate & Upload| F[Secure API Endpoint]
     end
-    
+
     subgraph Secure Backend Pipeline
         F -->|6. AES-256-GCM Encrypt| G[(Private Supabase Bucket)]
         F -->|7. Enqueue Task| H[(PostgreSQL Jobs Queue)]
@@ -38,12 +38,12 @@ flowchart TD
         K -->|Yes| L[Mark Verified]
         K -->|Inconclusive / High Risk| M[Manual Review Queue]
     end
-    
+
     subgraph Human-in-the-Loop
         M -->|Review via Staff Console| N[Admin Staff]
         N -->|Approve / Reject| L
     end
-    
+
     subgraph Retention & Crypto-Shredding
         L -->|Case Completed| O[7-Day Retention Timer]
         O -->|Purge Triggered| P[Delete Encrypted Files & Scrub PII]
@@ -167,13 +167,34 @@ OCR_API_KEY=your-ocr-integration-key
 STORAGE_BACKEND=supabase           # or 'local' for offline dev
 ```
 
-#### Run Backend & Worker
+#### Run Services (4 Local Terminals)
+
+| Service | Local URL / Binding | Command |
+| :--- | :--- | :--- |
+| **DocPilot Backend** | `http://127.0.0.1:8080` | `uvicorn app.main:app --reload --port 8080` |
+| **Background Worker** | N/A (polls DB queue) | `python -m app.worker` |
+| **Company OCR Microservice** | `http://127.0.0.1:8001` | `uvicorn main:app --port 8001` (in OCR repo) |
+| **Frontend Dev Server** | `http://127.0.0.1:5173` | `npm run dev` (in `frontend/`) |
+
 ```bash
-# Terminal 1: FastAPI Web Server
+# Terminal 1: DocPilot FastAPI API
+cd backend
+source .venv/bin/activate
 uvicorn app.main:app --reload --port 8080
 
 # Terminal 2: Background Task Worker
+cd backend
+source .venv/bin/activate
 python -m app.worker
+
+# Terminal 3: Company OCR Microservice
+cd ../company-ocr-service
+source .venv/bin/activate
+uvicorn main:app --host 127.0.0.1 --port 8001
+
+# Terminal 4: Frontend Portal
+cd ../DocPilot/frontend
+npm run dev
 ```
 
 ---
@@ -205,21 +226,36 @@ Visit the application:
 DocPilot includes comprehensive automated tests covering unit logic, integration boundaries, security invariants, and browser workflows:
 
 ```bash
-# Run backend tests
+# 1. Run standard backend test suite
 cd backend
-pytest -q
+./.venv/bin/pytest tests/ -q
 
-# Run live E2E paired OCR pipeline tests
-pytest tests/test_live_paired_e2e.py -m live_e2e -v
+# 2. Run focused OCR integration and auth tests
+./.venv/bin/pytest tests/test_ocr_integration.py tests/test_company_ocr_integration.py tests/test_ocr_auth_security_repair.py -v
 
-# Run frontend lint & production build validation
-cd frontend
+# 3. Run live E2E paired OCR pipeline tests (requires active OCR service on port 8001)
+./.venv/bin/pytest tests/test_live_paired_e2e.py -m live_e2e -v
+
+# 4. Run frontend lint & production build validation
+cd ../frontend
 npm run lint
 npm run build
 
-# Run Playwright E2E browser tests
+# 5. Run Playwright E2E browser tests
 npm run test:e2e
 ```
+
+---
+
+## 🛠️ Troubleshooting & Operational Guide
+
+| Issue / Error | Probable Cause | Resolution |
+| :--- | :--- | :--- |
+| `[Errno 111] Connection refused` in worker | OCR service not listening on expected port | Ensure OCR service is running on `127.0.0.1:8001` and verify `OCR_URL=http://127.0.0.1:8001` in `backend/.env`. |
+| Worker not picking up configuration changes | `@lru_cache` on `get_settings()` | Restart the background worker (`python -m app.worker`) so it loads the updated `.env`. |
+| `SSL connection error` with Supabase pooler | Missing SSL context on PostgreSQL driver | The backend uses `pg8000` with `ssl_context=True` enabled by default in `app/db.py`. Ensure the connection string uses port `5432` or session pooler `6543`. |
+| `401 Unauthorized` on OCR requests | Integration key mismatch or revoked key | Pair `OCR_API_KEY` in `DocPilot/backend/.env` with the active `API_KEY` from `company-ocr-service/.env`. |
+| `403 Forbidden: consent_required` | Upload accessed before customer consented | By design, customers cannot upload files until consent is recorded via `/consent/:token`. |
 
 ---
 
@@ -242,6 +278,17 @@ npm run test:e2e
 - `GET /api/public/consent/{token}`: Retrieve consent text and required document slots.
 - `POST /api/public/consent/{token}`: Record consent grant or decline.
 - `POST /api/public/privacy/{token}`: Submit customer data erasure or withdrawal request.
+
+---
+
+## ⚠️ Development Status & Limitations
+
+> [!NOTE]
+> **Active Development & Synthetic Data Disclaimer**:
+> This codebase is under active development. The current configuration is calibrated for local and staging demonstration using **synthetic test data only**.
+> - Live customer email delivery is by default routed through the in-memory outbox sink unless an authenticated SMTP server (`SMTP_HOST`) is explicitly configured.
+> - Document storage defaults to local encrypted disk storage unless private Supabase Storage credentials are provided.
+> - Do not deploy to public infrastructure without rotating default development JWT secrets and enforcing HTTPS across all service endpoints.
 
 ---
 

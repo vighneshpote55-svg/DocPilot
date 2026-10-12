@@ -1,6 +1,6 @@
 {
   "pan_image_path": "D:\\DocPilot\\frontend\\e2e\\assets\\dummy_pan.png",
-  "admin_jwt": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbi10ZXN0LWUyZS11c2VyIiwiZW1haWwiOiJ2aWdobmVzaHBvdGUuaW5mb0BnbWFpbC5jb20iLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwicm9sZSI6ImF1dGhlbnRpY2F0ZWQifQ.c2QWyh4mx2TLtwQt2Txy7Lls_YNQADi4DLhWIG53uy4",
+  "admin_jwt": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbi10ZXN0LWUyZS11c2VyIiwiZW1haWwiOiJhZG1pbkBkb2NwaWxvdC50ZXN0IiwiYXVkIjoiYXV0aGVudGljYXRlZCIsInJvbGUiOiJhdXRoZW50aWNhdGVkIn0.EUEeWIAU64AyNjmyCr667bP-y2N3xm5dfAuj7o4yrRc",
   "item1_pan_token": "pt8qNmIwNSnT3k6J4GO8sPpvTvwrKtHCyJepZ8hOGG0",
   "item1_customer_id": 200,
   "item2_aadhaar_token": "2qwwQLG-sOFZmjnOOGFZ2Z-DMw7A3XLhlQbAjRYoELE",

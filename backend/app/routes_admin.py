@@ -759,6 +759,7 @@ def get_ocr_settings(admin: str = Depends(require_admin)):
 @router.put("/settings/ocr")
 def update_ocr_settings(payload: OCRConfigIn, db: Session = Depends(get_db), admin: str = Depends(require_admin)):
     """Update active OCR endpoint and API key in runtime and persist to .env."""
+    import os
     from pathlib import Path
     s = get_settings()
     updated = {}
@@ -775,7 +776,8 @@ def update_ocr_settings(payload: OCRConfigIn, db: Session = Depends(get_db), adm
         updated["ocr_api_key"] = "[UPDATED]"
 
     # Persist changes to .env file if it exists
-    env_path = Path(__file__).resolve().parent.parent / ".env"
+    env_file_override = os.environ.get("DOCPILOT_ENV_FILE")
+    env_path = Path(env_file_override) if env_file_override else (Path(__file__).resolve().parent.parent / ".env")
     if env_path.exists() and (payload.ocr_url is not None or payload.ocr_api_key is not None):
         try:
             content = env_path.read_text(encoding="utf-8")

@@ -50,6 +50,7 @@ class FakeOCR:
 
 @pytest.fixture
 def env(monkeypatch, tmp_path):
+    monkeypatch.setenv("DOCPILOT_ENV_FILE", str(tmp_path / ".env"))
     monkeypatch.setenv("DATABASE_URL", "sqlite://")
     monkeypatch.setenv("STORAGE_BACKEND", "local")
     monkeypatch.setenv("ENCRYPTION_KEY", generate_key())

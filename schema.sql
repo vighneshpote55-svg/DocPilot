@@ -1,8 +1,10 @@
 -- ==============================================================================
--- DocPilot Database Schema
+-- DocPilot Database Schema Export
 -- Target: PostgreSQL 15+ / Supabase
--- Description: Core relational schema for secure customer document collection,
---              OCR status tracking, consent auditing, and background job queue.
+-- Description: Standalone DDL export for fresh database setups.
+-- Source of Truth: Alembic migrations located in backend/alembic/versions/
+--                  (7b850ab9a48f_initial_schema.py, 07648b259a0d_add_workflow_state.py)
+-- Runtime Execution: 'python -m app.db_init' or 'alembic upgrade head'
 -- ==============================================================================
 
 -- 0. Extensions

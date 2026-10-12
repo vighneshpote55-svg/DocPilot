@@ -193,6 +193,35 @@ To maintain sub-10ms query times at scale, the following strategic B-tree indexe
 ## 4. Setup in Supabase / PostgreSQL
 
 To initialize this schema:
-1. Execute `schema.sql` directly in your PostgreSQL client (`psql`) or Supabase SQL Editor.
-2. Row Level Security (RLS) is automatically enabled on all 10 tables, locking out unauthorized public queries via anon API keys.
-3. The DocPilot FastAPI backend connects via the privileged connection string (Session Pooler) to execute authorized operations.
+1. **Via Standalone DDL Script**:
+   Execute `schema.sql` directly in your PostgreSQL client (`psql`) or Supabase SQL Editor.
+2. **Row Level Security (RLS)**:
+   RLS is automatically enabled on all 10 tables, locking out unauthorized public queries via anon client keys.
+3. **Privileged Backend Connection**:
+   The DocPilot FastAPI backend connects via the privileged connection string (Session Pooler) to execute authorized operations.
+
+---
+
+## 5. Migrations as Source of Truth
+
+The version-controlled source of truth for all schema modifications is the Alembic migration history located in `backend/alembic/versions/`:
+- `7b850ab9a48f_initial_schema.py`: Initial schema definition creating all 10 core tables, foreign keys, and primary indexes.
+- `07648b259a0d_add_workflow_state.py`: Addition of operational `workflow_state` columns on `customers` and `documents`.
+
+### Managing Migrations
+
+```bash
+cd backend
+source .venv/bin/activate
+
+# Apply migrations up to head (recommended)
+python -m app.db_init
+# or directly via Alembic CLI:
+alembic upgrade head
+
+# Check current revision status
+alembic current
+
+# Create a new migration after updating app/models.py
+alembic revision --autogenerate -m "description_of_change"
+```
