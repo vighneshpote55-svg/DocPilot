@@ -3,7 +3,8 @@
 -- Target: PostgreSQL 15+ / Supabase
 -- Description: Standalone DDL export for fresh database setups.
 -- Source of Truth: Alembic migrations located in backend/alembic/versions/
---                  (7b850ab9a48f_initial_schema.py, 07648b259a0d_add_workflow_state.py)
+--                  (7b850ab9a48f_initial_schema.py, 07648b259a0d_add_workflow_state.py,
+--                   c4e2a8910b7f_enable_rls_and_policies.py)
 -- Runtime Execution: 'python -m app.db_init' or 'alembic upgrade head'
 -- ==============================================================================
 
@@ -214,17 +215,41 @@ CREATE INDEX IF NOT EXISTS ix_jobs_run_at ON jobs(run_at);
 
 -- ------------------------------------------------------------------------------
 -- 11. Security & Row Level Security (RLS)
--- Enables RLS across all tables with no open public policies.
--- This ensures public anon / authenticated client keys cannot access or leak
--- customer data directly. The backend connects securely using the service role.
+-- Enables and forces RLS across all 10 application tables with least-privilege policies.
+-- - 'service_role' and 'postgres' roles are granted full administrative access.
+-- - 'anon' and 'authenticated' roles have no permissive policies (DENY ALL by default).
+-- This guarantees public client keys (VITE_SUPABASE_ANON_KEY) cannot read or leak
+-- customer data, documents, or audit logs directly over PostgREST.
 -- ------------------------------------------------------------------------------
-ALTER TABLE customers          ENABLE ROW LEVEL SECURITY;
-ALTER TABLE required_documents ENABLE ROW LEVEL SECURITY;
-ALTER TABLE consent_ledger     ENABLE ROW LEVEL SECURITY;
-ALTER TABLE access_tokens      ENABLE ROW LEVEL SECURITY;
-ALTER TABLE documents          ENABLE ROW LEVEL SECURITY;
-ALTER TABLE ocr_results        ENABLE ROW LEVEL SECURITY;
-ALTER TABLE manual_reviews     ENABLE ROW LEVEL SECURITY;
-ALTER TABLE privacy_requests   ENABLE ROW LEVEL SECURITY;
-ALTER TABLE audit_logs         ENABLE ROW LEVEL SECURITY;
-ALTER TABLE jobs               ENABLE ROW LEVEL SECURITY;
+DO $$
+DECLARE
+    tbl text;
+    tables text[] := ARRAY[
+        'customers', 'required_documents', 'consent_ledger', 'access_tokens',
+        'documents', 'ocr_results', 'manual_reviews', 'privacy_requests',
+        'audit_logs', 'jobs'
+    ];
+BEGIN
+    FOREACH tbl IN ARRAY tables LOOP
+        EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY;', tbl);
+        EXECUTE format('ALTER TABLE %I FORCE ROW LEVEL SECURITY;', tbl);
+
+        IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_policies WHERE tablename = tbl AND policyname = format('service_role_all_%s', tbl)
+            ) THEN
+                EXECUTE format('CREATE POLICY %I ON %I FOR ALL TO service_role USING (true) WITH CHECK (true);',
+                               format('service_role_all_%s', tbl), tbl);
+            END IF;
+        END IF;
+
+        IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'postgres') THEN
+            IF NOT EXISTS (
+                SELECT 1 FROM pg_policies WHERE tablename = tbl AND policyname = format('postgres_all_%s', tbl)
+            ) THEN
+                EXECUTE format('CREATE POLICY %I ON %I FOR ALL TO postgres USING (true) WITH CHECK (true);',
+                               format('postgres_all_%s', tbl), tbl);
+            END IF;
+        END IF;
+    END LOOP;
+END $$;

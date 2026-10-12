@@ -195,10 +195,10 @@ To maintain sub-10ms query times at scale, the following strategic B-tree indexe
 To initialize this schema:
 1. **Via Standalone DDL Script**:
    Execute `schema.sql` directly in your PostgreSQL client (`psql`) or Supabase SQL Editor.
-2. **Row Level Security (RLS)**:
-   RLS is automatically enabled on all 10 tables, locking out unauthorized public queries via anon client keys.
+2. **Row Level Security (RLS) & Policies**:
+   RLS is enabled and forced on all 10 application tables. Least-privilege policies grant administrative access to `service_role` and `postgres`, while non-privileged client roles (`anon` and `authenticated`) have no permissive policies (DENY ALL by default). This locks out unauthorized public queries via PostgREST and anon client keys.
 3. **Privileged Backend Connection**:
-   The DocPilot FastAPI backend connects via the privileged connection string (Session Pooler) to execute authorized operations.
+   The DocPilot FastAPI backend connects via the privileged connection string (Session Pooler) to execute authorized operations under the `service_role` / `postgres` role.
 
 ---
 
@@ -207,6 +207,7 @@ To initialize this schema:
 The version-controlled source of truth for all schema modifications is the Alembic migration history located in `backend/alembic/versions/`:
 - `7b850ab9a48f_initial_schema.py`: Initial schema definition creating all 10 core tables, foreign keys, and primary indexes.
 - `07648b259a0d_add_workflow_state.py`: Addition of operational `workflow_state` columns on `customers` and `documents`.
+- `c4e2a8910b7f_enable_rls_and_policies.py`: Forward-only migration enabling and forcing Row Level Security (RLS) across all 10 application tables with explicit least-privilege policies for `service_role` and `postgres`.
 
 ### Managing Migrations
 
