@@ -20,6 +20,30 @@ from app.models import Customer, Document, Job, OcrResult
 from app.ocr_client import HTTPOCRClient, set_ocr_client
 from tests.conftest import admin_headers, token_from_outbox
 
+pytestmark = pytest.mark.live_e2e
+
+
+@pytest.fixture(autouse=True)
+def live_ocr_config(monkeypatch):
+    """Ensure OCR_URL points to port 8001 during live E2E tests and pairs with local OCR key."""
+    ocr_url = "http://127.0.0.1:8001"
+    monkeypatch.setenv("OCR_URL", ocr_url)
+    s = get_settings()
+    s.ocr_url = ocr_url
+
+    ocr_env_path = os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../company-ocr-service/.env"))
+    if os.path.exists(ocr_env_path):
+        with open(ocr_env_path) as f:
+            for line in f:
+                if line.startswith("API_KEY="):
+                    val = line.split("=", 1)[1].strip().strip('"').strip("'")
+                    if val:
+                        monkeypatch.setenv("OCR_API_KEY", val)
+                        s.ocr_api_key = val
+                        break
+
+    set_ocr_client(HTTPOCRClient())
+
 
 def test_live_authenticated_ocr_connection():
     """Verify DocPilot's settings test successfully authenticates with the live OCR service."""

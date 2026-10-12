@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     admin_emails: str = ""
 
     # --- OCR service ---
-    ocr_url: str = "http://127.0.0.1:8000"
+    ocr_url: str = "http://127.0.0.1:8001"
     ocr_api_key: str = ""
     ocr_timeout_seconds: int = 180
     ocr_max_attempts: int = 3
