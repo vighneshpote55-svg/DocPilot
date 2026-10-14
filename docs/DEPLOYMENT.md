@@ -22,6 +22,37 @@ In production, DocPilot runs as two internal services behind an SSL/TLS-terminat
         └── /*      ──────> /var/www/docpilot/frontend/dist (Static SPA)
 ```
 
+### 1.1 Network Boundary & OCR Topologies
+
+DocPilot transmits decrypted document payloads to `company-ocr-service` via `POST /ocr/{doc_type}`. The network boundary between these two services MUST adhere to one of the following validated topologies:
+
+1. **Topology A: Co-located Single-Host (Recommended)**
+   - Both DocPilot and `company-ocr-service` reside on the same host or Kubernetes pod.
+   - Communication is strictly bound to local loopback (`http://127.0.0.1:8001`).
+   - The host firewall (`ufw` / AWS Security Group) blocks all external ingress to ports `8001` and `8080`.
+   - **Privacy Invariant**: Decrypted document bytes never leave the local kernel loopback device (`lo`).
+
+2. **Topology B: Distributed Multi-Host with Mutual TLS (mTLS)**
+   - If DocPilot and `company-ocr-service` run on separate servers, plaintext HTTP is **strictly prohibited**.
+   - An internal TLS-terminating reverse proxy enforces client certificate authentication in front of the OCR service:
+     ```nginx
+     server {
+         listen 8443 ssl;
+         server_name ocr.internal.company.com;
+
+         ssl_certificate /etc/ssl/certs/ocr-server.crt;
+         ssl_certificate_key /etc/ssl/private/ocr-server.key;
+         ssl_client_certificate /etc/ssl/certs/internal-ca.crt;
+         ssl_verify_client on;
+
+         location /ocr/ {
+             proxy_pass http://127.0.0.1:8001;
+         }
+     }
+     ```
+   - DocPilot `.env` configures `OCR_URL=https://ocr.internal.company.com:8443`.
+   - **Privacy Invariant**: Cross-host document transfers are authenticated and encrypted in transit via TLS 1.3.
+
 ---
 
 ## 2. Reverse Proxy Configuration & Header Sanitization
