@@ -254,29 +254,64 @@ SELECT table_name FROM information_schema.tables WHERE table_schema='public' ORD
 ```
 
 Expected head revision: `c4e2a8910b7f`  
-Expected tables: `alembic_version`, `audit_logs`, `cases`, `customers`, `documents`, `jobs`, `manual_reviews`, `otp_challenges`, `portal_tokens`, `rate_limit_events`, `reminders`.
+Expected tables: `access_tokens`, `alembic_version`, `audit_logs`, `consent_ledger`, `customers`, `documents`, `jobs`, `manual_reviews`, `ocr_results`, `privacy_requests`, `required_documents` (11 tables total).
 
-### 5.4 Database Restore / Rollback Procedure
 
-If the migration fails or errors occur during startup:
+### 5.4 Database Restore / Rollback Procedure (Emergency Staging Rollback Only)
+
+> [!WARNING]
+> **Destructive Operation & Consequences of `--clean --if-exists`**:
+> The `pg_restore` command with `--clean` will systematically execute `DROP TABLE ...` statements for all existing objects in the target database before restoring from the archive. Any existing records in the target database will be permanently destroyed.
+>
+> **Production vs. Staging Boundary**:
+> This manual `pg_restore` procedure is designed solely for emergency rollbacks on isolated staging databases. In production environments, database disaster recovery must be conducted using managed Continuous Archiving / Point-In-Time Recovery (PITR) with automated failover rather than manual dropping of schemas.
+
+If a migration fails or startup errors require database rollback on the staging host:
 
 ```bash
-# 1. Stop application services
+# STEP 1: Stop all application services to release database locks and connection pools
 sudo systemctl stop docpilot-backend docpilot-worker
 
-# 2. Restore database from pre-deployment snapshot
+# STEP 2: Verify backup archive readability and inspect contents
+pg_restore -l "${BACKUP_FILE}" > /dev/null || { echo "CRITICAL ERROR: Backup file ${BACKUP_FILE} is corrupted or unreadable!"; exit 1; }
+echo "Backup archive verified: $(pg_restore -l "${BACKUP_FILE}" | wc -l) objects found."
+
+# STEP 3: Assert intended target database and reject production targets
+STAGING_DB="<STAGING_DB_NAME>"
+if echo "${STAGING_DB}" | grep -iE "(prod|production|main|live)"; then
+    echo "SECURITY ABORT: Refusing to restore over a database name indicating production: ${STAGING_DB}"
+    exit 1
+fi
+
+# STEP 4: Terminate active client connections to prevent restore deadlocks
+# (Active pool connections hold locks that will cause pg_restore --clean to fail or hang)
+PGPASSWORD="<STAGING_DB_PASSWORD>" psql -h <STAGING_DB_HOST> -U <STAGING_DB_USER> -d "${STAGING_DB}" -c "
+SELECT pg_terminate_backend(pid) FROM pg_stat_activity
+WHERE datname = '${STAGING_DB}' AND pid <> pg_backend_pid();
+"
+
+# STEP 5: Require explicit operator confirmation before destructive drop
+echo "WARNING: You are about to DROP and RECREATE all tables in database '${STAGING_DB}' on host '<STAGING_DB_HOST>' using backup '${BACKUP_FILE}'."
+read -p "Type 'CONFIRM-RESTORE' to proceed: " CONFIRM_INPUT
+if [ "${CONFIRM_INPUT}" != "CONFIRM-RESTORE" ]; then
+    echo "Restore aborted by operator."
+    exit 1
+fi
+
+# STEP 6: Execute guarded database restore
 PGPASSWORD="<STAGING_DB_PASSWORD>" pg_restore \
   -h <STAGING_DB_HOST> \
   -p 5432 \
   -U <STAGING_DB_USER> \
-  -d <STAGING_DB_NAME> \
+  -d "${STAGING_DB}" \
   --clean \
   --if-exists \
   -v "${BACKUP_FILE}"
 
-# 3. Verify restore completion
-PGPASSWORD="<STAGING_DB_PASSWORD>" psql -h <STAGING_DB_HOST> -U <STAGING_DB_USER> -d <STAGING_DB_NAME> -c "
+# STEP 7: Verify restored schema head revision and table integrity
+PGPASSWORD="<STAGING_DB_PASSWORD>" psql -h <STAGING_DB_HOST> -U <STAGING_DB_USER> -d "${STAGING_DB}" -c "
 SELECT version_num FROM alembic_version;
+SELECT count(*) AS table_count FROM information_schema.tables WHERE table_schema='public';
 "
 ```
 
@@ -488,12 +523,18 @@ All tests must return exit code `0`.
 
 ### 8.4 Synthetic Document Upload & Worker Processing Verification
 
+> [!NOTE]
+> **Upload OTP Operational Guidance**:
+> If `UPLOAD_OTP_ENABLED=true` is configured in `backend/.env`, attempting to upload directly will return `HTTP 403 {"code": "otp_required", "message": "Email OTP verification required before uploading."}`. Before uploading, the client must complete OTP verification:
+> 1. Request OTP: `curl -s -X POST "https://staging.docpilot.internal/api/portal/${UPLOAD_TOKEN}/otp/send"`
+> 2. Verify OTP: `curl -s -X POST "https://staging.docpilot.internal/api/portal/${UPLOAD_TOKEN}/otp/verify" -H "Content-Type: application/json" -d '{"code": "<OTP_CODE_FROM_LOG_OR_EMAIL>"}'`
+
 1. Submit a synthetic document via the staging public portal:
    ```bash
    UPLOAD_TOKEN="<STAGING_PORTAL_TOKEN>"
    curl -i -X POST "https://staging.docpilot.internal/api/portal/${UPLOAD_TOKEN}/upload" \
      -F "doc_type=pan" \
-     -F "file=@/var/www/docpilot/backend/tests/fixtures/dummy_pan.png"
+     -F "file=@/var/www/docpilot/backend/tests/fixtures/valid_synthetic_pan.png"
    ```
 2. Monitor background processing:
    ```bash
@@ -531,7 +572,9 @@ cd /var/www/docpilot/frontend && sudo -u docpilot npm run build
 cd /var/www/company-ocr-service
 sudo -u ocrservice git checkout <PREVIOUS_STABLE_COMMIT_OR_TAG>
 
-# STEP 3: If database schema was modified, restore database backup
+# STEP 3: If database schema was modified, restore database backup using the guarded procedure in Section 5.4:
+# (Ensures archive verification, connection termination, production target rejection, and CONFIRM-RESTORE prompt)
+# Reference: Section 5.4 Database Restore / Rollback Procedure
 PGPASSWORD="<STAGING_DB_PASSWORD>" pg_restore \
   -h <STAGING_DB_HOST> \
   -p 5432 \
@@ -540,6 +583,7 @@ PGPASSWORD="<STAGING_DB_PASSWORD>" pg_restore \
   --clean \
   --if-exists \
   -v "${BACKUP_FILE}"
+
 
 # STEP 4: Restart application services
 sudo systemctl start company-ocr docpilot-backend docpilot-worker

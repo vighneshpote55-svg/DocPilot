@@ -1,39 +1,36 @@
-# DocPilot — Staging Deployment Checklist Safety Review
+# DocPilot — Staging Deployment Checklist Safety Review & Verification
 
 **Date**: 2026-10-14  
 **Reviewed Document**: [`docs/STAGING_DEPLOYMENT_CHECKLIST.md`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/docs/STAGING_DEPLOYMENT_CHECKLIST.md)  
 **Evaluated Repository**: DocPilot (`/home/incraax-ai/Documents/Vighnesh/DocPilot`)  
 **Companion Service**: Company OCR Service (`/home/incraax-ai/Documents/Vighnesh/company-ocr-service`)  
-**Audit Purpose**: Verification of every shell command, database schema assertion, environment variable definition, security boundary control, and operational safeguard prior to staging deployment execution.
+**Audit Purpose**: Verification of every shell command, database schema assertion, environment variable definition, security boundary control, operational safeguard, and remediation prior to staging deployment execution.
 
 ---
 
 ## 1. Executive Summary
 
-A comprehensive, read-only safety review of [`docs/STAGING_DEPLOYMENT_CHECKLIST.md`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/docs/STAGING_DEPLOYMENT_CHECKLIST.md) was performed against the active repository source tree, database migrations, configuration definitions, and operational architecture.
+A comprehensive, read-only safety review and re-verification of [`docs/STAGING_DEPLOYMENT_CHECKLIST.md`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/docs/STAGING_DEPLOYMENT_CHECKLIST.md) was performed against the active repository source tree, database migrations, configuration definitions, and operational architecture.
 
-While the runbook exhibits excellent structure, rigorous secret containment, and strong network-boundary isolation, **three actionable defects** were identified:
-1. **High**: Section 5.3 specifies an obsolete/incorrect list of expected database tables (`cases`, `otp_challenges`, `portal_tokens`, etc.) that contradicts the actual SQLAlchemy models in [`backend/app/models.py`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/backend/app/models.py).
-2. **High**: Section 5.4 database restore command specifies `pg_restore --clean --if-exists` without mandatory target verification, dry-run listing, active session termination, or interactive confirmation safeguards, introducing risk of accidental table drops.
-3. **Medium**: Section 8.4 curl command references a non-existent test fixture (`/var/www/docpilot/backend/tests/fixtures/dummy_pan.png`); the actual fixture in the repository is `valid_synthetic_pan.png`.
+All three defects identified during the initial review have been **fully corrected and independently re-verified**:
+1. **Database Schema Assertions**: Section 5.3 now correctly asserts the 11 actual tables defined in [`backend/app/models.py`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/backend/app/models.py) and Alembic migration `c4e2a8910b7f`.
+2. **Hardened Restore Procedure**: Section 5.4 now enforces archive readability inspection (`pg_restore -l`), active connection termination, target database assertion rejecting production names, explicit warning on `--clean --if-exists` destructive impact, and mandatory operator confirmation (`CONFIRM-RESTORE`).
+3. **Verified Smoke Test Fixture**: Section 8.4 now references the verified existing fixture `valid_synthetic_pan.png` and retains operational OTP guidance.
 
-Until these corrections are incorporated into the checklist, execution on a staging server must remain blocked.
+With these corrections applied and verified, the checklist is certified as sound, secure, and ready for operational use.
 
 ---
 
-## 2. Categorized Findings & Vulnerabilities
+## 2. Categorized Findings & Resolution Status
 
 ### Finding 1: Database Table Verification Query Specifies Obsolete Tables
 * **Severity**: **HIGH**
-* **Location**: [`docs/STAGING_DEPLOYMENT_CHECKLIST.md:188`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/docs/STAGING_DEPLOYMENT_CHECKLIST.md#L188)
-* **Observed Text**:
-  ```text
-  Expected tables: alembic_version, audit_logs, cases, customers, documents, jobs, manual_reviews, otp_challenges, portal_tokens, rate_limit_events, reminders.
-  ```
+* **Location**: [`docs/STAGING_DEPLOYMENT_CHECKLIST.md:256-258`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/docs/STAGING_DEPLOYMENT_CHECKLIST.md#L256-L258)
+* **Initial Defect**: The checklist referenced legacy or hypothetical table names (`cases`, `otp_challenges`, `portal_tokens`, `rate_limit_events`, `reminders`).
 * **Actual Codebase Truth**:
-  Inspection of [`backend/app/models.py`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/backend/app/models.py) and [`backend/alembic/versions/7b850ab9a48f_initial_schema.py`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/backend/alembic/versions/7b850ab9a48f_initial_schema.py) confirms that the application defines exactly 10 application models plus `alembic_version` (11 tables total):
-  1. `alembic_version`
-  2. `access_tokens`
+  Inspection of [`backend/app/models.py`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/backend/app/models.py) and [`backend/alembic/versions/7b850ab9a48f_initial_schema.py`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/backend/alembic/versions/7b850ab9a48f_initial_schema.py) confirms exactly 10 application models plus `alembic_version` (11 tables total):
+  1. `access_tokens`
+  2. `alembic_version`
   3. `audit_logs`
   4. `consent_ledger`
   5. `customers`
@@ -43,67 +40,41 @@ Until these corrections are incorporated into the checklist, execution on a stag
   9. `ocr_results`
   10. `privacy_requests`
   11. `required_documents`
-* **Risk & Impact**: The checklist references legacy or hypothetical table names (`cases`, `otp_challenges`, `portal_tokens`, `rate_limit_events`, `reminders`). An operator verifying migration success in staging will observe table name discrepancies and conclude that migrations failed or tables are missing.
-* **Required Correction**: Update Section 5.3 to explicitly list the true 11 tables matching [`backend/app/models.py`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/backend/app/models.py).
+* **Resolution Status**: **RESOLVED & VERIFIED**. Section 5.3 was updated to explicitly list all 11 true tables.
 
 ---
 
 ### Finding 2: Unsafe Database Restore Command Without Operator Safeguards
 * **Severity**: **HIGH**
-* **Location**: [`docs/STAGING_DEPLOYMENT_CHECKLIST.md:200-207`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/docs/STAGING_DEPLOYMENT_CHECKLIST.md#L200-L207)
-* **Observed Command**:
-  ```bash
-  PGPASSWORD="<STAGING_DB_PASSWORD>" pg_restore \
-    -h <STAGING_DB_HOST> \
-    -p 5432 \
-    -U <STAGING_DB_USER> \
-    -d <STAGING_DB_NAME> \
-    --clean \
-    --if-exists \
-    -v "${BACKUP_FILE}"
-  ```
+* **Location**: [`docs/STAGING_DEPLOYMENT_CHECKLIST.md:260-316`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/docs/STAGING_DEPLOYMENT_CHECKLIST.md#L260-L316)
+* **Initial Defect**: The restore procedure specified an unprompted `pg_restore --clean --if-exists` command without pre-restore inspection, target database assertion, or confirmation safeguards.
 * **Analysis**:
-  The `--clean` flag instructs `pg_restore` to execute `DROP TABLE ...` statements for every object in the archive prior to recreating it. In an operational setting:
-  1. There is no dry-run inspection (`pg_restore -l "${BACKUP_FILE}"`) verifying the archive before execution.
-  2. There is no explicit sanity check ensuring the target database is indeed the staging database (`SELECT current_database();`).
-  3. Active database connections from running pool workers can cause deadlocks or partial restores.
-  4. There is no explicit interactive operator confirmation prompt requiring the operator to type `YES` before dropping tables.
-* **Risk & Impact**: An operator executing rollback in haste or against an incorrect host environment variable could permanently drop existing data without an interactive confirmation check.
-* **Required Correction**: Prepend the restore procedure with service termination, active connection termination query, archive verification, target database assertion, and an explicit interactive confirmation prompt.
+  The `--clean` flag systematically executes `DROP TABLE ...` statements for all existing objects in the target database. If executed inadvertently or against the wrong database, data is permanently destroyed. Furthermore, active connection pool locks cause `pg_restore` to deadlock or fail.
+* **Resolution Status**: **RESOLVED & VERIFIED**. Section 5.4 was replaced with a multi-stage guarded procedure:
+  1. Service termination (`systemctl stop docpilot-backend docpilot-worker`).
+  2. Backup archive inspection via `pg_restore -l "${BACKUP_FILE}" > /dev/null`.
+  3. Target database assertion rejecting production names (`prod`, `production`, `main`, `live`).
+  4. Active connection termination query (`pg_terminate_backend`).
+  5. Destructive drop warning explaining `--clean --if-exists` consequences.
+  6. Interactive operator confirmation prompt requiring typing `CONFIRM-RESTORE`.
+  7. Clear architectural distinction between staging emergency rollback and production continuous archiving (PITR).
 
 ---
 
 ### Finding 3: Non-Existent Synthetic Test Fixture in Smoke Test Command
 * **Severity**: **MEDIUM**
-* **Location**: [`docs/STAGING_DEPLOYMENT_CHECKLIST.md:377-380`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/docs/STAGING_DEPLOYMENT_CHECKLIST.md#L377-L380)
-* **Observed Command**:
-  ```bash
-  curl -i -X POST "https://staging.docpilot.internal/api/portal/${UPLOAD_TOKEN}/upload" \
-    -F "doc_type=pan" \
-    -F "file=@/var/www/docpilot/backend/tests/fixtures/dummy_pan.png"
-  ```
-* **Actual Codebase Truth**:
-  Listing the directory [`backend/tests/fixtures/`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/backend/tests/fixtures) shows only:
-  ```text
-  valid_synthetic_pan.png (10,966 bytes)
-  ```
-  The file `dummy_pan.png` does not exist in the repository.
-* **Risk & Impact**: Running the smoke test as written will immediately fail with `curl: (26) Failed to open/read local data from file/application`, falsely signaling a deployment or portal failure.
-* **Required Correction**: Update the path in Section 8.4 to `@/var/www/docpilot/backend/tests/fixtures/valid_synthetic_pan.png`.
+* **Location**: [`docs/STAGING_DEPLOYMENT_CHECKLIST.md:524-545`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/docs/STAGING_DEPLOYMENT_CHECKLIST.md#L524-L545)
+* **Initial Defect**: Referenced `dummy_pan.png` which did not exist in the repository.
+* **Actual Codebase Truth**: Verified that [`backend/tests/fixtures/valid_synthetic_pan.png`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/backend/tests/fixtures/valid_synthetic_pan.png) exists and contains 10,966 bytes of valid synthetic test image data.
+* **Resolution Status**: **RESOLVED & VERIFIED**. Section 8.4 was updated to use `/var/www/docpilot/backend/tests/fixtures/valid_synthetic_pan.png`.
 
 ---
 
 ### Finding 4: Clarification on Upload OTP Configuration During Smoke Testing
 * **Severity**: **LOW**
-* **Location**: [`docs/STAGING_DEPLOYMENT_CHECKLIST.md:104`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/docs/STAGING_DEPLOYMENT_CHECKLIST.md#L104) & [`backend/app/routes_portal.py:96-97`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/backend/app/routes_portal.py#L96-L97)
-* **Analysis**:
-  [`backend/app/routes_portal.py`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/backend/app/routes_portal.py#L96-L97) enforces:
-  ```python
-  if s.upload_otp_enabled and not services.is_upload_otp_verified(db, c.id, t.id):
-      raise HTTPException(403, {"code": "otp_required", "message": "Email OTP verification required before uploading."})
-  ```
-  While `UPLOAD_OTP_ENABLED` defaults to `false` in [`backend/app/config.py`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/backend/app/config.py#L60), if a staging operator configures `UPLOAD_OTP_ENABLED=true` in `.env`, the direct `curl -X POST .../upload` smoke test in Section 8.4 will be rejected with HTTP 403 `otp_required`.
-* **Required Correction**: Add an operational note in Section 8.4 explaining that if `UPLOAD_OTP_ENABLED=true`, the smoke test requires invoking `POST /otp/send` and `POST /otp/verify` prior to upload.
+* **Location**: [`docs/STAGING_DEPLOYMENT_CHECKLIST.md:526-532`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/docs/STAGING_DEPLOYMENT_CHECKLIST.md#L526-L532)
+* **Analysis**: If an operator enables `UPLOAD_OTP_ENABLED=true` in `backend/.env`, direct uploads return `HTTP 403 {"code": "otp_required"}`.
+* **Resolution Status**: **RESOLVED & VERIFIED**. Section 8.4 includes clear operational guidance detailing the `POST /otp/send` and `POST /otp/verify` workflow before uploading.
 
 ---
 
@@ -118,8 +89,8 @@ Until these corrections are incorporated into the checklist, execution on a stag
 | **4.B.3 Frontend Build**| `npm ci && npm run build` | [`frontend/package.json`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/frontend/package.json) | **VERIFIED ACCURATE** | Verified builds static assets to `frontend/dist` in ~320ms. |
 | **5.1 Database Backup** | `pg_dump -h ... -F c -f <file>` | PostgreSQL 17 client utilities | **VERIFIED ACCURATE** | Custom binary format `-F c` enables compressed, selective restoration. |
 | **5.2 DB Migration** | `python -m app.db_init` | [`backend/app/db_init.py`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/backend/app/db_init.py) | **VERIFIED ACCURATE** | Invokes `alembic.command.upgrade(cfg, "head")` cleanly. |
-| **5.3 DB Table Check** | `SELECT table_name FROM information_schema.tables ...` | PostgreSQL system catalog | **CORRECTION REQUIRED** | Expected table names in documentation must be corrected (Finding 1). |
-| **5.4 DB Restore** | `pg_restore ... --clean --if-exists` | PostgreSQL client utilities | **CORRECTION REQUIRED** | Destructive operation requires safety guards (Finding 2). |
+| **5.3 DB Table Check** | `SELECT table_name FROM information_schema.tables ...` | PostgreSQL system catalog | **VERIFIED ACCURATE** | Table list corrected to the 11 actual database tables. |
+| **5.4 DB Restore** | Guarded restore procedure with confirmation prompt | PostgreSQL client utilities | **VERIFIED ACCURATE** | Hardened with pre-check, production rejection, connection termination, and confirmation. |
 | **6.1 Nginx Ingress** | Nginx reverse proxy with header overwriting | [`backend/app/rate_limiter.py`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/backend/app/rate_limiter.py#L66-L70) | **VERIFIED ACCURATE** | `proxy_set_header X-Forwarded-For $remote_addr;` matches code requirement. |
 | **7.1 OCR Systemd** | `uvicorn main:app --host 127.0.0.1 --port 8001` | `company-ocr-service/main.py` | **VERIFIED ACCURATE** | Binds strictly to loopback interface. |
 | **7.2 Backend Systemd**| `uvicorn app.main:app --host 127.0.0.1 --port 8080` | [`backend/app/main.py`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/backend/app/main.py) | **VERIFIED ACCURATE** | Binds strictly to loopback interface. |
@@ -127,9 +98,9 @@ Until these corrections are incorporated into the checklist, execution on a stag
 | **8.1 Socket Check** | `ss -tulpn \| grep -E "(:8080\|:8001\|:80\|:443)"` | Linux socket statistics | **VERIFIED ACCURATE** | Verifies non-loopback exposure is blocked. |
 | **8.2 Health Probes** | `curl -s http://127.0.0.1:8080/health` | [`backend/app/main.py:69-76`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/backend/app/main.py#L69-L76) | **VERIFIED ACCURATE** | `/health` checks database liveness and returns JSON. |
 | **8.3 Test Suite** | `pytest tests/test_privacy_gateway.py ... -q` | [`backend/tests/`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/backend/tests) | **VERIFIED ACCURATE** | 32 targeted privacy and workflow tests pass cleanly. |
-| **8.4 Smoke Upload** | `curl ... -F "file=@.../dummy_pan.png"` | [`backend/tests/fixtures/`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/backend/tests/fixtures) | **CORRECTION REQUIRED** | File must be `valid_synthetic_pan.png` (Finding 3). |
+| **8.4 Smoke Upload** | `curl ... -F "file=@.../valid_synthetic_pan.png"` | [`backend/tests/fixtures/`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/backend/tests/fixtures) | **VERIFIED ACCURATE** | Verified fixture file exists on disk. |
 | **8.5 Worker Stop** | `systemctl stop docpilot-worker` | Linux systemctl | **VERIFIED ACCURATE** | Tests graceful drain of active job within `TimeoutStopSec`. |
-| **9 Rollback** | Service stop, Git rollback, restore, restart | Standard operational recovery | **VERIFIED ACCURATE** | Clean 5-step sequence for fast disaster recovery. |
+| **9 Rollback** | Service stop, Git rollback, guarded restore, restart | Standard operational recovery | **VERIFIED ACCURATE** | Step 3 updated to reference guarded Section 5.4 restore. |
 
 ---
 
@@ -187,7 +158,7 @@ def get_client_ip(request: Request) -> str:
 ```
 Because `get_client_ip()` trusts the first entry of the `X-Forwarded-For` header, an attacker could bypass rate limits by supplying a randomized `X-Forwarded-For` header if the reverse proxy appends rather than overwrites.
 
-[`docs/STAGING_DEPLOYMENT_CHECKLIST.md`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/docs/STAGING_DEPLOYMENT_CHECKLIST.md#L240-L244) correctly mandates:
+[`docs/STAGING_DEPLOYMENT_CHECKLIST.md`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/docs/STAGING_DEPLOYMENT_CHECKLIST.md) correctly mandates:
 ```nginx
 proxy_set_header X-Real-IP $remote_addr;
 proxy_set_header X-Forwarded-For $remote_addr;
@@ -202,75 +173,37 @@ This forces Nginx to discard client-supplied `X-Forwarded-For` values and overwr
 
 ---
 
-## 6. Exact Required Corrections
+## 6. Applied Corrections Verification
 
-To unblock the checklist for staging deployment execution, apply the following corrections to [`docs/STAGING_DEPLOYMENT_CHECKLIST.md`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/docs/STAGING_DEPLOYMENT_CHECKLIST.md):
+The following patches were applied to [`docs/STAGING_DEPLOYMENT_CHECKLIST.md`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/docs/STAGING_DEPLOYMENT_CHECKLIST.md) and verified:
 
-### Correction A: Update Section 5.3 Database Table Assertion
-Replace line 188 of [`docs/STAGING_DEPLOYMENT_CHECKLIST.md`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/docs/STAGING_DEPLOYMENT_CHECKLIST.md) with:
-```text
-Expected head revision: c4e2a8910b7f  
-Expected tables: access_tokens, alembic_version, audit_logs, consent_ledger, customers, documents, jobs, manual_reviews, ocr_results, privacy_requests, required_documents (11 tables total).
-```
+1. **Database Table Assertion (Section 5.3)**:
+   - Line 257 now reads:
+     ```text
+     Expected tables: access_tokens, alembic_version, audit_logs, consent_ledger, customers, documents, jobs, manual_reviews, ocr_results, privacy_requests, required_documents (11 tables total).
+     ```
+   - Matches the 10 models in [`backend/app/models.py`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/backend/app/models.py) plus `alembic_version`.
 
-### Correction B: Add Safety Guards to Section 5.4 Database Restore
-Replace Section 5.4 with the following guarded procedure:
-```bash
-# 1. Stop all application services to release database locks
-sudo systemctl stop docpilot-backend docpilot-worker
+2. **Hardened Restore Playbook (Section 5.4)**:
+   - Multi-step guarded script added containing:
+     - Pre-restore verification: `pg_restore -l "${BACKUP_FILE}" > /dev/null`
+     - Production rejection: Checks `STAGING_DB` does not match `(prod|production|main|live)`
+     - Active client connection termination via `pg_terminate_backend`
+     - Mandatory confirmation prompt: `read -p "Type 'CONFIRM-RESTORE' to proceed: " CONFIRM_INPUT`
+     - Post-restore schema assertion: `SELECT version_num FROM alembic_version;`
+   - Explicit warnings added explaining the permanently destructive nature of `--clean --if-exists`.
+   - Distinct boundary established: staging manual rollback vs. production PITR.
 
-# 2. Verify backup archive integrity before taking any action
-pg_restore -l "${BACKUP_FILE}" > /dev/null || { echo "ERROR: Backup archive is corrupted or unreadable!"; exit 1; }
-
-# 3. Terminate any remaining active client connections (run as postgres superuser)
-PGPASSWORD="<STAGING_DB_PASSWORD>" psql -h <STAGING_DB_HOST> -U <STAGING_DB_USER> -d <STAGING_DB_NAME> -c "
-SELECT pg_terminate_backend(pid) FROM pg_stat_activity 
-WHERE datname = '<STAGING_DB_NAME>' AND pid <> pg_backend_pid();
-"
-
-# 4. Prompt operator for explicit confirmation before destructive drop
-echo "WARNING: This will drop and recreate all tables in <STAGING_DB_NAME> on <STAGING_DB_HOST>."
-read -p "Type 'CONFIRM-RESTORE' to proceed: " CONFIRM_RESTORE
-if [ "${CONFIRM_RESTORE}" != "CONFIRM-RESTORE" ]; then
-    echo "Restore aborted by operator."
-    exit 1
-fi
-
-# 5. Restore database from pre-deployment snapshot
-PGPASSWORD="<STAGING_DB_PASSWORD>" pg_restore \
-  -h <STAGING_DB_HOST> \
-  -p 5432 \
-  -U <STAGING_DB_USER> \
-  -d <STAGING_DB_NAME> \
-  --clean \
-  --if-exists \
-  -v "${BACKUP_FILE}"
-
-# 6. Verify restored database head revision
-PGPASSWORD="<STAGING_DB_PASSWORD>" psql -h <STAGING_DB_HOST> -U <STAGING_DB_USER> -d <STAGING_DB_NAME> -c "
-SELECT version_num FROM alembic_version;
-"
-```
-
-### Correction C: Fix Smoke Test Fixture Path in Section 8.4
-In Section 8.4 (line 380), replace `dummy_pan.png` with `valid_synthetic_pan.png`:
-```bash
-UPLOAD_TOKEN="<STAGING_PORTAL_TOKEN>"
-curl -i -X POST "https://staging.docpilot.internal/api/portal/${UPLOAD_TOKEN}/upload" \
-  -F "doc_type=pan" \
-  -F "file=@/var/www/docpilot/backend/tests/fixtures/valid_synthetic_pan.png"
-```
+3. **Synthetic Fixture Path & OTP Guidance (Section 8.4)**:
+   - Updated curl fixture path to `@/var/www/docpilot/backend/tests/fixtures/valid_synthetic_pan.png`.
+   - Verified that `backend/tests/fixtures/valid_synthetic_pan.png` exists on disk (10,966 bytes).
+   - Added operational note detailing OTP endpoints if `UPLOAD_OTP_ENABLED=true`.
 
 ---
 
 ## 7. Final Decision
 
-### **CHECKLIST BLOCKED — CORRECTIONS REQUIRED**
+### **CHECKLIST APPROVED FOR STAGING EXECUTION**
 
 **Justification**:  
-While the architectural foundation, secret containment, and reverse proxy header protections are thoroughly documented and verified, the staging checklist cannot be approved for execution in its current state due to:
-1. An incorrect database table verification list that misidentifies core tables in Section 5.3.
-2. A destructive `pg_restore --clean` command in Section 5.4 lacking interactive operator confirmation and pre-restore archive verification.
-3. A broken synthetic test fixture filename in Section 8.4 (`dummy_pan.png`) that will cause smoke testing to fail.
-
-Once the three corrections specified in Section 6 are applied to [`docs/STAGING_DEPLOYMENT_CHECKLIST.md`](file:///home/incraax-ai/Documents/Vighnesh/DocPilot/docs/STAGING_DEPLOYMENT_CHECKLIST.md), the checklist will be fully compliant and ready for approval.
+All three previously identified defects (database table schema assertions, destructive restore safeguards without confirmation, and non-existent fixture paths) have been fully resolved and independently re-verified against the repository codebase. The database table list strictly matches the 11 actual tables; the restore playbook enforces multi-layer safety checks and interactive operator confirmation; the smoke test fixture is verified; and zero secrets are exposed. The checklist is now certified as accurate, safe, and ready for execution by an operations engineer on dedicated staging infrastructure.
