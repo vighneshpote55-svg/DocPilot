@@ -89,7 +89,7 @@ Consent & secure token service (workflow STEP 4):
   - Single-use consumption: consent token marked `used_at = utcnow()`; subsequent submissions return 404.
   - If `granted=True`: `consent_status="granted"`, `case_status="in_progress"`, `workflow_state="CONSENT_GRANTED"`, sets `consent_at` and `case_expires_at` (now + 30 days). Appends `ConsentLedger(event="granted")`. Issues expiring `upload` session token and dispatches upload link email. Returns `{"consent": "granted", "upload_token": "<token>"}`.
   - If `granted=False`: `consent_status="declined"`, `case_status="consent_declined"`, `workflow_state="CONSENT_WITHDRAWN"`. Appends `ConsentLedger(event="declined")`. Case stops.
-- Consent withdrawal: customer requests withdrawal via `POST /api/public/privacy/request` (`action="withdraw"`) and confirms via single-use email token `POST /api/public/privacy/confirm/{token}`. Sets `consent_status="withdrawn"`, `case_status="consent_withdrawn"`, `workflow_state="CONSENT_WITHDRAWN"`, schedules retention purge `delete_after` (7 days), appends `ConsentLedger(event="withdrawn")`, immediately revokes all active customer access tokens, and blocks document uploads and scheduled reminders.
+- Consent withdrawal: customer requests withdrawal via `POST /api/public/privacy/request` (`action="withdraw"`) and confirms via single-use email token `POST /api/public/privacy/confirm/{token}`. Sets `consent_status="withdrawn"`, `case_status="consent_withdrawn"`, `workflow_state="CONSENT_WITHDRAWN"`, schedules retention deletion `delete_after` (7 days), appends `ConsentLedger(event="withdrawn")`, immediately revokes all active customer access tokens, and blocks document uploads and scheduled reminders.
 
 Secure document upload & encrypted storage (workflow STEP 5):
 - Access & Token Isolation:
@@ -112,7 +112,7 @@ Secure document upload & encrypted storage (workflow STEP 5):
   - If database metadata persistence fails after ciphertext is written, the newly stored object is immediately cleaned up (`storage.delete_file`), preventing storage orphans.
 - Document State & Resubmissions:
   - On upload: `workflow_state="UPLOADED"`, `verification_status="not_started"`, `ocr_status="waiting"`, `file_state="stored"`. The document is never marked verified in STEP 5.
-  - Resubmission/superseding: re-uploading an unverified slot supersedes prior upload rows (`superseded=True`, `file_state="deleted"`) and purges their physical encrypted storage objects while updating customer workflow state to `IN_PROGRESS`.
+  - Resubmission/superseding: re-uploading an unverified slot supersedes prior upload rows (`superseded=True`, `file_state="deleted"`) and deletes their physical encrypted storage objects while updating customer workflow state to `IN_PROGRESS`.
 
 Company OCR service integration (workflow STEP 6):
 - Asynchronous PostgreSQL Job System:
@@ -219,7 +219,7 @@ Lifecycle proof (Phase B6 built):
   - 3, 7, and 14-day reminders dispatched to customers while documents remain pending.
   - Case expiry after 30 days if uncompleted, queuing files for deletion.
   - Case completion when all required documents verify, triggering 7-day retention schedule.
-  - Complete purge at retention expiry: encrypted Storage files deleted, OCR data wiped, document hashes cleared, review records removed, customer tokens deleted, and deletion confirmation emails dispatched.
+  - Complete deletion at retention expiry: encrypted Storage files deleted, OCR data wiped, document hashes cleared, review records removed, customer tokens deleted, and deletion confirmation emails dispatched.
 
 Step 10: Manual Review & Exception Handling (built):
 - Unified Ingestion: Deterministic rules `RISK`, AI `manual_review` verdicts, and unhandled AI/OCR failures route automatically into `ManualReview`.
@@ -233,12 +233,12 @@ Step 11: Reminders + Completion + 7-Day Retention + Permanent Deletion (built):
 - Recalculate Pending: Evaluates checklist after every upload, verification, rejection, and resubmission. Pending count = required documents without a verified document.
 - Completion & Retention Schedule: When pending drops to 0, transitions customer `workflow_state` to `COMPLETED`, `case_status` to `completed`, sets `completed_at`, schedules 7-day retention (`delete_after = completed_at + retention_days`), sends completion email, and records audit events `customer_completed`, `retention_started`, and `case_completed`.
 - Idempotent Reminders (Day 3, 7, 14): Dispatches upload reminders at Day 3, 7, 14 while documents remain pending, only if consent is active and case is not completed, expired, withdrawn, or deleted. Enforces idempotency via `last_reminder_stage`; repeated runs never send duplicates. Emits `reminder_sent`.
-- 7-Day Permanent Deletion Purge: When `delete_after <= utcnow()`, permanently wipes encrypted files in Storage, OCR results, manual review rows, access tokens, and wipes document hashes (`sha256 = ""`), flipping document file state to `deleted` and setting `data_deleted_at`. Emits `data_permanently_deleted` and `retention_deleted`. Sends deletion confirmation email.
+- 7-Day Permanent Deletion: When `delete_after <= utcnow()`, permanently wipes encrypted files in Storage, OCR results, manual review rows, access tokens, and wipes document hashes (`sha256 = ""`), flipping document file state to `deleted` and setting `data_deleted_at`. Emits `data_permanently_deleted` and `retention_deleted`. Sends deletion confirmation email.
 - Access Restriction: Deleted files return 410 Gone; cannot be downloaded or viewed.
 - Fail-Safe Isolation: Operates on one customer per transaction; failures log safely without raw PII and retry safely.
 
 Step 12: Final Privacy Requests + End-to-End Workflow Verification (built):
-- Right to be Forgotten (Privacy Deletion): Double opt-in via silent request (`POST /api/public/privacy/request`) + single-use verification token confirmation (`POST /api/public/privacy/confirm/{token}`). Anonymizes personal records (`name='[deleted]'`, `email='deleted-{id}@invalid.local'`), purges encrypted files in Storage, temporary OCR records, manual review records, and customer tokens. Preserves audit identifiers and `ConsentLedger(event='deleted')`. Sends deletion confirmation email.
+- Right to be Forgotten (Privacy Deletion): Double opt-in via silent request (`POST /api/public/privacy/request`) + single-use verification token confirmation (`POST /api/public/privacy/confirm/{token}`). Anonymizes personal records (`name='[deleted]'`, `email='deleted-{id}@invalid.local'`), deletes encrypted files in Storage, temporary OCR records, manual review records, and customer tokens. Preserves audit identifiers and `ConsentLedger(event='deleted')`. Sends deletion confirmation email.
 - Consent Withdrawal: Double opt-in confirmation transitions case to `consent_withdrawn`, `workflow_state='CONSENT_WITHDRAWN'`, revokes active upload tokens, blocks future uploads (404/403), schedules 7-day retention, records `ConsentLedger(event='withdrawn')`, and dispatches withdrawal confirmation email.
 - Job Queue Blocking: Worker pipeline automatically intercepts and terminates processing (`ocr_status='failed'`, `reason='processing_stopped'`) if customer consent is withdrawn or case is closed before job dispatch.
 - Full E2E Workflow Verification: Validates customer creation -> consent -> upload -> encrypted storage -> OCR -> masking gateway -> rules engine -> redacted AI -> manual review -> pending recalculation -> reminders -> completion -> retention -> permanent deletion.

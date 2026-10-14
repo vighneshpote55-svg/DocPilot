@@ -381,7 +381,7 @@ export const AdminReportsView: React.FC<AdminReportsViewProps> = ({
             <option value="in_progress">Active Intake (In Progress)</option>
             <option value="under_review">Under Review Cases</option>
             <option value="withdrawn">Withdrawn Cases</option>
-            <option value="deleted_expired">Purged / Expired Cases</option>
+            <option value="deleted_expired">Deleted / Expired Cases</option>
           </select>
 
           {/* Document Type Filter */}
@@ -559,7 +559,7 @@ export const AdminReportsView: React.FC<AdminReportsViewProps> = ({
         {/* Card 8: Retention Purged Cases */}
         <div className="report-metric-card-p9" id="kpi-report-purged">
           <div className="report-card-top-p9">
-            <span className="report-metric-name-p9">DPDP Purged Cases</span>
+            <span className="report-metric-name-p9">DPDP Deleted Cases</span>
             <div className="report-icon-box text-red">
               <IconShield size={18} />
             </div>
@@ -747,7 +747,7 @@ export const AdminReportsView: React.FC<AdminReportsViewProps> = ({
               </div>
               <div>
                 <h3 className="report-chart-title">Intake & Verification Funnel</h3>
-                <span className="report-chart-subtitle">Case journey from registration to file purge</span>
+                <span className="report-chart-subtitle">Case journey from registration to file deletion</span>
               </div>
             </div>
           </div>
@@ -778,7 +778,7 @@ export const AdminReportsView: React.FC<AdminReportsViewProps> = ({
             <div className="funnel-step">
               <div className="funnel-step-header">
                 <span className="funnel-step-number">3</span>
-                <span className="funnel-step-title">Purged</span>
+                <span className="funnel-step-title">Deleted</span>
               </div>
               <div className="funnel-step-count">{kpis.retentionPurged}</div>
               <div className="funnel-step-desc">7-day destroyed</div>
@@ -908,7 +908,7 @@ export const AdminReportsView: React.FC<AdminReportsViewProps> = ({
                     </td>
                     <td>
                       <span style={{ fontSize: 11, color: "var(--adm-text-muted, #94a3b8)" }}>
-                        {row.storedCount} stored · {row.purgedCount} purged
+                        {row.storedCount} stored · {row.purgedCount} deleted
                       </span>
                     </td>
                   </tr>
@@ -942,7 +942,7 @@ export const AdminReportsView: React.FC<AdminReportsViewProps> = ({
           </div>
 
           <div className="compliance-box">
-            <span className="comp-label">Permanently Purged Cases</span>
+            <span className="comp-label">Permanently Deleted Cases</span>
             <span className="comp-val">{kpis.retentionPurged}</span>
             <span className="comp-desc">Storage wiped with SHA-256 ledger proof preserved</span>
           </div>

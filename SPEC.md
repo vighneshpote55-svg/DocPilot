@@ -86,7 +86,7 @@ Lifecycle proof (Phase B6 built):
   - 3, 7, and 14-day reminders dispatched to customers while documents remain pending.
   - Case expiry after 30 days if uncompleted, queuing files for deletion.
   - Case completion when all required documents verify, triggering 7-day retention schedule.
-  - Complete purge at retention expiry: encrypted Storage files deleted, OCR data wiped, document hashes cleared, review records removed, customer tokens deleted, and deletion confirmation emails dispatched.
+  - Complete deletion at retention expiry: encrypted Storage files deleted, OCR data wiped, document hashes cleared, review records removed, customer tokens deleted, and deletion confirmation emails dispatched.
 
 ## 7. Frontend (React + TypeScript + Vite)
 

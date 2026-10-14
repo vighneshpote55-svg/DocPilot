@@ -46,7 +46,7 @@ flowchart TD
 
     subgraph Retention & Crypto-Shredding
         L -->|Case Completed| O[7-Day Retention Timer]
-        O -->|Purge Triggered| P[Delete Encrypted Files & Scrub PII]
+        O -->|Deletion Triggered| P[Delete Encrypted Files & Scrub PII]
         P -->|Append Compliance Event| Q[(Consent Audit Ledger)]
     end
 ```
@@ -64,7 +64,7 @@ DocPilot is engineered to adhere to strict global privacy standards (GDPR, India
 5. **No Redis, No External Queue Dependency**: The task queue lives in the transactional PostgreSQL `jobs` table with `SKIP LOCKED` concurrency control. A single background worker process handles document jobs, automated reminders, and retention schedulers.
 6. **Stateless OCR Service**: The OCR integration sends bytes and receives JSON. No files or customer records are persisted on the OCR microservice.
 7. **Four Independent State Fields**: DocPilot decouples `ocr_status`, `verification_status`, `case_status`, and `file_state`. "Pending" is a derived metric, never an ambiguous static state.
-8. **Crypto-Shredding & Automatic Deletion**: Once a case is completed and the retention window expires (default: 7 days), documents, OCR results, and customer records are permanently purged.
+8. **Crypto-Shredding & Automatic Deletion**: Once a case is completed and the retention window expires (default: 7 days), documents, OCR results, and customer records are permanently deleted.
 
 ---
 
@@ -114,7 +114,7 @@ The database runs on standard PostgreSQL (optimized for Supabase).
 | `customers` | Core case entity, contact info, lifecycle and retention timers. |
 | `required_documents` | Document requirements mandated per customer case. |
 | `documents` | Metadata, SHA-256 hash, encryption key path, and independent states. |
-| `ocr_results` | PII-masked OCR extraction output (deleted upon retention purge). |
+| `ocr_results` | PII-masked OCR extraction output (deleted upon retention deletion). |
 | `manual_reviews` | Human-in-the-loop audit queue for low-confidence documents. |
 | `access_tokens` | SHA-256 hashed magic tokens for customer authentication. |
 | `consent_ledger` | Append-only compliance log (survives customer deletion). |

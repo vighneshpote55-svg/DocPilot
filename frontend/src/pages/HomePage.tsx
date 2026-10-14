@@ -64,7 +64,7 @@ export const HomePage: React.FC = () => {
           <p className="customer-hero-desc">
             DocPilot provides an isolated, zero-knowledge portal for customers to upload identity
             and business documents. All submissions are encrypted with AES-256-GCM, verified
-            by automated rules, and permanently purged after a 7-day retention period.
+            by automated rules, and permanently deleted after a 7-day retention period.
           </p>
 
           <div className="customer-trust-badges-row">
@@ -74,7 +74,7 @@ export const HomePage: React.FC = () => {
             </div>
             <div className="trust-badge-item">
               <IconLock size={14} />
-              <span>Automatic 7-Day Purge</span>
+              <span>Automatic 7-Day Deletion</span>
             </div>
             <div className="trust-badge-item">
               <IconShield size={14} />
@@ -161,7 +161,7 @@ export const HomePage: React.FC = () => {
 
             <div className="process-step-card">
               <div className="process-step-num">3</div>
-              <h4 className="process-step-title">Verify & Safe Purge</h4>
+              <h4 className="process-step-title">Verify & Safe Deletion</h4>
               <p className="process-step-desc">
                 Automated OCR and rule checks verify authenticity in seconds. All files are permanently destroyed after 7 days.
               </p>

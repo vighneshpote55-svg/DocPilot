@@ -304,7 +304,7 @@ export const AdminCustomerDetailPage: React.FC = () => {
   const retentionCountdown = useMemo(() => {
     if (!customer || !customer.delete_after) return null;
     const diffMs = new Date(customer.delete_after).getTime() - now;
-    if (diffMs <= 0) return "Purge overdue / pending execution";
+    if (diffMs <= 0) return "Deletion overdue / pending execution";
     const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
     if (days > 0) return `${days}d ${hours}h remaining`;
@@ -417,7 +417,7 @@ export const AdminCustomerDetailPage: React.FC = () => {
                 <IconAlertCircle size={40} color="var(--adm-danger)" style={{ margin: "0 auto 12px" }} />
                 <h3 style={{ color: "var(--adm-text)", margin: "0 0 8px" }}>Customer Not Found</h3>
                 <p style={{ color: "var(--adm-text-secondary)", marginBottom: 20 }}>
-                  {error || "The requested customer case record does not exist or has been permanently purged."}
+                  {error || "The requested customer case record does not exist or has been permanently deleted."}
                 </p>
                 <Link to="/admin/customers" className="btn pri">
                   ← Back to Customer Directory
@@ -557,11 +557,11 @@ export const AdminCustomerDetailPage: React.FC = () => {
 
                       {customer.data_deleted_at ? (
                         <span className="retention-state-pill deleted">
-                          <IconCheck size={12} /> Permanently Purged
+                          <IconCheck size={12} /> Permanently Deleted
                         </span>
                       ) : customer.delete_after ? (
                         <span className={`retention-state-pill ${retentionProgressPercent > 80 ? "due" : "scheduled"}`}>
-                          <IconClock size={12} /> {retentionProgressPercent > 80 ? "Due for Purge" : "In 7-Day Retention"}
+                          <IconClock size={12} /> {retentionProgressPercent > 80 ? "Due for Deletion" : "In 7-Day Retention"}
                         </span>
                       ) : (
                         <span className="retention-state-pill" style={{ background: "rgba(148, 163, 184, 0.15)", color: "#94a3b8" }}>
@@ -576,11 +576,11 @@ export const AdminCustomerDetailPage: React.FC = () => {
                         <div className="retention-banner-text">
                           <IconArchive size={16} color="var(--adm-danger)" />
                           <span>
-                            <b>Data Permanently Purged:</b> Customer documents and PII were deleted on{" "}
+                            <b>Data Permanently Deleted:</b> Customer documents and PII were deleted on{" "}
                             {new Date(customer.data_deleted_at).toLocaleString()} in compliance with 7-day privacy retention policy.
                           </span>
                         </div>
-                        <span className="retention-countdown-pill">Purged</span>
+                        <span className="retention-countdown-pill">Deleted</span>
                       </div>
                     ) : customer.delete_after ? (
                       <div className="retention-countdown-banner" id="retention-countdown-panel">
@@ -589,7 +589,7 @@ export const AdminCustomerDetailPage: React.FC = () => {
                             <div className="retention-banner-text">
                               <IconClock size={16} color="var(--adm-primary)" />
                               <span>
-                                <b>Retention Deletion Policy:</b> Scheduled for automatic permanent purge on{" "}
+                                <b>Retention Deletion Policy:</b> Scheduled for automatic permanent deletion on{" "}
                                 {new Date(customer.delete_after).toLocaleString()}
                               </span>
                             </div>
@@ -605,7 +605,7 @@ export const AdminCustomerDetailPage: React.FC = () => {
                           </div>
                           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: "var(--adm-text-muted)" }}>
                             <span>Elapsed: {retentionProgressPercent}%</span>
-                            <span>Auto-Purge Window: 7 Days</span>
+                            <span>Auto-Deletion Window: 7 Days</span>
                           </div>
                         </div>
                       </div>
@@ -643,10 +643,10 @@ export const AdminCustomerDetailPage: React.FC = () => {
                           <div className="retention-node-circle">
                             <IconTrash2 size={14} />
                           </div>
-                          <span className="retention-node-label">Auto-Purge</span>
+                          <span className="retention-node-label">Auto-Deletion</span>
                         </div>
 
-                        <div className={`retention-stepper-node ${customer.data_deleted_at ? "purged" : ""}`}>
+                        <div className={`retention-stepper-node ${customer.data_deleted_at ? "deleted purged" : ""}`}>
                           <div className="retention-node-circle">
                             <IconCheck size={14} />
                           </div>
@@ -670,7 +670,7 @@ export const AdminCustomerDetailPage: React.FC = () => {
                       <div className="customer-retention-stat-card">
                         <span className="mut" style={{ fontSize: 11, textTransform: "uppercase" }}>Retention Countdown</span>
                         <span style={{ fontSize: 13, fontWeight: 700, color: retentionProgressPercent > 80 ? "#fbbf24" : "inherit" }} id="val-retention-remaining">
-                          {retentionCountdown || (customer.data_deleted_at ? "Purged" : "Active Intake")}
+                          {retentionCountdown || (customer.data_deleted_at ? "Deleted" : "Active Intake")}
                         </span>
                         <span className="mut" style={{ fontSize: 11 }}>
                           Policy: 7 Days after completion
@@ -735,7 +735,7 @@ export const AdminCustomerDetailPage: React.FC = () => {
                       </div>
                     )}
 
-                    {/* Permanent Purge Trigger Button */}
+                    {/* Permanent Deletion Trigger Button */}
                     {!customer.data_deleted_at && (
                       <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 4 }}>
                         <button
@@ -753,7 +753,7 @@ export const AdminCustomerDetailPage: React.FC = () => {
                           }}
                           onClick={() => setShowDeleteDataModal(true)}
                         >
-                          <IconTrash2 size={13} /> Execute Immediate Permanent Purge
+                          <IconTrash2 size={13} /> Execute Immediate Permanent Deletion
                         </button>
 
                       </div>
@@ -1271,7 +1271,7 @@ export const AdminCustomerDetailPage: React.FC = () => {
                                       <IconShieldCheck size={12} /> Encrypted
                                     </span>
                                   ) : (
-                                    <span className="badge-storage-purged">Purged</span>
+                                    <span className="badge-storage-deleted badge-storage-purged">Deleted</span>
                                   )}
                                 </td>
 
@@ -1574,7 +1574,7 @@ export const AdminCustomerDetailPage: React.FC = () => {
               Permanent Data Deletion &amp; Anonymization
             </h3>
             <p className="admin-dialog-desc">
-              You are about to permanently purge all data for <strong>{customer.name}</strong> ({customer.code}).
+              You are about to permanently delete all data for <strong>{customer.name}</strong> ({customer.code}).
               This action executes immediate cryptographic deletion of all AES-256 encrypted documents from Storage, wipes OCR payloads, and anonymizes customer PII.
             </p>
 
@@ -1608,7 +1608,7 @@ export const AdminCustomerDetailPage: React.FC = () => {
                   setShowDeleteDataModal(false);
                   await handleAction(
                     () => deleteAdminCustomerData(customer.id),
-                    "Customer data and files have been permanently purged."
+                    "Customer data and files have been permanently deleted."
                   );
                 }}
                 id="btn-confirm-delete-data"
@@ -1619,7 +1619,7 @@ export const AdminCustomerDetailPage: React.FC = () => {
                   cursor: confirmDeleteChecked ? "pointer" : "not-allowed",
                 }}
               >
-                {busyAction ? "Purging Data…" : "Permanently Purge Data"}
+                {busyAction ? "Deleting Data…" : "Permanently Delete Data"}
               </button>
             </div>
           </div>

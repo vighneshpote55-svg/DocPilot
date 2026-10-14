@@ -106,7 +106,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
       items: [
         {
           key: "retention",
-          label: "Retention & Purge",
+          label: "Retention & Deletion",
           icon: <IconTrash2 size={20} />,
           badge: retentionCount > 0 ? retentionCount : undefined,
           badgeType: "warn",

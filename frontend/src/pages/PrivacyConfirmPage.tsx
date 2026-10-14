@@ -93,8 +93,8 @@ export const PrivacyConfirmPage: React.FC = () => {
 
               <p className="privacy-hero-desc" style={{ maxWidth: 520, margin: "0 auto 20px" }}>
                 {completedAction === "delete"
-                  ? "All encrypted document files in private storage, temporary OCR results, and active session tokens have been permanently purged. Your customer profile has been anonymized."
-                  : "Consent has been officially revoked. Document verification workflows and reminder schedulers have been stopped immediately. Retained records will be purged per the statutory retention timeline."}
+                  ? "All encrypted document files in private storage, temporary OCR results, and active session tokens have been permanently deleted. Your customer profile has been anonymized."
+                  : "Consent has been officially revoked. Document verification workflows and reminder schedulers have been stopped immediately. Retained records will be deleted per the statutory retention timeline."}
               </p>
 
               {/* Immutable Ledger Certificate Box */}

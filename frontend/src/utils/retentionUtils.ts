@@ -37,6 +37,8 @@ export interface RetentionSummaryMetrics {
   activeRetentionCount: number;
   duePurgeCount: number;
   permanentlyPurgedCount: number;
+  dueDeleteCount: number;
+  permanentlyDeletedCount: number;
   pendingFilesCount: number;
   completedInRetentionCount: number;
   withdrawnInRetentionCount: number;
@@ -55,17 +57,17 @@ export function computeRetentionInfo(
   const now = Date.now();
   const docs = ("documents" in customer && customer.documents) ? customer.documents : (customerDocs || []);
 
-  // Check if permanently purged first
+  // Check if permanently deleted first
   const isDeleted = !!customer.data_deleted_at || customer.case_status === "deleted";
   if (isDeleted) {
     const deletedDate = customer.data_deleted_at ? new Date(customer.data_deleted_at) : new Date();
     return {
       state: "deleted",
-      stateLabel: "Permanently Purged",
+      stateLabel: "Permanently Deleted",
       scheduledAt: customer.delete_after ? new Date(customer.delete_after) : null,
       deletedAt: deletedDate,
       remainingMs: 0,
-      remainingFormatted: "Purged",
+      remainingFormatted: "Deleted",
       progressPercent: 100,
       isUrgent: false,
       lifecycleTrigger: customer.consent_status === "withdrawn" ? "consent_withdrawn" : "completed",
@@ -116,7 +118,7 @@ export function computeRetentionInfo(
     if (remainingMs <= 0) {
       return {
         state: "due",
-        stateLabel: "Due for Purge",
+        stateLabel: "Due for Deletion",
         scheduledAt: scheduledDate,
         deletedAt: null,
         remainingMs: 0,
@@ -178,8 +180,8 @@ export function calculateRetentionSummary(
   allDocs: AdminDocumentItem[] = []
 ): RetentionSummaryMetrics {
   let activeRetention = 0;
-  let duePurge = 0;
-  let permanentlyPurged = 0;
+  let dueDelete = 0;
+  let permanentlyDeleted = 0;
   let pendingFiles = 0;
   let completedInRetention = 0;
   let withdrawnInRetention = 0;
@@ -196,17 +198,19 @@ export function calculateRetentionSummary(
       if (info.lifecycleTrigger === "consent_withdrawn") withdrawnInRetention++;
       if (info.lifecycleTrigger === "expired") expiredInRetention++;
     } else if (info.state === "due") {
-      duePurge++;
+      dueDelete++;
       pendingFiles += info.pendingInventory.storedFilesCount;
     } else if (info.state === "deleted") {
-      permanentlyPurged++;
+      permanentlyDeleted++;
     }
   }
 
   return {
     activeRetentionCount: activeRetention,
-    duePurgeCount: duePurge,
-    permanentlyPurgedCount: permanentlyPurged,
+    duePurgeCount: dueDelete,
+    permanentlyPurgedCount: permanentlyDeleted,
+    dueDeleteCount: dueDelete,
+    permanentlyDeletedCount: permanentlyDeleted,
     pendingFilesCount: pendingFiles,
     completedInRetentionCount: completedInRetention,
     withdrawnInRetentionCount: withdrawnInRetention,

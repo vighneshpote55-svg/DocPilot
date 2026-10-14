@@ -82,7 +82,7 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
     documents: "All Documents",
     reviews: "Manual Review Queue",
     reminders: "Active Reminders",
-    retention: "Retention & Purge Pipeline",
+    retention: "Retention & Deletion Pipeline",
     audit: "Audit Log",
     reports: "Compliance Reports",
     settings: "System Settings",
@@ -585,7 +585,7 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
                       <div>
                         <h3 style={{ margin: 0, fontSize: 16 }}>7-Day Statutory Retention & Deletion Pipeline</h3>
                         <span className="mut" style={{ fontSize: 12 }}>
-                          DPDP Act automated purge queue and customer data retention lifecycle
+                          DPDP Act automated deletion queue and customer data retention lifecycle
                         </span>
                       </div>
                     </div>
@@ -607,13 +607,13 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
                       <span style={{ fontSize: 20, fontWeight: 800, color: "var(--c-primary)" }}>{retentionMetrics.activeRetentionCount} cases</span>
                     </div>
                     <div className="dashboard-retention-stat-box">
-                      <span className="mut" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>Due for Purge Today</span>
+                      <span className="mut" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>Due for Deletion Today</span>
                       <span style={{ fontSize: 20, fontWeight: 800, color: retentionMetrics.duePurgeCount > 0 ? "var(--c-warn)" : "var(--c-heading)" }}>
                         {retentionMetrics.duePurgeCount} cases
                       </span>
                     </div>
                     <div className="dashboard-retention-stat-box">
-                      <span className="mut" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>Permanently Purged</span>
+                      <span className="mut" style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: "0.05em" }}>Permanently Deleted</span>
                       <span style={{ fontSize: 20, fontWeight: 800, color: "var(--c-danger)" }}>{retentionMetrics.permanentlyPurgedCount} cases</span>
                     </div>
                   </div>
@@ -642,7 +642,7 @@ export const AdminPage: React.FC<{ initialTab?: AdminNavTab }> = ({
                     <div className="lifecycle-connector" />
                     <div className="lifecycle-step">
                       <div className="lifecycle-step-dot" />
-                      <span>Purged</span>
+                      <span>Deleted</span>
                     </div>
                   </div>
                 </div>

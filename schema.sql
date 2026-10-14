@@ -199,7 +199,7 @@ CREATE INDEX IF NOT EXISTS ix_audit_logs_created_at ON audit_logs(created_at);
 -- ------------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS jobs (
     id SERIAL PRIMARY KEY,
-    kind VARCHAR(40) NOT NULL, -- e.g. process_document, send_reminder, purge_retention
+    kind VARCHAR(40) NOT NULL, -- e.g. process_document, send_reminder, delete_retention
     payload JSONB NOT NULL DEFAULT '{}'::jsonb,
     status VARCHAR(10) NOT NULL DEFAULT 'queued', -- queued | running | done | failed
     attempts INTEGER NOT NULL DEFAULT 0,

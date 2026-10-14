@@ -247,7 +247,7 @@ export const NeedsAttentionBanner: React.FC<NeedsAttentionBannerProps> = ({
           </div>
         )}
 
-        {/* 4. Approaching Retention / Purge Due */}
+        {/* 4. Approaching Retention / Deletion Due */}
         {retentionDueCount > 0 && (
           <div
             style={{
@@ -265,7 +265,7 @@ export const NeedsAttentionBanner: React.FC<NeedsAttentionBannerProps> = ({
               <IconClock size={16} />
               <div>
                 <div style={{ fontSize: 13, fontWeight: 700 }}>
-                  {retentionDueCount} Due for Purge
+                  {retentionDueCount} Due for Deletion
                 </div>
                 <div style={{ fontSize: 11, opacity: 0.85 }}>7-day window elapsed</div>
               </div>
@@ -288,7 +288,7 @@ export const NeedsAttentionBanner: React.FC<NeedsAttentionBannerProps> = ({
                 gap: 4,
               }}
             >
-              Purge <IconArrowRight size={12} />
+              Delete <IconArrowRight size={12} />
             </button>
           </div>
         )}

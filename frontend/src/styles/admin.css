@@ -5607,6 +5607,7 @@
   color: var(--adm-success);
 }
 
+.badge-storage-deleted,
 .badge-storage-purged {
   font-size: 11px;
   font-weight: 600;
@@ -8097,6 +8098,7 @@
   box-shadow: 0 0 12px rgba(59, 130, 246, 0.5);
 }
 
+.retention-stepper-node.deleted .retention-node-circle,
 .retention-stepper-node.purged .retention-node-circle {
   background: var(--adm-danger, #ef4444);
   border-color: var(--adm-danger, #ef4444);

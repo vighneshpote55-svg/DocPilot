@@ -162,7 +162,7 @@ Ensure the following variables are configured on the production host:
 | `SMTP_FROM` | Verified sender address | `support@yourcompany.com` |
 | `OCR_URL` | Internal OCR service URL | `http://127.0.0.1:8001` |
 | `MAX_UPLOAD_MB` | Maximum single-file upload size | `10` |
-| `RETENTION_DAYS` | Statutory automated purge window | `7` |
+| `RETENTION_DAYS` | Statutory automated deletion window | `7` |
 
 ---
 

@@ -135,7 +135,7 @@ export const AdminCustomersView: React.FC<AdminCustomersViewProps> = ({
             <option value="completed">Completed</option>
             <option value="expired">Expired</option>
             <option value="withdrawn">Withdrawn</option>
-            <option value="deleted">Deleted (Purged)</option>
+            <option value="deleted">Deleted</option>
           </select>
 
           <select
@@ -248,7 +248,7 @@ export const AdminCustomersView: React.FC<AdminCustomersViewProps> = ({
                               {c.case_status}
                             </span>
                             {c.data_deleted_at && (
-                              <span className="deleted-tag-sm">Files Purged</span>
+                              <span className="deleted-tag-sm">Files Deleted</span>
                             )}
                           </div>
                         </td>

@@ -60,7 +60,7 @@ export const TermsPage: React.FC = () => {
                 Statutory Data Protection &amp; Minimal Retention Notice
               </h2>
               <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.6, color: "var(--adm-text-secondary)" }}>
-                DocPilot operates strictly as an identity and business document verification gateway under the India Digital Personal Data Protection (DPDP) Act 2023. Submitted documents are encrypted immediately upon intake with AES-256-GCM, evaluated by automated rule-based engines, and permanently purged within 7 days.
+                DocPilot operates strictly as an identity and business document verification gateway under the India Digital Personal Data Protection (DPDP) Act 2023. Submitted documents are encrypted immediately upon intake with AES-256-GCM, evaluated by automated rule-based engines, and permanently deleted within 7 days.
               </p>
             </div>
           </div>
@@ -112,7 +112,7 @@ export const TermsPage: React.FC = () => {
             </p>
           </section>
 
-          {/* Section 4: 7-Day Purge & Deletion Rights */}
+          {/* Section 4: 7-Day Deletion & Erasure Rights */}
           <section className="customer-access-card" style={{ padding: "20px 24px" }}>
             <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 10px", color: "var(--adm-text)", display: "flex", alignItems: "center", gap: 8 }}>
               <IconClock size={16} color="var(--adm-primary)" />

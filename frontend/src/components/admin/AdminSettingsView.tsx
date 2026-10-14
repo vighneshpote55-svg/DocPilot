@@ -340,7 +340,7 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
           className={`settings-nav-pill ${activeCategory === "retention" ? "active" : ""}`}
           onClick={() => setActiveCategory("retention")}
         >
-          <IconClock size={14} /> Retention & Purge
+          <IconClock size={14} /> Retention & Deletion
         </button>
         <button
           type="button"
@@ -682,7 +682,7 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
                   <IconClock size={18} />
                 </div>
                 <div>
-                  <h3 className="settings-card-title">Retention & Purge Schedule</h3>
+                  <h3 className="settings-card-title">Retention & Deletion Schedule</h3>
                   <span className="settings-card-subtitle">DPDP Act, 2023 statutory compliance guarantees</span>
                 </div>
               </div>
@@ -724,10 +724,10 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
 
               <div className="config-field-row">
                 <div className="config-field-top">
-                  <span className="config-field-label">Background Purge Scheduler</span>
+                  <span className="config-field-label">Background Deletion Scheduler</span>
                   <span className="config-field-value">Every 300 Seconds (5 Min)</span>
                 </div>
-                <p className="config-field-desc">Worker runs continuous purge sweep to destroy elapsed documents</p>
+                <p className="config-field-desc">Worker runs continuous deletion sweep to destroy elapsed documents</p>
               </div>
             </div>
           </div>
@@ -789,7 +789,7 @@ export const AdminSettingsView: React.FC<AdminSettingsViewProps> = ({
                   <span className="config-field-label">Immutable Audit Trail</span>
                   <span className="config-field-value text-blue">Zero-PII Action Logs</span>
                 </div>
-                <p className="config-field-desc">Every view, upload, verification, and purge logged with timestamp and actor ID</p>
+                <p className="config-field-desc">Every view, upload, verification, and deletion logged with timestamp and actor ID</p>
               </div>
             </div>
           </div>

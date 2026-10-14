@@ -15,7 +15,7 @@ _last_prune_time: float = 0.0
 
 
 def prune_expired_buckets(window_seconds: int = 60) -> int:
-    """Purge stale rate-limit buckets whose entries have all expired. Returns count of purged keys."""
+    """Delete stale rate-limit buckets whose entries have all expired. Returns count of deleted keys."""
     global _last_prune_time
     now = time.time()
     cutoff = now - window_seconds

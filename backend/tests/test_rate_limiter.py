@@ -70,14 +70,14 @@ def test_prune_expired_buckets(monkeypatch):
 
     # Advance time by 30 seconds (still within window)
     current_time = 2030.0
-    purged = prune_expired_buckets(window_seconds=60)
-    assert purged == 0
+    deleted = prune_expired_buckets(window_seconds=60)
+    assert deleted == 0
     assert len(_buckets) == 5
 
     # Advance time past 60 seconds
     current_time = 2065.0
-    purged = prune_expired_buckets(window_seconds=60)
-    assert purged == 5
+    deleted = prune_expired_buckets(window_seconds=60)
+    assert deleted == 5
     assert len(_buckets) == 0
 
 

@@ -49,7 +49,7 @@ export const RecentActivityFeed: React.FC<RecentActivityFeedProps> = ({
       case "file_deleted":
       case "document_file_deleted":
         return {
-          label: "File Purged",
+          label: "File Deleted",
           category: "files",
           icon: <IconTrash2 size={16} color="#f59e0b" />,
           colorClass: "act-amber",

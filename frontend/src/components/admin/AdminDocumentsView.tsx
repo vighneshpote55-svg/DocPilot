@@ -415,7 +415,7 @@ export const AdminDocumentsView: React.FC = () => {
                           <IconShieldCheck size={11} /> Encrypted
                         </span>
                       ) : (
-                        <span className="badge-storage-purged">Purged</span>
+                        <span className="badge-storage-deleted badge-storage-purged">Deleted</span>
                       )}
                     </td>
 

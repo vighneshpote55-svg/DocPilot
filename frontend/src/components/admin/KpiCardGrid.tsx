@@ -68,7 +68,7 @@ export const KpiCardGrid: React.FC<KpiCardGridProps> = ({
           <div className="kpi-meta">
             <span className="kpi-subtext">Across all case states</span>
             <span className="kpi-trend trend-neutral">
-              {summary?.cases?.deleted ? `${summary.cases.deleted} purged` : "Active"}
+              {summary?.cases?.deleted ? `${summary.cases.deleted} deleted` : "Active"}
             </span>
           </div>
         </div>

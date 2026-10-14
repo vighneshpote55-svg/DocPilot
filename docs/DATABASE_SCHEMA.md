@@ -32,7 +32,7 @@ erDiagram
         datetime completed_at "Case completion timestamp"
         datetime case_expires_at "Deadline for customer upload"
         datetime delete_after "Retention expiration timestamp"
-        datetime data_deleted_at "Purge execution timestamp"
+        datetime data_deleted_at "Deletion execution timestamp"
         int last_reminder_stage "Reminder cadence tracking (3, 7, 14 days)"
     }
 
@@ -161,7 +161,7 @@ DocPilot maintains four explicit, decoupled state fields instead of combining di
 * `ocr_results.payload` contains **only PII-masked data** (e.g., `XXXX-XXXX-1234`).
 * When a case reaches retention expiry (`delete_after`) or upon right-to-erasure:
   1. The encrypted storage file is deleted.
-  2. The `ocr_results` rows are purged.
+  2. The `ocr_results` rows are deleted.
   3. The `access_tokens` rows are removed.
   4. The `customers` record is scrubbed of name, email, and mobile.
   5. The `consent_ledger` preserves an anonymous compliance audit record.
@@ -178,7 +178,7 @@ To maintain sub-10ms query times at scale, the following strategic B-tree indexe
 | `customers` | `consent_status` | Filter awaiting vs granted customers |
 | `customers` | `case_status` | Dashboard aggregations & status counts |
 | `customers` | `workflow_state` | High-level operations pipeline filtering |
-| `customers` | `delete_after` | Worker retention purge sweep query |
+| `customers` | `delete_after` | Worker retention deletion sweep query |
 | `required_documents` | `customer_id` | Customer required slots lookup |
 | `documents` | `customer_id` | Fetching documents for a customer case |
 | `documents` | `workflow_state` | Admin review and intake queue filtering |

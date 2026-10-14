@@ -242,7 +242,7 @@ export const ConsentPage: React.FC = () => {
                   style={{ flexShrink: 0 }}
                 />
                 <span>
-                  All documents you upload will be protected with <strong>AES-256-GCM encryption</strong> and automatically purged within 7 days.
+                  All documents you upload will be protected with <strong>AES-256-GCM encryption</strong> and automatically deleted within 7 days.
                 </span>
               </div>
 

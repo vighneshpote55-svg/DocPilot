@@ -139,7 +139,7 @@ export const PrivacyPage: React.FC = () => {
                 </div>
                 <div style={{ fontSize: 12, color: "var(--adm-text-secondary, #94a3b8)", lineHeight: 1.5 }}>
                   {submittedAction === "delete"
-                    ? "Clicking the link in your email will cryptographically purge all encrypted document files, temporary OCR extracts, and active credentials."
+                    ? "Clicking the link in your email will cryptographically delete all encrypted document files, temporary OCR extracts, and active credentials."
                     : "Clicking the link in your email will stop all verification workflows and suppress future automated reminder emails."}
                 </div>
               </div>
@@ -211,7 +211,7 @@ export const PrivacyPage: React.FC = () => {
                 </span>
                 <span className="privacy-trust-pill amber">
                   <IconShield size={12} />
-                  <span>Automated 7-Day Purge</span>
+                  <span>Automated 7-Day Deletion</span>
                 </span>
               </div>
 

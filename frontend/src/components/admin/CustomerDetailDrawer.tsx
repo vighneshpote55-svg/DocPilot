@@ -201,7 +201,7 @@ export const CustomerDetailDrawer: React.FC<CustomerDetailDrawerProps> = ({
                   Consent: {customer.consent_status}
                 </span>
                 {customer.data_deleted_at && (
-                  <span className="tag deleted">Files Purged</span>
+                  <span className="tag deleted">Files Deleted</span>
                 )}
               </div>
 

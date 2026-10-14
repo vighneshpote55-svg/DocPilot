@@ -589,7 +589,7 @@ export const PortalPage: React.FC = () => {
               ))}
             </div>
 
-            {/* 7-Day Purge & Encryption Guarantee Box */}
+            {/* 7-Day Deletion & Encryption Guarantee Box */}
             <div className="complete-retention-box">
               <IconLock
                 size={22}
@@ -605,7 +605,7 @@ export const PortalPage: React.FC = () => {
                     marginBottom: 4,
                   }}
                 >
-                  🔒 AES-256-GCM Encryption &amp; Automated 7-Day Purge
+                  🔒 AES-256-GCM Encryption &amp; Automated 7-Day Deletion
                 </div>
                 <div
                   style={{
@@ -877,7 +877,7 @@ export const PortalPage: React.FC = () => {
                             Document verified
                           </div>
                           <div className="state-subtext">
-                            Transmitted securely and encrypted with AES-256-GCM. Scheduled for automated purge in 7 days.
+                            Transmitted securely and encrypted with AES-256-GCM. Scheduled for automated deletion in 7 days.
                           </div>
                         </div>
                       </div>

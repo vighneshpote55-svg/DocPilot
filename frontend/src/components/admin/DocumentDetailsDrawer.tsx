@@ -55,7 +55,7 @@ export const DocumentDetailsDrawer: React.FC<DocumentDetailsDrawerProps> = ({
   let statusDescription = "Document is queued or undergoing automated extraction and rule checks.";
 
   if (doc.file_state === "deleted") {
-    statusLabel = "File Purged";
+    statusLabel = "File Deleted";
     statusBadgeClass = "tag-deleted";
     statusDescription = "Encrypted file data has been permanently deleted in accordance with retention policy.";
   } else if (doc.verification_status === "verified") {
@@ -211,7 +211,7 @@ export const DocumentDetailsDrawer: React.FC<DocumentDetailsDrawerProps> = ({
                   <div className="stepper-desc">
                     {doc.file_state === "stored"
                       ? "Encrypted at rest in private cloud storage bucket"
-                      : "File data permanently purged"}
+                      : "File data permanently deleted"}
                   </div>
                 </div>
               </div>
@@ -280,7 +280,7 @@ export const DocumentDetailsDrawer: React.FC<DocumentDetailsDrawerProps> = ({
                   <div className="stepper-title">Verification Outcome & Retention</div>
                   <div className="stepper-desc">
                     {doc.delete_after
-                      ? `Scheduled for automatic purge: ${new Date(doc.delete_after).toLocaleDateString()}`
+                      ? `Scheduled for automatic deletion: ${new Date(doc.delete_after).toLocaleDateString()}`
                       : "Retained within standard case policy"}
                   </div>
                 </div>

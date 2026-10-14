@@ -56,6 +56,7 @@ export interface ReportKpiSummary {
   retentionActive: number;
   retentionDue: number;
   retentionPurged: number;
+  retentionDeleted: number;
 }
 
 export interface DailyTrendPoint {
@@ -90,6 +91,7 @@ export interface DocTypePerformanceRow {
   ocrFailureRate: number;
   storedCount: number;
   purgedCount: number;
+  deletedCount: number;
 }
 
 /**
@@ -402,6 +404,7 @@ export function calculateReportKpis(
     retentionActive,
     retentionDue,
     retentionPurged,
+    retentionDeleted: retentionPurged,
   };
 }
 
@@ -517,7 +520,7 @@ export function generateCaseDistributionSegments(
     { key: "in_progress", label: "Active Intake", count: inProgress, color: "var(--adm-primary, #3b82f6)" },
     { key: "under_review", label: "Under Review", count: underReview, color: "var(--adm-warn, #f59e0b)" },
     { key: "withdrawn", label: "Withdrawn", count: withdrawn, color: "var(--adm-text-muted, #64748b)" },
-    { key: "deleted_expired", label: "Purged / Expired", count: deletedOrExpired, color: "var(--adm-danger, #ef4444)" },
+    { key: "deleted_expired", label: "Deleted / Expired", count: deletedOrExpired, color: "var(--adm-danger, #ef4444)" },
   ];
 
   return computeDonutOffsets(raw, total);
@@ -678,6 +681,7 @@ export function generateDocTypePerformanceMatrix(
         ocrFailureRate,
         storedCount: g.stored,
         purgedCount: g.purged,
+        deletedCount: g.purged,
       };
     })
     .sort((a, b) => b.totalUploaded - a.totalUploaded);

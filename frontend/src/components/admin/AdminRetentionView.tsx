@@ -120,7 +120,7 @@ export const AdminRetentionView: React.FC<AdminRetentionViewProps> = ({
       setPurgeConfirmed(false);
       setPurging(false);
     } catch (err: unknown) {
-      setPurgeError(err instanceof Error ? err.message : "Failed to execute purge.");
+      setPurgeError(err instanceof Error ? err.message : "Failed to execute deletion.");
       setPurging(false);
     }
   };
@@ -150,7 +150,7 @@ export const AdminRetentionView: React.FC<AdminRetentionViewProps> = ({
             <IconAlertTriangle size={22} />
           </div>
           <div className="retention-kpi-content">
-            <span className="retention-kpi-label">Due for Purge Today</span>
+            <span className="retention-kpi-label">Due for Deletion Today</span>
             <span className="retention-kpi-val">{summaryMetrics.duePurgeCount}</span>
           </div>
         </div>
@@ -160,7 +160,7 @@ export const AdminRetentionView: React.FC<AdminRetentionViewProps> = ({
             <IconTrash2 size={22} />
           </div>
           <div className="retention-kpi-content">
-            <span className="retention-kpi-label">Permanently Purged</span>
+            <span className="retention-kpi-label">Permanently Deleted</span>
             <span className="retention-kpi-val">{summaryMetrics.permanentlyPurgedCount}</span>
           </div>
         </div>
@@ -214,7 +214,7 @@ export const AdminRetentionView: React.FC<AdminRetentionViewProps> = ({
               className={`retention-tab-btn ${activeFilterTab === "due" ? "active" : ""}`}
               onClick={() => setActiveFilterTab("due")}
             >
-              Due for Purge ({summaryMetrics.duePurgeCount})
+              Due for Deletion ({summaryMetrics.duePurgeCount})
             </button>
             <button
               type="button"
@@ -222,7 +222,7 @@ export const AdminRetentionView: React.FC<AdminRetentionViewProps> = ({
               className={`retention-tab-btn ${activeFilterTab === "deleted" ? "active" : ""}`}
               onClick={() => setActiveFilterTab("deleted")}
             >
-              Permanently Purged ({summaryMetrics.permanentlyPurgedCount})
+              Permanently Deleted ({summaryMetrics.permanentlyPurgedCount})
             </button>
             <button
               type="button"
@@ -252,7 +252,7 @@ export const AdminRetentionView: React.FC<AdminRetentionViewProps> = ({
         {loading ? (
           <div id="retention-loading-state" style={{ padding: 40, textAlign: "center" }} className="mut">
             <IconRefreshCw size={24} className="spin" style={{ marginBottom: 8 }} />
-            <p>Loading configured 7-day retention records and purge pipeline…</p>
+            <p>Loading configured 7-day retention records and deletion pipeline…</p>
           </div>
         ) : filteredCustomers.length === 0 ? (
           <div id="retention-empty-state" style={{ padding: 48, textAlign: "center" }}>
@@ -320,7 +320,7 @@ export const AdminRetentionView: React.FC<AdminRetentionViewProps> = ({
                       <td style={{ minWidth: 170 }}>
                         {info.state === "deleted" ? (
                           <span className="retention-state-pill deleted">
-                            <IconCheck size={12} /> Purged 100%
+                            <IconCheck size={12} /> Deleted 100%
                           </span>
                         ) : info.scheduledAt ? (
                           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -349,7 +349,7 @@ export const AdminRetentionView: React.FC<AdminRetentionViewProps> = ({
                         {customer.data_deleted_at ? (
                           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
                             <span style={{ fontSize: 12, color: "#f87171", fontWeight: 600 }}>
-                              Purged on {new Date(customer.data_deleted_at).toLocaleDateString()}
+                              Deleted on {new Date(customer.data_deleted_at).toLocaleDateString()}
                             </span>
                             <span className="mut" style={{ fontSize: 11 }}>
                               {new Date(customer.data_deleted_at).toLocaleTimeString()}
@@ -404,7 +404,7 @@ export const AdminRetentionView: React.FC<AdminRetentionViewProps> = ({
                         )}
                         {info.state === "deleted" && (
                           <span className="retention-state-pill deleted">
-                            <IconArchive size={12} /> Permanently Purged
+                            <IconArchive size={12} /> Permanently Deleted
                           </span>
                         )}
                         {info.state === "failed" && (
@@ -455,7 +455,7 @@ export const AdminRetentionView: React.FC<AdminRetentionViewProps> = ({
                               }}
                               title="Trigger immediate permanent data wipe"
                             >
-                              <IconTrash2 size={13} /> Purge Now
+                              <IconTrash2 size={13} /> Delete Now
                             </button>
                           )}
 
@@ -550,16 +550,16 @@ export const AdminRetentionView: React.FC<AdminRetentionViewProps> = ({
                     <span className="retention-node-label">Audited Grace</span>
                   </div>
 
-                  {/* Step 4: Purge Sweep */}
+                  {/* Step 4: Deletion Sweep */}
                   <div className={`retention-stepper-node ${drawerCustomer.info.state === "due" ? "active" : drawerCustomer.info.state === "deleted" ? "completed" : ""}`}>
                     <div className="retention-node-circle">
                       <IconTrash2 size={14} />
                     </div>
-                    <span className="retention-node-label">Auto-Purge</span>
+                    <span className="retention-node-label">Auto-Deletion</span>
                   </div>
 
                   {/* Step 5: Ledger Proof */}
-                  <div className={`retention-stepper-node ${drawerCustomer.info.state === "deleted" ? "purged" : ""}`}>
+                  <div className={`retention-stepper-node ${drawerCustomer.info.state === "deleted" ? "deleted purged" : ""}`}>
                     <div className="retention-node-circle">
                       <IconFileCheck size={14} />
                     </div>
@@ -651,8 +651,8 @@ export const AdminRetentionView: React.FC<AdminRetentionViewProps> = ({
                 <IconTrash2 size={22} />
               </div>
               <div>
-                <h3 id="purge-modal-title" style={{ margin: 0, fontSize: 17, color: "#f87171" }}>Permanent Data Purge</h3>
-                <span className="mut" style={{ fontSize: 12 }}>Irreversible Right to Erasure / Immediate Purge</span>
+                <h3 id="purge-modal-title" style={{ margin: 0, fontSize: 17, color: "#f87171" }}>Permanent Data Deletion</h3>
+                <span className="mut" style={{ fontSize: 12 }}>Irreversible Right to Erasure / Immediate Deletion</span>
               </div>
             </div>
 
@@ -662,7 +662,7 @@ export const AdminRetentionView: React.FC<AdminRetentionViewProps> = ({
 
             <div style={{ background: "rgba(239, 68, 68, 0.08)", border: "1px solid rgba(239, 68, 68, 0.25)", borderRadius: 8, padding: 12, margin: "14px 0", fontSize: 12, color: "#fca5a5" }}>
               <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.6 }}>
-                <li>All AES-256-GCM ciphertext in Supabase Storage will be purged.</li>
+                <li>All AES-256-GCM ciphertext in Supabase Storage will be permanently deleted.</li>
                 <li>OCR text extractions, manual review notes, and hashes will be wiped.</li>
                 <li>Customer tokens revoked; customer record pseudonymized to <code>[deleted]</code>.</li>
               </ul>
@@ -702,7 +702,7 @@ export const AdminRetentionView: React.FC<AdminRetentionViewProps> = ({
                 disabled={!purgeConfirmed || purging}
                 onClick={handleExecutePurge}
               >
-                {purging ? "Purging Data…" : "Permanently Purge Now"}
+                {purging ? "Deleting Data…" : "Permanently Delete Now"}
               </button>
             </div>
           </div>
