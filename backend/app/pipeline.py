@@ -17,6 +17,16 @@ log = logging.getLogger(__name__)
 
 
 def _open_review(db, doc: Document, reason: str, flags: list[str]) -> None:
+    existing = db.scalar(
+        select(ManualReview).where(
+            ManualReview.document_id == doc.id,
+            ManualReview.status == "open",
+        )
+    )
+    if existing:
+        existing.reason = reason
+        existing.flags = flags
+        return
     rev = ManualReview(document_id=doc.id, customer_id=doc.customer_id, reason=reason, flags=flags)
     db.add(rev)
     db.flush()
@@ -29,9 +39,11 @@ def apply_decision(db, doc: Document, customer: Customer, d: rules.Decision) -> 
         mark_verified(db, doc)
     elif d.outcome == "rejected":
         doc.verification_status = "rejected"
+        doc.workflow_state = "REJECTED"
         request_resubmission(db, customer, doc)
     else:
         doc.verification_status = "manual_review"
+        doc.workflow_state = "IN_REVIEW"
         _open_review(db, doc, d.reason, d.flags)
     audit(db, "system", "document_" + doc.verification_status, "document", doc.id, {"flags": d.flags})
     db.flush()
@@ -43,7 +55,9 @@ def handle_process_document(db, payload: dict) -> None:
     doc = db.get(Document, payload["document_id"])
     if not doc or doc.file_state != "stored" or doc.superseded:
         return
-    if doc.verification_status == "verified":
+    if doc.verification_status != "not_started":
+        log.info("Document %s already processed (verification_status=%s), skipping duplicate run",
+                 doc.id, doc.verification_status)
         return
     customer = db.get(Customer, doc.customer_id)
     if customer.consent_status != "granted" or customer.case_status != "in_progress":
@@ -137,7 +151,7 @@ def handle_process_document(db, payload: dict) -> None:
     if decision.outcome in ("needs_ai", "AI_REQUIRED"):
         # Step 9: AI Verification / Redacted AI Escalation
         audit(db, "system", "ai_verification_started", "document", doc.id, {"doc_type": doc.doc_type})
-        
+
         # Pre-dispatch safety check
         is_safe, pii_err = ai_service.verify_ai_payload_safety(masked)
         if not is_safe:

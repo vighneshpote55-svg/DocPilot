@@ -31,10 +31,14 @@ def send_reminders(db) -> int:
             continue
         stage = max(due)
         if stage > c.last_reminder_stage:
-            send_upload_link(db, c, reminder=True)
-            c.last_reminder_stage = stage
-            audit(db, "system", "reminder_sent", "customer", c.id, {"stage": stage, "pending_count": len(pending)})
-            sent += 1
+            tok = send_upload_link(db, c, reminder=True)
+            delivered = getattr(tok, "sent", True)
+            if delivered:
+                c.last_reminder_stage = stage
+                audit(db, "system", "reminder_sent", "customer", c.id, {"stage": stage, "pending_count": len(pending)})
+                sent += 1
+            else:
+                audit(db, "system", "reminder_delivery_failed", "customer", c.id, {"stage": stage, "pending_count": len(pending)})
     return sent
 
 

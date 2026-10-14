@@ -78,8 +78,11 @@ class Settings(BaseSettings):
     ai_api_key: str = ""
     ai_model: str = ""
 
-    # --- worker ---
+    # --- worker & alerting ---
     scheduler_interval_seconds: int = 300
+    job_stuck_timeout_minutes: int = 15
+    alert_webhook_url: str = ""
+
 
     @property
     def admin_email_list(self) -> list[str]:

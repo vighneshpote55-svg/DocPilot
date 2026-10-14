@@ -310,12 +310,22 @@ def send_consent_email(db, customer: Customer) -> None:
     emailer.consent_request(customer.email, customer.name, labels, build_consent_url(s.public_base_url, raw))
 
 
-def send_upload_link(db, customer: Customer, reminder: bool = False) -> str:
+class UploadTokenResult(str):
+    sent: bool
+
+    def __new__(cls, val, sent=True):
+        s = super().__new__(cls, val)
+        s.sent = bool(sent)
+        return s
+
+
+def send_upload_link(db, customer: Customer, reminder: bool = False) -> UploadTokenResult:
     s = get_settings()
     raw = issue_token(db, customer.id, "upload", timedelta(hours=s.upload_token_hours))
     labels = [label(k) for k in pending_keys(db, customer.id)]
-    emailer.pending_documents(customer.email, customer.name, labels, build_portal_url(s.public_base_url, raw), reminder)
-    return raw
+    sent = emailer.pending_documents(customer.email, customer.name, labels, build_portal_url(s.public_base_url, raw), reminder)
+    return UploadTokenResult(raw, sent=bool(sent))
+
 
 
 def record_consent(db, customer: Customer, granted: bool) -> str | None:
@@ -526,6 +536,7 @@ def accept_upload(db, customer: Customer, doc_type_raw: str, filename: str, data
 # ------------------------------------------------------------------ verification outcomes
 def mark_verified(db, doc: Document) -> None:
     doc.verification_status = "verified"
+    doc.workflow_state = "VERIFIED"
     req = db.scalar(select(RequiredDocument).where(RequiredDocument.customer_id == doc.customer_id,
                                                    RequiredDocument.doc_type == doc.doc_type))
     if req:
@@ -549,7 +560,7 @@ def decide_review(db, review: ManualReview, approve: bool, admin: str, note: str
     customer = db.get(Customer, review.customer_id)
     if not customer or customer.case_status == "deleted":
         raise ValueError("customer_deleted")
-    if approve and customer.consent_status != "granted":
+    if customer.consent_status != "granted":
         raise ValueError("consent_withdrawn")
 
     review.status = "approved" if approve else "rejected"
@@ -558,6 +569,7 @@ def decide_review(db, review: ManualReview, approve: bool, admin: str, note: str
         mark_verified(db, doc)
     else:
         doc.verification_status = "rejected"
+        doc.workflow_state = "REJECTED"
         request_resubmission(db, customer, doc)
 
     audit_action = "manual_review_approved" if approve else "manual_review_rejected"
@@ -619,6 +631,15 @@ def confirm_privacy_request(db, raw: str) -> str | None:
         c.workflow_state = "CONSENT_WITHDRAWN"
         c.delete_after = utcnow() + timedelta(days=get_settings().retention_days)
         db.execute(update(AccessToken).where(AccessToken.customer_id == c.id).values(revoked=True))
+        # Close any open manual reviews for this customer so staff do not process withdrawn records
+        open_reviews = list(db.scalars(
+            select(ManualReview).where(ManualReview.customer_id == c.id, ManualReview.status == "open")
+        ))
+        for r in open_reviews:
+            r.status = "rejected"
+            r.note = "auto_closed_consent_withdrawn"
+            r.decided_at = utcnow()
+            r.decided_by = "system"
         emailer.withdrawal_confirmation(c.email, c.name)
     pr.status, pr.completed_at = "completed", utcnow()
     audit(db, "customer", "privacy_" + pr.action, "customer", c.id)

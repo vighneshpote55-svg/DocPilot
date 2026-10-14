@@ -150,13 +150,22 @@ To ensure transactional consent requests and reminder emails reach customer inbo
 ```ini
 [Unit]
 Description=DocPilot FastAPI Backend
-After=network.target
+After=network.target postgresql.service
+Wants=postgresql.service
 
 [Service]
+Type=simple
 User=docpilot
+Group=docpilot
 WorkingDirectory=/var/www/docpilot/backend
+EnvironmentFile=/var/www/docpilot/backend/.env
 ExecStart=/var/www/docpilot/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8080 --workers 2
 Restart=always
+RestartSec=5s
+TimeoutStopSec=30s
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=docpilot-backend
 
 [Install]
 WantedBy=multi-user.target
@@ -166,13 +175,23 @@ WantedBy=multi-user.target
 ```ini
 [Unit]
 Description=DocPilot Postgres Background Worker
-After=network.target
+After=network.target postgresql.service
+Wants=postgresql.service
 
 [Service]
+Type=simple
 User=docpilot
+Group=docpilot
 WorkingDirectory=/var/www/docpilot/backend
+EnvironmentFile=/var/www/docpilot/backend/.env
 ExecStart=/var/www/docpilot/backend/.venv/bin/python -m app.worker
 Restart=always
+RestartSec=5s
+TimeoutStopSec=60s
+KillSignal=SIGTERM
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=docpilot-worker
 
 [Install]
 WantedBy=multi-user.target

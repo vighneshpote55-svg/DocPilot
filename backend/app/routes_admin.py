@@ -22,7 +22,7 @@ from sqlalchemy.orm import Session
 
 
 
-from . import excel_import, services
+from . import excel_import, jobs as jobs_mod, services
 
 from .config import get_settings
 
@@ -170,6 +170,8 @@ def summary(db: Session = Depends(get_db), admin: str = Depends(require_admin)):
         "open_reviews": open_reviews,
 
         "jobs": jobs,
+
+        "queue_metrics": jobs_mod.get_queue_metrics(db),
 
         "metrics": {
 
@@ -615,7 +617,7 @@ def get_review(review_id: str, db: Session = Depends(get_db), admin: str = Depen
 
 
 def _decide(review_id: str, approve: bool, note: str | None, db: Session, admin: str):
-    r = db.get(ManualReview, review_id)
+    r = db.scalar(select(ManualReview).where(ManualReview.id == review_id).with_for_update())
     if not r:
         raise HTTPException(404, "not_found")
     if r.status != "open":
@@ -669,9 +671,13 @@ def view_document(doc_id: str, download: bool = False, db: Session = Depends(get
     if c and c.case_status == "deleted":
         raise HTTPException(410, "file_deleted")
     if c and (c.consent_status == "withdrawn" or c.case_status == "consent_withdrawn"):
+        services.audit(db, admin, "document_access_denied", "document", d.id, {"reason": "consent_withdrawn"})
+        db.commit()
         raise HTTPException(403, "consent_withdrawn")
 
     if download and not get_settings().allow_download:
+        services.audit(db, admin, "document_download_denied", "document", d.id, {"reason": "download_disabled"})
+        db.commit()
         raise HTTPException(403, "download_disabled")
 
     try:
